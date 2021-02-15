@@ -1,31 +1,34 @@
-/* Demo_03_Main.cpp */
+#include <memory>
 
 #include <boost/mpi.hpp>
-#include "repast_hpc/RepastProcess.h"
+#include <repast_hpc/RepastProcess.h>
 
-#include "modelo.h"
+#include "model.hpp"
 
+int main(int argc, char** argv)
+{
 
-int main(int argc, char** argv){
-	
-	std::string configFile = argv[1]; // The name of the configuration file is Arg 1
-	std::string propsFile  = argv[2]; // The name of the properties file is Arg 2
+	// Get the files used for the simulation
+    const auto args = std::vector<char*> { argv, argv + argc }; // NOLINT
 
-	boost::mpi::environment env(argc, argv);
-	boost::mpi::communicator world;
+    const auto config_file = std::string { args[1] }; // Configuration file is arg 1
+    const auto props_file  = std::string { args[2] }; // Properties file is arg 2
 
-	repast::RepastProcess::init(configFile);
-	
-	Modelo* model = new Modelo(propsFile, argc, argv, &world);
-	repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
-	
-	model->init();
-	model->initSchedule(runner);
-	
-	runner.run();
-	
-	delete model;
-	
-	repast::RepastProcess::instance()->done();
-	
+	// Start MPI
+    boost::mpi::environment  env(argc, argv);
+    boost::mpi::communicator world;
+
+    repast::RepastProcess::init(config_file);
+
+	auto model = std::make_unique<sti::model>(props_file, argc, argv, &world);
+    repast::ScheduleRunner& runner = repast::RepastProcess::instance()->getScheduleRunner();
+
+    model->init();
+    model->init_schedule(runner);
+
+    runner.run();
+
+	model.reset();
+
+    repast::RepastProcess::instance()->done();
 }
