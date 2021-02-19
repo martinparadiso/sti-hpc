@@ -49,12 +49,20 @@ public:
     }
     
     void update(const contagious_agent::serial_data& data) {
-        // TODO: update the agent
+        _contagious_agent->update(data);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Behaviour
+    ////////////////////////////////////////////////////////////////////////////
+
+    void act() {
+        _contagious_agent->act();
     }
 
 private:
     repast::AgentId             _agent_id;
     std::unique_ptr<agent_type> _contagious_agent;
-};
+}; // class parallel_agent
 
 } // namespace sti

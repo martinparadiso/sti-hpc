@@ -18,6 +18,7 @@
 #include <repast_hpc/Utilities.h>
 #include <repast_hpc/initialize_random.h>
 
+#include "agent_creator.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "entry.hpp"
@@ -36,7 +37,6 @@ public:
         , _context(comm)
         , _rank { repast::RepastProcess::instance()->rank() }
         , _stop_at { repast::strToInt(_props->getProperty("stop.at")) }
-        , _agents_created { 0 }
         , _clock{ std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
     {
 
@@ -57,9 +57,6 @@ public:
             1,
             comm);
         _context.addProjection(_discrete_space);
-
-        _provider = std::make_unique<parallel_agent_provider>(&_context);
-        _receiver = std::make_unique<parallel_agent_receiver>(&_context);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -84,30 +81,30 @@ public:
     // AUXILIARY FUNCTIONS
     ////////////////////////////////////////////////////////////////////////////
 
+    // TODO: Remove this
     /// @brief Add a new agent to the simulation
     /// @param ca A unique_ptr to a contagious agent
     /// @param pos The position to put the agent
-    void create_new_agent(std::unique_ptr<contagious_agent> ca, plan::coordinates pos)
-    {
-        // Create the agent
-        const auto      type = to_int(ca->get_type());
-        repast::AgentId id { _agents_created++, _rank, type, _rank };
-        auto*           pa = new parallel_agent { id, std::move(ca) };
+    // void create_new_agent(std::unique_ptr<contagious_agent> ca, plan::coordinates pos)
+    // {
+    //     // Create the agent
+    //     const auto      type = to_int(ca->get_type());
+    //     repast::AgentId id { _agents_created++, _rank, type, _rank };
+    //     auto*           pa = new parallel_agent { id, std::move(ca) };
 
-        // Add the agent to the context
-        _context.addAgent(pa);
+    //     // Add the agent to the context
+    //     _context.addAgent(pa);
 
-        // Set the agent initial position
-        const auto initial_location = repast::Point<int> { static_cast<int>(pos.x), static_cast<int>(pos.y) };
-        _discrete_space->moveTo(id, initial_location);
-    }
+    //     // Set the agent initial position
+    //     const auto initial_location = repast::Point<int> { static_cast<int>(pos.x), static_cast<int>(pos.y) };
+    //     _discrete_space->moveTo(id, initial_location);
+    // }
 
 private:
     repast::Properties*                   _props;
     repast::SharedContext<parallel_agent> _context;
     const int                             _rank;
     int                                   _stop_at;
-    int                                   _agents_created;
 
     repast::SharedDiscreteSpace<parallel_agent, repast::StrictBorders, repast::SimpleAdder<parallel_agent>>* _discrete_space;
     std::unique_ptr<parallel_agent_provider>                                                                 _provider;
@@ -121,7 +118,7 @@ private:
     // Extra classes that the model may or may not have depending on the
     // location
     std::unique_ptr<hospital_entry> _entry{};
-
-};
+    std::unique_ptr<patient_factory> _patient_factory{};
+}; // class model
 
 } // namespace sti

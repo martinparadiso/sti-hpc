@@ -124,26 +124,26 @@ class BuildingPlan():
         """Plot the map as an image
         """
 
-        if not self.__class__.plotter_loaded:
+        # if not self.__class__.plotter_loaded:
 
-            # Delayed import 
-            from PIL import Image
+        # Delayed import 
+        from PIL import Image
 
-            # Load all images, add the Image object to each class
-            for tile_class in Tile.__subclasses__():
+        # Load all images, add the Image object to each class
+        for tile_class in Tile.__subclasses__():
 
+            try:
+                tile_class.img_file
+            except:
+                pass
+            else:
                 try:
-                    tile_class.img_file
-                except:
-                    pass
-                else:
-                    try:
-                        sprite_path = plot_assets_path/tile_class.img_file
-                        tile_class.sprite = Image.open(sprite_path).resize(sprite_size)
+                    sprite_path = plot_assets_path/tile_class.img_file
+                    tile_class.sprite = Image.open(sprite_path).resize(sprite_size)
 
-                    except:
-                        print(f"Couldn't open file {sprite_path}, using red image")
-                        tile_class.sprite = Image.new('RGB', sprite_size, (255,0,0))
+                except:
+                    print(f"Couldn't open file {sprite_path}, using red image")
+                    tile_class.sprite = Image.new('RGB', sprite_size, (255,0,0))
         
             self.__class__.plotter_loaded = True
 

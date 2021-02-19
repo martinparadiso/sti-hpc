@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <sstream>
 
 #include <repast_hpc/RepastProcess.h>
 
@@ -49,6 +50,13 @@ public:
         auto days() const
         {
             return _days;
+        }
+
+        std::string str() const {
+            auto ss = std::ostringstream{};
+            ss << "Day " << days() << ", ";
+            ss << hours() << ":" << minutes() << ":" << seconds();
+            return ss.str();
         }
 
     private:
@@ -102,7 +110,7 @@ public:
     /// @brief Get the simulated seconds since the start of the simulation
     date_t now() const
     {
-        return static_cast<date_t::resolution>(_tick) * _seconds_per_tick;
+        return date_t{static_cast<date_t::resolution>(_tick) * _seconds_per_tick};
     }
 
     /// @brief Get the time passed in the simulation, in fancy format

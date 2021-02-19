@@ -14,13 +14,12 @@ namespace sti {
 class contagious_agent {
 
 public:
-
-    contagious_agent() = default;
+    contagious_agent()                        = default;
     contagious_agent(const contagious_agent&) = default;
-    contagious_agent(contagious_agent&&) = default;
+    contagious_agent(contagious_agent&&)      = default;
     contagious_agent& operator=(const contagious_agent&) = default;
     contagious_agent& operator=(contagious_agent&&) = default;
-    virtual ~contagious_agent() = default;
+    virtual ~contagious_agent()                     = default;
 
     /// @brief The different type of contagious agents
     enum class type {
@@ -45,6 +44,9 @@ public:
     /// @details Update the agent state with new data
     /// @param data The new data for the agent
     virtual void update(const serial_data& data) = 0;
+
+    /// @brief Perform the actions this agent is supposed to
+    virtual void act() = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,29 +57,35 @@ public:
 class patient_agent : public contagious_agent {
 
 public:
-    /// @brief A patient cannot be default constructed, probabilities are needed
+    /// @brief Patient common properties
+    struct flyweight {
+
+        /// @brief Chance of infecting others
+        p_precission infect_chance;
+    };
+
+    /// @brief A patient cannot be default constructed, unusable
     patient_agent()
-        : _infecting_chance {}
+        : _flyweight{}
         , _entry_time {}
     {
     }
 
     /// @brief Create a new patient
-    /// @param infecting_chance The change of infecting other patients
+    /// @param fw The flyweight containing the shared properties
     /// @param entry_time The instant the patient enter the building
-    patient_agent(p_precission infecting_chance, const clock::date_t& entry_time)
-        : _infecting_chance { infecting_chance }
+    patient_agent(const flyweight* fw, const clock::date_t& entry_time)
+        : _flyweight { fw }
         , _entry_time { entry_time }
     {
     }
 
     /// @brief Create a new patient from serialized data
     /// @param data The serialized data
-    patient_agent(const serial_data& data)
-    : _infecting_chance{ boost::get<p_precission>(data.at(0)) }
-    , _entry_time{ boost::get<clock::resolution>(data.at(1)) }
+    patient_agent(const flyweight* fw, const serial_data& data)
+        : _flyweight { fw }
+        , _entry_time { boost::get<clock::resolution>(data.at(0)) }
     {
-
     }
 
     /// @brief Get the type of the agent
@@ -87,37 +95,44 @@ public:
         return contagious_agent::type::PATIENT;
     }
 
-
     /// @brief Serialize the internal state of the agent
     /// @return The serialized data
-    serial_data serialize() const override {
-        return { _infecting_chance, _entry_time.epoch() };
+    serial_data serialize() const override
+    {
+        return { _entry_time.epoch() };
     }
 
     /// @brief Update this agent with new data
     /// @param data The serial data used to update this agent
-    void update(const serial_data& data) override {
-        *this = patient_agent(data);
+    void update(const serial_data& data) override
+    {
+        *this = patient_agent(_flyweight, data);
     }
 
     /// @brief Get infect chance
     /// @return The infect chance
-    auto infect_chance() const {
-        return _infecting_chance;
+    auto infect_chance() const
+    {
+        return _flyweight->infect_chance;
     }
 
     /// @brief Get the time the patient was admitted at the hospital
     /// @return The date (with a precission of seconds) the patient was admitted
-    auto entry_time() const {
+    auto entry_time() const
+    {
         return _entry_time;
     }
 
-private:
-    contagious_agent::p_precission _infecting_chance;
-    clock::date_t                  _entry_time;
+    ////////////////////////////////////////////////////////////////////////////
+    // Behaviour
+    ////////////////////////////////////////////////////////////////////////////
 
-    // TODO: missing data?
-};
+    void act() override;
+
+private:
+    const flyweight* _flyweight;
+    clock::date_t    _entry_time;
+}; // patient_agent
 
 ////////////////////////////////////////////////////////////////////////////////
 // INT <-> ENUM
