@@ -34,7 +34,9 @@ function(sanitize_address target)
 endfunction()
 
 # Demo ========================================================================
-add_executable(sti-demo src/main.cpp src/model.cpp)
+add_executable(sti-demo "src/main.cpp"
+						"src/model.cpp"
+						"src/infection_logic/human_infection_cycle.cpp")
 target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
 

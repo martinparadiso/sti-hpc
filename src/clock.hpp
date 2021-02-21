@@ -13,7 +13,7 @@ class clock {
 
 public:
     using resolution = std::uint64_t;
-    
+
     /// @brief Date presented in a fancy format with days, hours, minutes and seconds
     class fancy_date {
 
@@ -52,8 +52,9 @@ public:
             return _days;
         }
 
-        std::string str() const {
-            auto ss = std::ostringstream{};
+        std::string str() const
+        {
+            auto ss = std::ostringstream {};
             ss << "Day " << days() << ", ";
             ss << hours() << ":" << minutes() << ":" << seconds();
             return ss.str();
@@ -79,12 +80,14 @@ public:
         }
 
         /// @brief Get the date in a fancy format
-        fancy_date get_fancy() const {
-            return fancy_date{_epoch};
+        fancy_date get_fancy() const
+        {
+            return fancy_date { _epoch };
         }
 
         /// @brief Get the number of seconds represented by this date
-        auto epoch() const {
+        auto epoch() const
+        {
             return _epoch;
         }
 
@@ -110,7 +113,7 @@ public:
     /// @brief Get the simulated seconds since the start of the simulation
     date_t now() const
     {
-        return date_t{static_cast<date_t::resolution>(_tick) * _seconds_per_tick};
+        return date_t { static_cast<date_t::resolution>(_tick) * _seconds_per_tick };
     }
 
     /// @brief Get the time passed in the simulation, in fancy format
@@ -126,3 +129,8 @@ private:
 };
 
 } // namespace sti
+
+inline auto operator-(sti::clock::date_t lo, sti::clock::date_t ro)
+{
+    return lo.epoch() - ro.epoch();
+}

@@ -15,8 +15,9 @@
 
 namespace sti {
 
-class parallel_agent;
-using repast_space     = repast::SharedDiscreteSpace<parallel_agent, repast::StrictBorders, repast::SimpleAdder<parallel_agent>>;
+class contagious_agent;
+using agent            = contagious_agent;
+using repast_space     = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
 using repast_space_ptr = const repast_space*;
 
 /// @brief Represents the human infection cycle: healthy, incubating, sick
@@ -30,8 +31,11 @@ public:
     /// @brief Struct containing the shared attributes of all infection in humans
     struct flyweight {
         repast_space_ptr repast_space;
-        precission       infect_chance;
         clock*           clk;
+
+        precission                infect_chance;
+        int                       infect_distance;
+        clock::date_t::resolution incubation_time;
     };
 
     using flyweight_ptr = const flyweight*;
@@ -41,7 +45,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
 
     struct bad_stage_cast : public std::exception {
-        const char* what() const noexcept override
+        const char* what() const noexcept final
         {
             return "Exception: Can't cast int to human_infection_cycle::STAGE";
         }
@@ -167,7 +171,7 @@ public:
     /// @brief Get the probability of infecting others
     /// @param position The position of the other agent
     /// @return A value between 0 and 1
-    precission get_probability(const position_t& position) const override
+    precission get_probability(const position_t& position) const final
     {
 
         // Get the position of this object
@@ -180,9 +184,12 @@ public:
         const auto distance = _flyweight->repast_space->getDistanceSq(location, position);
 
         if (_stage == STAGE::HEALTHY) return 0.0;
-        if (distance < 0.0 || distance > 2.0) return 0.0;
+        if (distance > static_cast<double>(_flyweight->infect_distance)) return 0.0;
         return _flyweight->infect_chance;
     }
+
+    /// @brief Run the infection algorithm, polling nearby agents trying to get infected
+    void tick() final;
 
 private:
     flyweight_ptr _flyweight;

@@ -2,10 +2,11 @@
 /// @brief Infection factory, to ease the creation of infection
 #pragma once
 
-#include "clock.hpp"
+#include <repast_hpc/AgentId.h>
+
+#include "../clock.hpp"
 #include "human_infection_cycle.hpp"
 #include "object_infection_cycle.hpp"
-#include <repast_hpc/AgentId.h>
 
 namespace sti {
 
@@ -23,8 +24,8 @@ public:
     /// @param hf Human infection cycle flyweight
     /// @param of Object infection cycle flyweight
     infection_factory(const human_flyweight& hf, const object_flyweight& of)
-        : _human_flyweight { std::make_unique<human_flyweight>(hf) }
-        , _object_flyweight { std::make_unique<object_flyweight>(of) }
+        : _human_flyweight { hf }
+        , _object_flyweight { of }
     {
     }
 
@@ -38,9 +39,9 @@ public:
     /// @param t The time of infection
     /// @return A human infection cycle object
     human_infection_cycle make_human_cycle(const agent_id&              id,
-                                           human_infection_cycle::STAGE is)
+                                           human_infection_cycle::STAGE is) const
     {
-        return human_infection_cycle { _human_flyweight.get(), id, is };
+        return human_infection_cycle { &_human_flyweight, id, is };
     }
 
     /// @brief Get a new human infection cycle
@@ -50,9 +51,9 @@ public:
     /// @return A human infection cycle object
     human_infection_cycle make_human_cycle(const agent_id&              id,
                                            human_infection_cycle::STAGE is,
-                                           clock::date_t                t)
+                                           clock::date_t                t) const
     {
-        return human_infection_cycle { _human_flyweight.get(), id, is, t };
+        return human_infection_cycle { &_human_flyweight, id, is, t };
     }
 
     /// @brief Construct a human infection with serialized data
@@ -60,9 +61,9 @@ public:
     /// @param sp The serialized data
     /// @return A human infection cycle object
     human_infection_cycle make_human_cycle(const agent_id&                                  id,
-                                           const human_infection_cycle::serialization_pack& sp)
+                                           const human_infection_cycle::serialization_pack& sp) const
     {
-        return human_infection_cycle { _human_flyweight.get(), id, sp };
+        return human_infection_cycle { &_human_flyweight, id, sp };
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -74,9 +75,9 @@ public:
     /// @param is Initial stage of the cycle
     /// @return An object infection cycle object
     object_infection_cycle make_object_cycle(const agent_id&               id,
-                                             object_infection_cycle::STAGE is)
+                                             object_infection_cycle::STAGE is) const
     {
-        return object_infection_cycle { _object_flyweight.get(), id, is };
+        return object_infection_cycle { &_object_flyweight, id, is };
     }
 
     /// @brief Get a new human infection cycle
@@ -84,14 +85,14 @@ public:
     /// @param sp The serialized data
     /// @return An object infection cycle object
     object_infection_cycle make_object_cycle(const agent_id&                                   id,
-                                             const object_infection_cycle::serialization_pack& sp)
+                                             const object_infection_cycle::serialization_pack& sp) const
     {
-        return object_infection_cycle { _object_flyweight.get(), id, sp };
+        return object_infection_cycle { &_object_flyweight, id, sp };
     }
 
 private:
-    std::unique_ptr<human_flyweight>  _human_flyweight;
-    std::unique_ptr<object_flyweight> _object_flyweight;
+    human_flyweight  _human_flyweight;
+    object_flyweight _object_flyweight;
 };
 
 } // namespace sti

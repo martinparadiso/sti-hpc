@@ -66,7 +66,7 @@ struct plan_file_unknown_code : public std::exception {
 /// @brief Convert plan file tile code to the corresponding tile type
 /// @param value The value to decode
 /// @return The corresponding tile enum
-plan_tile decode_tile(file_format::tile_unit value)
+inline plan_tile decode_tile(file_format::tile_unit value)
 {
     using E = plan_tile::TILE_ENUM;
 
@@ -92,7 +92,7 @@ plan_tile decode_tile(file_format::tile_unit value)
 /// @throws inconsistent_row If a line has a different length
 /// @throws unknown_tile If the file contains an unknown token
 /// @return a plan created from the file
-plan load_plan(const std::string& file_path)
+inline plan load_plan(const std::string& file_path)
 {
 
     auto file     = std::ifstream { file_path, std::ios::binary };
@@ -163,6 +163,6 @@ plan load_plan(const std::string& file_path)
     }
 
     return return_plan;
-}
+} // load_plan(...)
 
 } // namespace sti

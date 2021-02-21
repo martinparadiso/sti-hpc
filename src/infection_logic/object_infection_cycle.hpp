@@ -11,12 +11,13 @@
 
 namespace sti {
 
-class parallel_agent;
-using repast_space =repast::SharedDiscreteSpace<parallel_agent, repast::StrictBorders, repast::SimpleAdder<parallel_agent>>;
+class contagious_agent;
+using agent = contagious_agent;
+using repast_space =repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
 using repast_space_ptr = const repast_space*;
 
 /// @brief Represents an object infection cycle: clean or infected
-class object_infection_cycle final : infection_cycle {
+class object_infection_cycle final : public infection_cycle {
 
 public:
     ////////////////////////////////////////////////////////////////////////////
@@ -150,6 +151,12 @@ public:
     void clean()
     {
         _stage = STAGE::CLEAN;
+    }
+
+
+    /// @brief Run the infection algorithm, polling nearby agents trying to get infected
+    void tick() final {
+        // TODO: implement
     }
 
 private:

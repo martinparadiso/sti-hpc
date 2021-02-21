@@ -193,8 +193,12 @@ inline std::unique_ptr<patient_distribution> load_patient_distribution(std::stri
 
     while (std::getline(file, line)) {
         auto new_day = parse_line(line);
-        if ((data.end() - 1)->size() != new_day.size()) {
-            throw inconsistent_bins_in_file {};
+
+        // Make sure all the days have the same intervals
+        if (! data.empty()) {
+            if ((data.end() - 1)->size() != new_day.size()) {
+                throw inconsistent_bins_in_file {};
+            }
         }
         data.emplace_back(std::move(new_day));
     }

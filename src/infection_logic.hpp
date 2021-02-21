@@ -4,6 +4,6 @@
 #pragma once
 
 #include "infection_logic/infection_cycle.hpp"
-#include "infection_logic/human_infection_logic.hpp"
-#include "infection_logic/object_infection_logic.hpp"
+#include "infection_logic/human_infection_cycle.hpp"
+#include "infection_logic/object_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"

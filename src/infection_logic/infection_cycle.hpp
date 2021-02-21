@@ -28,7 +28,11 @@ public:
     /// @brief Get the probability of infecting others
     /// @param distance The distance to the other agent, in meters
     /// @return A value between 0 and 1
-    virtual precission get_probability(const position_t& position) const;
+    [[nodiscard]]
+    virtual precission get_probability(const position_t& position) const = 0;
+
+    /// @brief Run the infection algorithm, polling nearby agents trying to get infected
+    virtual void tick() = 0;
 }; // class infection_cycle
 
 } // namespace sti
