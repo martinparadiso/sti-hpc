@@ -72,9 +72,8 @@ public:
     /// @param i The number to deserialize/convert to enum
     /// @return the corresponding enum
     /// @throws bad_stage_cast If the enum is out of range
-    constexpr static STAGE get_stage(std::uint32_t i)
+    constexpr static STAGE to_enum(std::uint32_t i)
     {
-
         if (i == 0) return STAGE::HEALTHY;
         if (i == 1) return STAGE::INCUBATING;
         if (i == 2) return STAGE::SICK;
@@ -85,24 +84,12 @@ public:
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialization tuple used to serialize and deserialize the object
-    // using serialization_pack = std::tuple<std::uint32_t, clock::date_t::resolution>;
-    struct serialization_pack {
-        std::uint32_t             stage;
-        clock::date_t::resolution infection_time;
-    };
-
-    human_infection_cycle() = delete;
-
-    /// @brief Construct a cycle starting in a given state
-    /// @param fw The flyweight containing the shared attributes
-    /// @param id The repast agent id
-    /// @param stage The initial stage
-    human_infection_cycle(flyweight_ptr fw, const agent_id& id, STAGE stage)
-        : _flyweight { fw }
-        , _id { id }
-        , _stage { stage }
-        , _infection_time { stage != STAGE::HEALTHY ? 0UL : _flyweight->clk->now() }
+    /// @brief Default construct a cycle
+    human_infection_cycle(flyweight_ptr fw)
+        : _id {}
+        , _flyweight {fw}
+        , _stage {}
+        , _infection_time {}
     {
     }
 
@@ -111,50 +98,73 @@ public:
     /// @param id The repast agent id
     /// @param stage The initial stage
     /// @param t The time the human became infected
-    human_infection_cycle(flyweight_ptr   fw,
-                          const agent_id& id,
+    human_infection_cycle(const agent_id& id,
+                          flyweight_ptr   fw,
+                          STAGE           stage)
+        : _id { id }
+        , _flyweight { fw }
+        , _stage { stage }
+        , _infection_time {}
+    {
+    }
+
+    /// @brief Construct a cycle starting in a given state, specifing the time of infection
+    /// @param fw The flyweight containing the shared attributes
+    /// @param id The repast agent id
+    /// @param stage The initial stage
+    /// @param t The time the human became infected
+    human_infection_cycle(const agent_id& id,
+                          flyweight_ptr   fw,
                           STAGE           stage,
                           clock::date_t   t)
-        : _flyweight { fw }
-        , _id { id }
+        : _id { id }
+        , _flyweight { fw }
         , _stage { stage }
         , _infection_time { t }
     {
+        // The infection time is only applicable when the stage is not healthy
+        assert(stage != STAGE::HEALTHY);
     }
 
     /// @brief Construct a cycle from serialized data
     /// @param fw The flyweight containing the shared attributes
     /// @param id The repast agent id
-    /// @param sp The serialized data
-    human_infection_cycle(flyweight_ptr             fw,
-                          const agent_id&           id,
-                          const serialization_pack& sp)
-        : _flyweight { fw }
-        , _id { id }
-        , _stage { get_stage(sp.stage) }
-        , _infection_time { sp.infection_time }
+    /// @param stage The initial stage
+    /// @param t The time the human became infected
+    human_infection_cycle(const agent_id& id,
+                          flyweight_ptr   fw,
+                          serial_data&    queue)
+        : _id { id }
+        , _flyweight { fw }
+        , _stage {}
+        , _infection_time {}
     {
+        deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Update the internal state of the infection
-    /// @param id The new id of the agent associated with this logic
-    /// @param sp Serialization pack, containing the information to recreate
-    void update(const agent_id& id, const serialization_pack& sp)
+    /// @brief Serialize the internal state of the infection
+    /// @param queue The queue to store the data
+    void serialize(serial_data& queue) const final
     {
-        _id             = id;
-        _stage          = get_stage(sp.stage);
-        _infection_time = sp.infection_time;
+        queue.push(_id);
+        queue.push(to_int(_stage));
+        queue.push(_infection_time.epoch());
     }
 
-    /// @brief Serialize the internal state of the infection logic
-    /// @return A struct containing the serialized data
-    serialization_pack serialize() const
+    /// @brief Deserialize the data and update the agent data
+    /// @param queue The queue containing the data
+    void deserialize(serial_data& queue) final
     {
-        return { to_int(_stage), _infection_time.epoch() };
+        _id = boost::get<repast::AgentId>(queue.front());
+        queue.pop();
+        _stage = to_enum(boost::get<std::uint32_t>(queue.front()));
+        queue.pop();
+        _infection_time = boost::get<std::uint64_t>(queue.front());
+        queue.pop();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -191,9 +201,16 @@ public:
     /// @brief Run the infection algorithm, polling nearby agents trying to get infected
     void tick() final;
 
+    /// @brief Set the id
+    /// @param id The new id
+    void set_id(const agent_id& id)
+    {
+        _id = id;
+    }
+
 private:
-    flyweight_ptr _flyweight;
     agent_id      _id;
+    flyweight_ptr _flyweight;
     STAGE         _stage;
     clock::date_t _infection_time;
 }; // class human_infection_cycle

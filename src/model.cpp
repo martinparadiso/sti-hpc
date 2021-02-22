@@ -22,11 +22,6 @@
 void sti::model::init()
 {
 
-    // TODO: Load the building plan here?
-    // print("Loading plan...");
-    // const auto plan_path = _props->getProperty("plan.path");
-    // _plan                = load_plan(plan_path);
-
     // Get the process local dimensions (the dimensions executed by this process)
     const auto local_dims = _discrete_space->dimensions();
     const auto origin     = plan::dimensions {
@@ -52,25 +47,12 @@ void sti::model::init()
     }
 
     print("Creating the agent factory...");
+
     // Create the agent factory
-    const auto inf_factory = infection_factory {
-        human_infection_cycle::flyweight {
-            _discrete_space,
-            _clock.get(),
-            boost::lexical_cast<sti::infection_cycle::precission>(_props->getProperty("human.infection.chance")),
-            boost::lexical_cast<int>(_props->getProperty("human.infection.distance")),
-            boost::lexical_cast<clock::date_t::resolution>(_props->getProperty("human.incubation.time")) },
-        object_infection_cycle::flyweight {
-            _discrete_space,
-            boost::lexical_cast<sti::infection_cycle::precission>(_props->getProperty("object.infection.chance")) }
-    };
     _agent_factory = std::make_unique<agent_factory>(&_context,
                                                      _discrete_space,
                                                      _clock.get(),
-                                                     patient_agent::flyweight {},
-                                                     person_agent::flyweight {},
-                                                     object_agent::flyweight {},
-                                                     inf_factory);
+                                                     _props);
 
     // Create the package provider and receiver
     _provider = std::make_unique<agent_provider>(&_context);
@@ -78,8 +60,8 @@ void sti::model::init()
 
     // TODO: Remove this, it's a test
     print("Inserting test person...");
-    _agent_factory->insert_new_person({ 10, 10 }, human_infection_cycle::STAGE::HEALTHY);
     _agent_factory->insert_new_person({ 10, 11 }, human_infection_cycle::STAGE::SICK);
+    _agent_factory->insert_new_object({ 10, 11 }, object_infection_cycle::STAGE::CLEAN);
 } // sti::model::init()
 
 /// @brief Initialize the scheduler

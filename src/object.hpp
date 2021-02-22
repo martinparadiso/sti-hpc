@@ -21,6 +21,7 @@ public:
 
     /// @brief Person flyweight/common attributes
     struct flyweight {
+        const infection_factory* inf_factory;
     };
 
     using flyweight_ptr = const flyweight*;
@@ -40,42 +41,38 @@ public:
     {
     }
 
-    object_agent(const id_t& id,
-    flyweight_ptr fw,
-    const serial_data& data,
-    const infection_factory* inf) 
-    : contagious_agent{id}
-    , _flyweight{fw}
-    , _infection_logic{
-        inf->make_object_cycle(id, {boost::get<std::uint32_t>(data.at(0))})
-    } {
-
+    /// @brief Create an object from serialized data
+    /// @param id The agent id
+    /// @param fw Object flyweight
+    /// @param data The serialized data
+    /// @param inf An infection factory
+    object_agent(const id_t&   id,
+                 flyweight_ptr fw,
+                 serial_data&  queue)
+        : contagious_agent { id }
+        , _flyweight { fw }
+        , _infection_logic { fw->inf_factory->make_object_cycle() }
+    {
+        deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialize the agent data into a vector
-    /// @return A vector with the agent data required for reconstruction
-    serial_data serialize() const final {
-        auto data = serial_data{};
-
-        // No internal state, serialize only infection logic
-        const auto ic = _infection_logic.serialize();
-        data.push_back(ic.stage);
-
-        return data;
+    /// @brief Serialize the internal state of the infection
+    /// @param queue The queue to store the data
+    void serialize(serial_data& queue) const final
+    {
+        // No internal state, serialize only infect logic
+        _infection_logic.serialize(queue);
     }
 
-    /// @brief Update the agent state with new data
-    /// @param id The agent id
-    /// @param data The serial data
-    void update(const id_t& id, const serial_data& data) final {
-        const auto sp = object_infection_cycle::serialization_pack{
-            boost::get<std::uint32_t>(data.at(0))
-        };
-        _infection_logic.update(id, sp);
+    /// @brief Deserialize the data and update the agent data
+    /// @param queue The queue containing the data
+    void deserialize(serial_data& queue) final
+    {
+        _infection_logic.deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -84,18 +81,21 @@ public:
 
     /// @brief Get the type of this agent
     /// @return The type of the agent
-    type get_type() const final {
+    type get_type() const final
+    {
         return type::OBJECT;
     }
 
     /// @brief Perform the actions this agents is suppossed to
-    void act() final {
+    void act() final
+    {
         _infection_logic.tick();
     }
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
-    const infection_cycle* get_infection_logic() const final {
+    const infection_cycle* get_infection_logic() const final
+    {
         return &_infection_logic;
     }
 

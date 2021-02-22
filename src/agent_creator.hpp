@@ -1,11 +1,9 @@
 /// @brief Agent creation
 #pragma once
 
-#include <exception>
-#include <memory>
-
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/Point.h>
+#include <repast_hpc/Properties.h>
 
 #include "contagious_agent.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
@@ -36,8 +34,6 @@ public:
     using context_ptr = repast::SharedContext<agent>*;
     using space_ptr   = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>*;
 
-    using serial_data = contagious_agent::serial_data;
-
     /// @brief Create a new patient factory
     /// @param context The repast context, to insert the agent
     /// @param discrete_space The repast shared space
@@ -45,21 +41,29 @@ public:
     /// @param patient_fw The flyweight containing all the patient shared attributes
     /// @param person_fw The flyweight containing all the person shared attributes
     /// @param object_fw The flyweight containing all the object shared attributes
-    agent_factory(context_ptr              context,
-                  space_ptr                discrete_space,
-                  clock*                   c,
-                  const patient_flyweight& patient_fw,
-                  const person_flyweight&  person_fw,
-                  const object_flyweight&  object_fw,
-                  const infection_factory& inf_factory)
+    agent_factory(context_ptr               context,
+                  space_ptr                 discrete_space,
+                  clock*                    c,
+                  const repast::Properties* props)
         : _context { context }
         , _discrete_space { discrete_space }
         , _clock { c }
-        , _agents_created {}
-        , _patient_flyweight { patient_fw }
-        , _person_flyweight { person_fw }
-        , _object_flyweight { object_fw }
-        , _infection_factory { inf_factory }
+        , _agents_created { 0 }
+        , _infection_factory {
+            human_infection_cycle::flyweight {
+                _discrete_space,
+                _clock,
+                boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("human.infection.chance")),
+                boost::lexical_cast<int>(props->getProperty("human.infection.distance")),
+                boost::lexical_cast<clock::date_t::resolution>(props->getProperty("human.incubation.time")) },
+            object_infection_cycle::flyweight {
+                _discrete_space,
+                boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("object.infection.chance")),
+                boost::lexical_cast<int>(props->getProperty("object.infection.distance")) }
+        }
+        , _patient_flyweight { &_infection_factory }
+        , _person_flyweight { &_infection_factory }
+        , _object_flyweight { &_infection_factory }
     {
     }
 
@@ -95,12 +99,11 @@ public:
     /// @param data The serialized data
     /// @return A pointer to the newly created object
     agent_ptr recreate_patient(const repast::AgentId& id,
-                               const serial_data&     data) const
+                               serial_data&           data) const
     {
         auto* patient = new patient_agent { id,
                                             &_patient_flyweight,
-                                            data,
-                                            &_infection_factory };
+                                            data };
         return patient;
     };
 
@@ -136,12 +139,11 @@ public:
     /// @param data The serialized data
     /// @return A pointer to the newly created object
     agent_ptr recreate_person(const repast::AgentId& id,
-                              const serial_data&     data) const
+                              serial_data&           data) const
     {
         auto* patient = new person_agent { id,
                                            &_person_flyweight,
-                                           data,
-                                           &_infection_factory };
+                                           data };
         return patient;
     };
 
@@ -177,12 +179,11 @@ public:
     /// @param data The serialized data
     /// @return A pointer to the newly created object
     agent_ptr recreate_object(const repast::AgentId& id,
-                              const serial_data&     data) const
+                              serial_data&           data) const
     {
         auto* patient = new object_agent { id,
                                            &_object_flyweight,
-                                           data,
-                                           &_infection_factory };
+                                           data };
         return patient;
     };
 
@@ -192,12 +193,13 @@ private:
     clock*      _clock; // To indicate the patient creation time
     unsigned    _agents_created;
 
+    // Infection factory
+    infection_factory _infection_factory;
+
+    // Agent flyweights
     patient_flyweight _patient_flyweight;
     person_flyweight  _person_flyweight;
     object_flyweight  _object_flyweight;
-
-    // Infection
-    infection_factory _infection_factory;
 };
 
 } // namespace sti

@@ -2,10 +2,11 @@
 /// @brief Patient agent
 #pragma once
 
+#include <cstdint>
+
 #include "contagious_agent.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
-#include <cstdint>
 
 namespace sti {
 
@@ -19,7 +20,10 @@ public:
 
     /// @brief Patient common properties
     struct flyweight {
+        const infection_factory* inf_factory;
     };
+
+    using flyweight_ptr = const flyweight*;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
@@ -47,47 +51,36 @@ public:
     /// @param id The agent id
     /// @param fw The agent flyweight
     /// @param data The serialized data
-    /// @param inf An infection factory
-    patient_agent(const id_t&              id,
-                  const flyweight*         fw,
-                  const serial_data&       data,
-                  const infection_factory* inf)
+    patient_agent(const id_t&      id,
+                  const flyweight* fw,
+                  serial_data&     queue)
         : contagious_agent { id }
         , _flyweight { fw }
-        , _entry_time { boost::get<clock::resolution>(data.at(0)) }
-        , _infection_logic {
-            inf->make_human_cycle(id, { boost::get<std::uint32_t>(data.at(1)), boost::get<clock::resolution>(data.at(2)) })
-        }
+        , _entry_time {}
+        , _infection_logic { fw->inf_factory->make_human_cycle() }
     {
+        deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialize the internal state of the agent
-    /// @return The serialized data
-    serial_data serialize() const override
+    /// @brief Serialize the internal state of the infection
+    /// @param queue The queue to store the data
+    void serialize(serial_data& queue) const final
     {
-        const auto sp = _infection_logic.serialize();
-        return { _entry_time.epoch(), sp.stage, sp.infection_time };
+        queue.push(_entry_time.epoch());
+        _infection_logic.serialize(queue);
     }
 
-    /// @brief Update the agent state
-    /// @details Update the agent state with new data
-    /// @param id The agent id associated with this
-    /// @param data The new data for the agent
-    /// @param inf An infection factory
-    void update(const repast::AgentId& id,
-                const serial_data&     data) final
+    /// @brief Deserialize the data and update the agent data
+    /// @param queue The queue containing the data
+    void deserialize(serial_data& queue) final
     {
-        contagious_agent::id(id);
-        _entry_time   = boost::get<clock::date_t::resolution>(data.at(0));
-        const auto sp = human_infection_cycle::serialization_pack {
-            boost::get<std::uint32_t>(data.at(1)),
-            boost::get<clock::date_t::resolution>(data.at(2))
-        };
-        _infection_logic.update(id, sp);
+        _entry_time = boost::get<clock::date_t::resolution>(queue.front());
+        queue.pop();
+        _infection_logic.deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -121,7 +114,7 @@ public:
     }
 
 private:
-    const flyweight*      _flyweight;
+    flyweight_ptr         _flyweight;
     clock::date_t         _entry_time;
     human_infection_cycle _infection_logic;
 }; // patient_agent

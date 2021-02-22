@@ -2,7 +2,7 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
+#include <queue>
 
 #include <boost/variant.hpp>
 #include <repast_hpc/AgentId.h>
@@ -11,6 +11,9 @@
 #include "infection_logic/infection_factory.hpp"
 
 namespace sti {
+
+using variant     = boost::variant<float, double, std::int32_t, std::uint32_t, std::uint64_t, std::int64_t, repast::AgentId>;
+using serial_data = std::queue<variant>;
 
 /// @brief An virtual class representing an agent capable of infecting others
 class contagious_agent {
@@ -30,10 +33,7 @@ public:
         PATIENT,
     };
 
-    using p_precission = float;
-    using variant      = boost::variant<float, double, std::int32_t, std::uint32_t, std::uint64_t, std::int64_t>;
-    using serial_data  = std::vector<variant>;
-    using id_t         = repast::AgentId;
+    using id_t = repast::AgentId;
 
     ////////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
@@ -48,17 +48,13 @@ public:
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialize the agent data into a vector
-    /// @returns A vector with the agent data required for reconstruction
-    virtual serial_data serialize() const = 0;
+    /// @brief Serialize the internal state of the infection
+    /// @param queue The queue to store the data
+    virtual void serialize(serial_data& queue) const = 0;
 
-    /// @brief Update the agent state
-    /// @details Update the agent state with new data
-    /// @param id The agent id associated with this
-    /// @param data The new data for the agent
-    virtual void update(const repast::AgentId& id,
-                        const serial_data&     data)
-        = 0;
+    /// @brief Deserialize the data and update the agent data
+    /// @param queue The queue containing the data
+    virtual void deserialize(serial_data& queue) = 0;
 
     ////////////////////////////////////////////////////////////////////////////////
     // REPAST REQUIRED METHODS

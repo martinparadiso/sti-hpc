@@ -33,6 +33,13 @@ public:
     // HUMAN INFECTION CYCLE CREATION
     ////////////////////////////////////////////////////////////////////////////
 
+    /// @brief Default construct a human infection cycle
+    /// @return A default constructed human infected cycle
+    human_infection_cycle make_human_cycle() const
+    {
+        return human_infection_cycle { &_human_flyweight };
+    }
+
     /// @brief Get a new human infection cycle
     /// @param id The agent id associated with this cycle
     /// @param is Initial stage of the cycle
@@ -41,7 +48,7 @@ public:
     human_infection_cycle make_human_cycle(const agent_id&              id,
                                            human_infection_cycle::STAGE is) const
     {
-        return human_infection_cycle { &_human_flyweight, id, is };
+        return human_infection_cycle { id, &_human_flyweight, is };
     }
 
     /// @brief Get a new human infection cycle
@@ -53,22 +60,29 @@ public:
                                            human_infection_cycle::STAGE is,
                                            clock::date_t                t) const
     {
-        return human_infection_cycle { &_human_flyweight, id, is, t };
+        return human_infection_cycle { id, &_human_flyweight, is, t };
     }
 
     /// @brief Construct a human infection with serialized data
     /// @param id The agent id associated with this cycle
-    /// @param sp The serialized data
+    /// @param queue The serialized data
     /// @return A human infection cycle object
-    human_infection_cycle make_human_cycle(const agent_id&                                  id,
-                                           const human_infection_cycle::serialization_pack& sp) const
+    human_infection_cycle make_human_cycle(const agent_id& id,
+                                           serial_data&    queue) const
     {
-        return human_infection_cycle { &_human_flyweight, id, sp };
+        return human_infection_cycle { id, &_human_flyweight, queue };
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // OBJECT INFECTION CYCLE CREATION
     ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Default construct an object infection
+    /// @return A default constructed object infection cycle
+    object_infection_cycle make_object_cycle() const
+    {
+        return object_infection_cycle { &_object_flyweight };
+    }
 
     /// @brief Construct an object infection cycle
     /// @param id The agent id associated with this cycle/logic
@@ -77,17 +91,17 @@ public:
     object_infection_cycle make_object_cycle(const agent_id&               id,
                                              object_infection_cycle::STAGE is) const
     {
-        return object_infection_cycle { &_object_flyweight, id, is };
+        return object_infection_cycle { id, &_object_flyweight, is };
     }
 
     /// @brief Get a new human infection cycle
     /// @param id The agent id associated with this cycle
-    /// @param sp The serialized data
+    /// @param queue The serialized data
     /// @return An object infection cycle object
-    object_infection_cycle make_object_cycle(const agent_id&                                   id,
-                                             const object_infection_cycle::serialization_pack& sp) const
+    object_infection_cycle make_object_cycle(const agent_id& id,
+                                             serial_data&    queue) const
     {
-        return object_infection_cycle { &_object_flyweight, id, sp };
+        return object_infection_cycle { id, &_object_flyweight, queue };
     }
 
 private:

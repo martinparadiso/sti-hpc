@@ -20,6 +20,7 @@ public:
 
     /// @brief Person flyweight/common attributes
     struct flyweight {
+        const infection_factory* inf_factory;
     };
 
     using flyweight_ptr = const flyweight*;
@@ -32,58 +33,43 @@ public:
     /// @param fw The flyweight containing the shared attributes
     /// @param hic The infection logic
     person_agent(const id_t& id, const flyweight* fw, const human_infection_cycle& hic)
-        : contagious_agent{id}
+        : contagious_agent { id }
         , _flyweight { fw }
         , _infection_logic { hic }
     {
     }
-    
+
     /// @brief Create a new person from serialized data
     /// @param id The agent id
     /// @param fw The agent flyweight
     /// @param data The serialized data
     /// @param inf An infection factory
-    person_agent(const id_t&              id,
-                  const flyweight*         fw,
-                  const serial_data&       data,
-                  const infection_factory* inf)
+    person_agent(const id_t&      id,
+                 const flyweight* fw,
+                 serial_data&     queue)
         : contagious_agent { id }
         , _flyweight { fw }
-        , _infection_logic {
-            inf->make_human_cycle(id, { boost::get<std::uint32_t>(data.at(0)), boost::get<clock::resolution>(data.at(1)) })
-        }
+        , _infection_logic { fw->inf_factory->make_human_cycle() }
     {
+        deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialize the agent data into a vector
-    /// @return A vector with the agent data required for reconstruction
-    serial_data serialize() const final
+    /// @brief Serialize the internal state of the infection
+    /// @param queue The queue to store the data
+    void serialize(serial_data& queue) const final
     {
-        auto data = serial_data{};
-
-        // Has no internal state, serialize only the infection logic
-        const auto ic = _infection_logic.serialize();
-        data.push_back(ic.stage);
-        data.push_back(ic.infection_time);
-
-        return data;
+        _infection_logic.serialize(queue);
     }
 
-    /// @brief Update the agent state
-    /// @details Update the agent state with new data
-    /// @param id The agent id associated with this logic
-    /// @param data The new data for the agent
-    void update(const id_t& id, const serial_data& data) final
+    /// @brief Deserialize the data and update the agent data
+    /// @param queue The queue containing the data
+    void deserialize(serial_data& queue) final
     {
-        const auto sp = human_infection_cycle::serialization_pack {
-            boost::get<std::uint32_t>(data.at(0)),
-            boost::get<clock::date_t::resolution>(data.at(1))
-        };
-        _infection_logic.update(id, sp);
+        _infection_logic.deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -92,7 +78,8 @@ public:
 
     /// @brief Get the type of this agent
     /// @return The type of the agent
-    type get_type() const final {
+    type get_type() const final
+    {
         return type::FIXED_PERSON;
     }
 
@@ -104,7 +91,8 @@ public:
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
-    const infection_cycle* get_infection_logic() const final {
+    const infection_cycle* get_infection_logic() const final
+    {
         return &_infection_logic;
     }
 

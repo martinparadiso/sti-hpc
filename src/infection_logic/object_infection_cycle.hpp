@@ -12,8 +12,8 @@
 namespace sti {
 
 class contagious_agent;
-using agent = contagious_agent;
-using repast_space =repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
+using agent            = contagious_agent;
+using repast_space     = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
 using repast_space_ptr = const repast_space*;
 
 /// @brief Represents an object infection cycle: clean or infected
@@ -26,7 +26,9 @@ public:
     /// @brief Struct containing the shared attributes of all infection in humans
     struct flyweight {
         repast_space_ptr repast_space;
-        precission infect_chance;
+        precission       infect_chance;
+
+        int infect_distance;
     };
 
     using flyweight_ptr = const flyweight*;
@@ -62,7 +64,7 @@ public:
     /// @param i The number to deserialize/convert to enum
     /// @return the corresponding enum
     /// @throws bad_stage_cast If the enum is out of range
-    constexpr static STAGE get_stage(std::uint32_t i)
+    constexpr static STAGE to_enum(std::uint32_t i)
     {
         if (i == 0) return STAGE::CLEAN;
         if (i == 1) return STAGE::INFECTED;
@@ -73,51 +75,58 @@ public:
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialization tuple used to serialize and deserialize the object
-    struct serialization_pack {
-        std::uint32_t stage;
-    };
-
-    /// @brief Construct an object infection logic
-    /// @param fw The object flyweight
-    /// @param id The id of the agent associated with this cycle
-    /// @param is The initial stage of the object
-    object_infection_cycle(flyweight_ptr fw, const agent_id& id, STAGE is)
-        : _flyweight { fw }
-        , _id { id }
-        , _stage { is }
+    /// @brief Default construct an empty object, flyweight is still needed
+    /// @param fw The flyweight containing shared data
+    object_infection_cycle(flyweight_ptr fw)
+        : _id {}
+        , _flyweight {fw}
+        , _stage {}
     {
     }
 
     /// @brief Construct an object infection logic
-    /// @param fw The object flyweight
     /// @param id The id of the agent associated with this cycle
-    /// @param sp The serialized data
-    object_infection_cycle(flyweight_ptr fw, const agent_id& id, const serialization_pack& sp)
-        : _flyweight { fw }
-        , _id { id }
-        , _stage { get_stage(sp.stage) }
+    /// @param fw The object flyweight
+    /// @param is The initial stage of the object
+    object_infection_cycle(const agent_id& id, flyweight_ptr fw, STAGE is)
+        : _id { id }
+        , _flyweight { fw }
+        , _stage { is }
     {
+    }
+
+    /// @brief Construct an object infection logic from serialized data
+    /// @param id The id of the agent associated with this cycle
+    /// @param fw The object flyweight
+    /// @param queue The serialized data
+    object_infection_cycle(const agent_id& id, flyweight_ptr fw, serial_data& queue)
+        : _id { id }
+        , _flyweight { fw }
+        , _stage {}
+    {
+        deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Update the internal state of the infection
-    /// @param id The new id of the agent associated with this logic
-    /// @param sp Serialization pack, containing the information to update
-    void update(const agent_id& id, const serialization_pack& sp)
+    /// @brief Serialize the internal state of the infection
+    /// @param queue The queue to store the data
+    void serialize(serial_data& queue) const final
     {
-        _id    = id;
-        _stage = get_stage(sp.stage);
+        queue.push(_id);
+        queue.push(to_int(_stage));
     }
 
-    /// @brief Serialize the internal state of the infection logic
-    /// @return A struct containing the serialized data
-    serialization_pack serialize() const
+    /// @brief Deserialize the data and update the agent data
+    /// @param queue The queue containing the data
+    void deserialize(serial_data& queue) final
     {
-        return { to_int(_stage) };
+        _id = boost::get<repast::AgentId>(queue.front());
+        queue.pop();
+        _stage = to_enum(boost::get<std::uint32_t>(queue.front()));
+        queue.pop();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -128,10 +137,10 @@ public:
     /// @param position The position of the other agent
     /// @return A value between 0 and 1
     precission get_probability(const position_t& position) const override
-    {   
+    {
         // Get the position of this object
         const auto location = [&]() {
-            auto location = std::vector<int>{};
+            auto location = std::vector<int> {};
             _flyweight->repast_space->getLocation(_id, location);
             return repast::Point<int>(location);
         }();
@@ -153,15 +162,19 @@ public:
         _stage = STAGE::CLEAN;
     }
 
-
     /// @brief Run the infection algorithm, polling nearby agents trying to get infected
-    void tick() final {
-        // TODO: implement
+    void tick() final;
+
+    /// @brief Set the id
+    /// @param id The new id
+    void set_id(const agent_id& id)
+    {
+        _id = id;
     }
 
 private:
-    flyweight_ptr _flyweight;
     agent_id      _id;
+    flyweight_ptr _flyweight;
     STAGE         _stage;
 }; // class object_infection_cycle
 
