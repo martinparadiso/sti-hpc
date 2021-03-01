@@ -58,9 +58,9 @@ public:
     /// @return A human infection cycle object
     human_infection_cycle make_human_cycle(const agent_id&              id,
                                            human_infection_cycle::STAGE is,
-                                           clock::date_t                t) const
+                                           datetime                     infection_time) const
     {
-        return human_infection_cycle { id, &_human_flyweight, is, t };
+        return human_infection_cycle { id, &_human_flyweight, is, infection_time };
     }
 
     /// @brief Construct a human infection with serialized data

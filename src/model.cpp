@@ -110,7 +110,7 @@ void sti::model::tick()
 {
     // Sync the clock, print time
     _clock->sync();
-    if (_rank == 0) print(_clock->now().get_fancy().str());
+    if (_rank == 0) print(_clock->now().str());
 
     // Check if agents are pending creation
     if (_entry) {

@@ -63,8 +63,7 @@ void sti::human_infection_cycle::tick()
 
     // If incubating, check if incubation period is over
     else if (_stage == STAGE::INCUBATING) {
-        const auto time_since_infection = _flyweight->clk->now() - _infection_time;
-        if (time_since_infection >= _flyweight->incubation_time) {
+        if (_infection_time + _flyweight->incubation_time < _flyweight->clk->now()) {
             _stage = STAGE::SICK;   
         }
     }

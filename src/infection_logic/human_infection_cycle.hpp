@@ -15,7 +15,6 @@
 
 namespace sti {
 
-
 /// @brief Represents the human infection cycle: healthy, incubating, sick
 class human_infection_cycle final : public infection_cycle {
 
@@ -29,9 +28,9 @@ public:
         repast_space_ptr repast_space;
         clock*           clk;
 
-        precission                infect_chance;
-        int                       infect_distance;
-        clock::date_t::resolution incubation_time;
+        precission infect_chance;
+        int        infect_distance;
+        timedelta  incubation_time;
     };
 
     using flyweight_ptr = const flyweight*;
@@ -83,7 +82,7 @@ public:
     /// @brief Default construct a cycle
     human_infection_cycle(flyweight_ptr fw)
         : _id {}
-        , _flyweight {fw}
+        , _flyweight { fw }
         , _stage {}
         , _infection_time {}
     {
@@ -112,7 +111,7 @@ public:
     human_infection_cycle(const agent_id& id,
                           flyweight_ptr   fw,
                           STAGE           stage,
-                          clock::date_t   t)
+                          datetime        t)
         : _id { id }
         , _flyweight { fw }
         , _stage { stage }
@@ -159,7 +158,7 @@ public:
         queue.pop();
         _stage = to_enum(boost::get<std::uint32_t>(queue.front()));
         queue.pop();
-        _infection_time = boost::get<std::uint64_t>(queue.front());
+        _infection_time = datetime { boost::get<datetime::resolution>(queue.front()) };
         queue.pop();
     }
 
@@ -208,7 +207,7 @@ private:
     agent_id      _id;
     flyweight_ptr _flyweight;
     STAGE         _stage;
-    clock::date_t _infection_time;
+    datetime      _infection_time;
 }; // class human_infection_cycle
 
 } // namespace sti

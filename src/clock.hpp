@@ -2,135 +2,191 @@
 #pragma once
 
 #include <cstdint>
-#include <sstream>
-
-#include <repast_hpc/RepastProcess.h>
+#include <string>
 
 namespace sti {
 
-/// @brief The clock class
+// Fw. declarations
+class clock;
+
+/// @brief Date-time abstraction, represents a delta of time
+class timedelta {
+
+public:
+    /// @brief A struct containing the date in human format, with seconds resolution
+    struct human_date {
+        std::uint32_t days;
+        std::uint32_t hours;
+        std::uint32_t minutes;
+        std::uint32_t seconds;
+    };
+
+    using resolution = std::uint32_t;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // CONSTRUCTION
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Create a timedelta object
+    /// @param length The number of seconds this delta spans
+    constexpr explicit timedelta(resolution length = 0)
+        : _length { length }
+    {
+    }
+
+    /// @brief Create a timedelta object
+    /// @param days The number of days
+    /// @param hours The number of hours
+    /// @param minutes The number of minutes
+    /// @param seconds The number of seconds
+    constexpr timedelta(resolution days, resolution hours, resolution minutes, resolution seconds)
+        : _length { days * 86400 + hours * 3600 + minutes * 60 + seconds }
+    {
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // BEHAVIOUR
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Get the length of this timedelta, in seconds
+    /// @return The number of seconds
+    constexpr resolution length() const
+    {
+        return _length;
+    }
+
+    /// @brief Get the date in human format
+    /// @details A struct containing the date in a human redeable format
+    constexpr human_date human() const
+    {
+        auto seconds = _length;
+
+        auto minutes = seconds / 60;
+        seconds      = seconds % 60;
+
+        auto hours = minutes / 60;
+        minutes    = minutes % 60;
+
+        auto days = hours / 24;
+        hours     = hours % 24;
+
+        return { days, hours, minutes, seconds };
+    }
+
+    /// @brief Get the date in string format
+    /// @details The format returned is [Day, Hours/Minutes/Seconds]
+    std::string str() const;
+
+private:
+    resolution _length;
+};
+
+/// @brief An instant of time, counting from the start of the simulation
+class datetime : private timedelta {
+
+public:
+    using resolution = timedelta::resolution;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // CONSTRUCTION
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Construct a datetime object
+    /// @param seconds The number of seconds passed since the start of the simulation
+    constexpr explicit datetime(resolution seconds = 0)
+        : timedelta(seconds)
+    {
+    }
+
+    /// @brief Create a timedelta object
+    /// @param days The number of days
+    /// @param hours The number of hours
+    /// @param minutes The number of minutes
+    /// @param seconds The number of seconds
+    constexpr datetime(resolution days, resolution hours, resolution minutes, resolution seconds)
+        : timedelta { days, hours, minutes, seconds }
+    {
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // BEHAVIOUR
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Get the length of this timedelta, in seconds
+    /// @return The number of seconds
+    constexpr auto epoch() const
+    {
+        return timedelta::length();
+    }
+
+    /// @brief Get the date in human format
+    /// @details A struct containing the date in a human redeable format
+    constexpr human_date human() const
+    {
+        return timedelta::human();
+    }
+
+    /// @brief Get the date in string format
+    /// @details The format returned is [Day, Hours/Minutes/Seconds]
+    std::string str() const;
+};
+
+/// @brief A clock that encapsulates repast time
 class clock {
 
 public:
-    using resolution = std::uint64_t;
-
-    /// @brief Date presented in a fancy format with days, hours, minutes and seconds
-    class fancy_date {
-
-    public:
-        fancy_date(resolution epoch)
-        {
-            _seconds = epoch;
-
-            _minutes = _seconds / 60;
-            _seconds = _seconds % 60;
-
-            _hours   = _minutes / 60;
-            _minutes = _minutes % 60;
-
-            _days  = _hours / 24;
-            _hours = _hours % 24;
-        }
-
-        auto seconds() const
-        {
-            return _seconds;
-        }
-
-        auto minutes() const
-        {
-            return _minutes;
-        }
-
-        auto hours() const
-        {
-            return _hours;
-        }
-
-        auto days() const
-        {
-            return _days;
-        }
-
-        std::string str() const
-        {
-            auto ss = std::ostringstream {};
-            ss << "Day " << days() << ", ";
-            ss << hours() << ":" << minutes() << ":" << seconds();
-            return ss.str();
-        }
-
-    private:
-        resolution _seconds;
-        resolution _minutes;
-        resolution _hours;
-        resolution _days;
-    };
-
-    /// @brief Basic date format, with a maximum size of days
-    class date_t {
-
-    public:
-        using resolution = std::uint64_t;
-
-        /// @brief Construct a date, by default in time 0
-        date_t(resolution epoch = 0)
-            : _epoch { epoch }
-        {
-        }
-
-        /// @brief Get the date in a fancy format
-        fancy_date get_fancy() const
-        {
-            return fancy_date { _epoch };
-        }
-
-        /// @brief Get the number of seconds represented by this date
-        auto epoch() const
-        {
-            return _epoch;
-        }
-
-    private:
-        resolution _epoch;
-    };
-
     /// @brief Create a new clock, starting the count in this instant
     /// @details The time is measured with the repast tick system. Using a
     ///          constant to convert from ticks to seconds.
-    clock(date_t::resolution seconds_per_tick)
+    constexpr clock(timedelta::resolution seconds_per_tick)
         : _tick { 0 }
         , _seconds_per_tick { seconds_per_tick }
     {
     }
 
     /// @brief Adjust time, must be executed every tick
-    void sync()
-    {
-        _tick = repast::RepastProcess::instance()->getScheduleRunner().currentTick();
-    }
+    void sync();
 
-    /// @brief Get the simulated seconds since the start of the simulation
-    date_t now() const
+    /// @brief Get the time inside the simulation
+    /// @return A datetime object with this instant of time
+    datetime now() const
     {
-        return date_t { static_cast<date_t::resolution>(_tick) * _seconds_per_tick };
-    }
-
-    /// @brief Get the time passed in the simulation, in fancy format
-    /// @return The date
-    fancy_date date() const
-    {
-        return now().epoch();
+        return datetime { static_cast<timedelta::resolution>(_tick) * _seconds_per_tick };
     }
 
 private:
-    double                   _tick;
-    const date_t::resolution _seconds_per_tick;
+    double                      _tick;
+    const timedelta::resolution _seconds_per_tick;
 };
 
-} // namespace sti
+////////////////////////////////////////////////////////////////////////////////
+// OPERATORS
+////////////////////////////////////////////////////////////////////////////////
 
-inline auto operator-(sti::clock::date_t lo, sti::clock::date_t ro)
+/// @brief Add two timedeltas
+constexpr timedelta operator+(const timedelta& lho, const timedelta& rho)
 {
-    return lo.epoch() - ro.epoch();
+    return timedelta{lho.length() + rho.length()};
 }
+
+/// @brief Add a timedelta to a datetime
+constexpr datetime operator+(const datetime& lho, const timedelta& rho)
+{
+    return datetime{lho.epoch() + rho.length()};
+}
+
+/// @brief Compare two instants of time
+/// @return True if right time is older, false otherwise
+constexpr bool operator<(const datetime& lho, const datetime& rho)
+{
+    return lho.epoch() < rho.epoch();
+}
+
+/// @brief Compare two instants of time
+/// @return True if right time is older or equal, false otherwise
+constexpr bool operator<=(const datetime& lho, const datetime& rho)
+{
+    return lho.epoch() <= rho.epoch();
+}
+
+} // namespace sti

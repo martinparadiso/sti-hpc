@@ -59,7 +59,7 @@ public:
                 _clock,
                 boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("human.infection.chance")),
                 boost::lexical_cast<int>(props->getProperty("human.infection.distance")),
-                boost::lexical_cast<clock::date_t::resolution>(props->getProperty("human.incubation.time")) },
+                timedelta { boost::lexical_cast<timedelta::resolution>(props->getProperty("human.incubation.time")) } },
             object_infection_cycle::flyweight {
                 _discrete_space,
                 boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("object.infection.chance")),
@@ -199,9 +199,6 @@ private:
 
     // Infection factory
     infection_factory _infection_factory;
-
-    // Chair
-    chair_manager* _chair_manager;
 
     // Agent flyweights
     patient_flyweight _patient_flyweight;

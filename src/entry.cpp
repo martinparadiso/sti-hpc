@@ -41,9 +41,9 @@ sti::hospital_entry::hospital_entry(plan::coordinates                     locati
 /// @return The number of patients waiting admission
 std::uint64_t sti::hospital_entry::patients_waiting()
 {
-    const auto now         = _clock->date();
-    const auto day         = now.days();
-    const auto day_seconds = now.hours() * 60 * 60 + now.minutes() * 60 + now.seconds();
+    const auto now         = _clock->now().human();
+    const auto day         = now.days;
+    const auto day_seconds = now.hours * 60 * 60 + now.minutes * 60 + now.seconds;
     const auto bin         = day_seconds / _interval_length; // Calculate the corresponding bin for this instant
     const auto bin_offset  = day_seconds % _interval_length; // Seconds since the start of the corresponding interval
 

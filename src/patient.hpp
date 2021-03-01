@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "chair_manager.hpp"
+#include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
@@ -48,7 +49,7 @@ public:
     /// @param entry_time The instant the patient enter the building
     patient_agent(const id_t&                  id,
                   flyweight_ptr                fw,
-                  const clock::date_t&         entry_time,
+                  const datetime&              entry_time,
                   const human_infection_cycle& hic)
         : contagious_agent { id }
         , _flyweight { fw }
@@ -88,7 +89,7 @@ public:
     /// @param queue The queue containing the data
     void deserialize(serial_data& queue) final
     {
-        _entry_time = boost::get<clock::date_t::resolution>(queue.front());
+        _entry_time = datetime { boost::get<datetime::resolution>(queue.front()) };
         queue.pop();
         _infection_logic.deserialize(queue);
     }
@@ -126,8 +127,8 @@ public:
         if (getId().id() != 0) {
 
             const auto printas = [&](const auto& str) {
-                auto os = std::ostringstream{};
-                os << getId()  << ": "
+                auto os = std::ostringstream {};
+                os << getId() << ": "
                    << str;
                 print(os.str());
             };
@@ -150,7 +151,7 @@ public:
 
             const auto get_next_location = [&](plan::coordinates dest) -> plan::coordinates {
                 const auto my_loc = get_my_loc();
-                const auto diff = plan::coordinates {
+                const auto diff   = plan::coordinates {
                     dest.x - my_loc.x,
                     dest.y - my_loc.y
                 };
@@ -176,14 +177,14 @@ public:
                 if (response) {
                     if (response->chair_location) {
 
-                    _chair_assigned = response->chair_location.get();
-                    auto os         = std::ostringstream {};
-                    os << "Got chair:"
-                       << _chair_assigned;
-                    printas(os.str());
-                    _stage = STAGES::WALKING_TO_CHAIR;
+                        _chair_assigned = response->chair_location.get();
+                        auto os         = std::ostringstream {};
+                        os << "Got chair:"
+                           << _chair_assigned;
+                        printas(os.str());
+                        _stage = STAGES::WALKING_TO_CHAIR;
                     } else {
-                        auto os = std::ostringstream{};
+                        auto os = std::ostringstream {};
                         printas("No chair available, leaving");
                         _stage = STAGES::WALKING_TO_EXIT;
                     }
@@ -219,7 +220,7 @@ public:
                 if (_ticks_in_chair == 0) {
                     _flyweight->chairs->release_chair(_chair_assigned);
                     _chair_assigned = {};
-                    auto os = std::ostringstream {};
+                    auto os         = std::ostringstream {};
                     os << "Chair released, going to exit at "
                        << _flyweight->hospital->get(plan_tile::TILE_ENUM::EXIT).at(0);
                     printas("Chair released");
@@ -260,7 +261,7 @@ public:
 
 private:
     flyweight_ptr         _flyweight;
-    clock::date_t         _entry_time;
+    datetime              _entry_time;
     human_infection_cycle _infection_logic;
 
     // TODO: Remove this, temp

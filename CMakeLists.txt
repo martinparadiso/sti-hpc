@@ -35,6 +35,7 @@ endfunction()
 
 # Demo ========================================================================
 add_executable(sti-demo "src/main.cpp"
+						"src/clock.cpp"
 						"src/entry.cpp"
 						"src/model.cpp"
 						"src/chair_manager.cpp"
