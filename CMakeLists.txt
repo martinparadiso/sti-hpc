@@ -35,9 +35,12 @@ endfunction()
 
 # Demo ========================================================================
 add_executable(sti-demo "src/main.cpp"
+						"src/entry.cpp"
 						"src/model.cpp"
+						"src/chair_manager.cpp"
 						"src/infection_logic/human_infection_cycle.cpp"
-						"src/infection_logic/object_infection_cycle.cpp")
+						"src/infection_logic/object_infection_cycle.cpp"
+			  )
 target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
 

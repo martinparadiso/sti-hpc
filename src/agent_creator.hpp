@@ -1,10 +1,12 @@
 /// @brief Agent creation
 #pragma once
 
+#include <boost/lexical_cast.hpp>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/Point.h>
 #include <repast_hpc/Properties.h>
 
+#include "chair_manager.hpp"
 #include "contagious_agent.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
@@ -44,6 +46,8 @@ public:
     agent_factory(context_ptr               context,
                   space_ptr                 discrete_space,
                   clock*                    c,
+                  plan*                     hospital_plan,
+                  chair_manager*            chairs,
                   const repast::Properties* props)
         : _context { context }
         , _discrete_space { discrete_space }
@@ -61,7 +65,7 @@ public:
                 boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("object.infection.chance")),
                 boost::lexical_cast<int>(props->getProperty("object.infection.distance")) }
         }
-        , _patient_flyweight { &_infection_factory }
+        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, _discrete_space }
         , _person_flyweight { &_infection_factory }
         , _object_flyweight { &_infection_factory }
     {
@@ -99,7 +103,7 @@ public:
     /// @param data The serialized data
     /// @return A pointer to the newly created object
     agent_ptr recreate_patient(const repast::AgentId& id,
-                               serial_data&           data) const
+                               serial_data&           data)
     {
         auto* patient = new patient_agent { id,
                                             &_patient_flyweight,
@@ -195,6 +199,9 @@ private:
 
     // Infection factory
     infection_factory _infection_factory;
+
+    // Chair
+    chair_manager* _chair_manager;
 
     // Agent flyweights
     patient_flyweight _patient_flyweight;

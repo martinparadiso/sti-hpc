@@ -11,11 +11,6 @@
 
 namespace sti {
 
-class contagious_agent;
-using agent            = contagious_agent;
-using repast_space     = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
-using repast_space_ptr = const repast_space*;
-
 /// @brief Represents an object infection cycle: clean or infected
 class object_infection_cycle final : public infection_cycle {
 

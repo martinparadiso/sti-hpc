@@ -1,10 +1,16 @@
+#include <boost/histogram/axis/variant.hpp>
+#include <boost/histogram/indexed.hpp>
+#include <boost/histogram/ostream.hpp>
 #include <boost/lexical_cast.hpp>
+#include <iomanip>
 #include <memory>
 
 #include <repast_hpc/Schedule.h>
+#include <sstream>
 #include <string>
 
 #include "agent_creator.hpp"
+#include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "entry.hpp"
@@ -38,30 +44,56 @@ void sti::model::init()
         { origin.width + extent.width, origin.height + origin.height }
     };
 
-    // Create the entry logic, if the entry is in this process
-    print("Loading entry...");
-    const auto en = _plan.get(plan_tile::TILE_ENUM::ENTRY).at(0);
-    if (_discrete_space->dimensions().contains(std::vector { static_cast<int>(en.x), static_cast<int>(en.y) })) {
-        auto patient_distribution = load_patient_distribution(_props->getProperty("patients.path"));
-        _entry                    = std::make_unique<hospital_entry>(_clock.get(), std::move(patient_distribution));
+    // Create the chair manager
+    const auto chair_mgr_rank = boost::lexical_cast<int>(_props->getProperty("chair.manager.rank"));
+    if (_rank == chair_mgr_rank) {
+        // The chair manager is in this process, create the real one
+        _chair_manager.reset(new real_chair_manager { _communicator, _plan });
+    } else {
+        _chair_manager.reset(new proxy_chair_manager { _communicator, chair_mgr_rank });
     }
 
-    print("Creating the agent factory...");
-
     // Create the agent factory
-    _agent_factory = std::make_unique<agent_factory>(&_context,
-                                                     _discrete_space,
-                                                     _clock.get(),
-                                                     _props);
+    print("Creating the agent factory...");
+    _agent_factory.reset(new agent_factory { &_context,
+                                             _discrete_space,
+                                             _clock.get(),
+                                             &_plan,
+                                             _chair_manager.get(),
+                                             _props });
 
     // Create the package provider and receiver
     _provider = std::make_unique<agent_provider>(&_context);
     _receiver = std::make_unique<agent_receiver>(&_context, _agent_factory.get());
 
-    // TODO: Remove this, it's a test
-    print("Inserting test person...");
-    _agent_factory->insert_new_person({ 10, 11 }, human_infection_cycle::STAGE::SICK);
-    _agent_factory->insert_new_object({ 10, 11 }, object_infection_cycle::STAGE::CLEAN);
+    // Create the entry logic, if the entry is in this process
+    print("Creating entry...");
+    const auto en = _plan.get(plan_tile::TILE_ENUM::ENTRY).at(0);
+    if (_discrete_space->dimensions().contains(std::vector { static_cast<int>(en.x), static_cast<int>(en.y) })) {
+        auto patient_distribution = load_patient_distribution(_props->getProperty("patients.path"));
+        _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), *_props });
+    }
+
+    // Create chairs (if the chair is in the local space)
+    const auto& chairs = _plan.get(plan_tile::TILE_ENUM::CHAIR);
+    for (const auto& [x, y] : chairs) {
+        const auto chair_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
+        if (_discrete_space->dimensions().contains(chair_loc)) {
+            _agent_factory->insert_new_object({ x, y }, object_infection_cycle::STAGE::CLEAN);
+        }
+    }
+
+    // Create medical personnel
+    auto        personnel = _plan.get(plan_tile::TILE_ENUM::DOCTOR);
+    const auto& rist      = _plan.get(plan_tile::TILE_ENUM::RECEPTIONIST);
+    personnel.insert(personnel.end(), rist.begin(), rist.end());
+    for (const auto& [x, y] : personnel) {
+        const auto per_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
+        if (_discrete_space->dimensions().contains(per_loc)) {
+            _agent_factory->insert_new_person({ x, y }, human_infection_cycle::STAGE::HEALTHY);
+        }
+    }
+
 } // sti::model::init()
 
 /// @brief Initialize the scheduler
@@ -76,11 +108,14 @@ void sti::model::init_schedule(repast::ScheduleRunner& runner)
 /// @brief Periodic funcion
 void sti::model::tick()
 {
-    // TODO: Everything
-
     // Sync the clock, print time
     _clock->sync();
     if (_rank == 0) print(_clock->now().get_fancy().str());
+
+    // Check if agents are pending creation
+    if (_entry) {
+        _entry->generate_patients();
+    }
 
     // Iterate over all the agents to perform their actions
     for (const auto& agent : _context) {
@@ -97,5 +132,26 @@ void sti::model::finish()
 
         auto key_oder = std::vector<std::string> { "RunNumber", "stop.at", "Result" };
         _props->writeToSVFile("./output/results.csv", key_oder);
+    }
+
+    // Get the information of the entry
+    if (_entry) {
+        const auto& [entry, expected] = _entry->stadistics();
+
+        auto os = std::ostringstream {};
+
+        // CSV Print
+        os << "DAY,INTERVAL,PATIENTS_GENERATED,PATIENTS_EXPECTED\n";
+        for (auto day = 0; day < entry.axis(0).size(); ++day) {
+            for (auto bin = 0; bin < entry.axis(1).size(); ++bin) {
+                os << day << ","
+                   << bin << ","
+                   << entry.at(day, bin) << ","
+                   << expected.at(day, bin)
+                   << "\n";
+            }
+        }
+
+        print(os.str());
     }
 }

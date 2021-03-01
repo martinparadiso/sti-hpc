@@ -18,6 +18,7 @@
 #include <repast_hpc/Utilities.h>
 #include <repast_hpc/initialize_random.h>
 
+#include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "entry.hpp"
@@ -33,12 +34,13 @@ public:
     using agent = contagious_agent;
 
     model(const std::string& props_file, int argc, char** argv, boost::mpi::communicator* comm)
-        : _props { new repast::Properties(props_file, argc, argv, comm) }
+        : _communicator { comm }
+        , _props { new repast::Properties(props_file, argc, argv, comm) }
         , _context(comm)
         , _rank { repast::RepastProcess::instance()->rank() }
         , _stop_at { repast::strToInt(_props->getProperty("stop.at")) }
         , _clock { std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
-        , _plan{ load_plan(_props->getProperty("plan.path")) }
+        , _plan { load_plan(_props->getProperty("plan.path")) }
     {
 
         // TODO: document this
@@ -83,6 +85,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
 
 private:
+    boost::mpi::communicator*    _communicator;
     repast::Properties*          _props;
     repast::SharedContext<agent> _context;
     const int                    _rank;
@@ -101,6 +104,9 @@ private:
     // location
     std::unique_ptr<hospital_entry> _entry {};
     std::unique_ptr<agent_factory>  _agent_factory {};
+
+    // Chair manager
+    std::unique_ptr<chair_manager> _chair_manager {};
 }; // class model
 
 } // namespace sti

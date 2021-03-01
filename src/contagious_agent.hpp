@@ -12,7 +12,7 @@
 
 namespace sti {
 
-using variant     = boost::variant<float, double, std::int32_t, std::uint32_t, std::uint64_t, std::int64_t, repast::AgentId>;
+using variant     = boost::variant<bool, float, double, std::int32_t, std::uint32_t, std::uint64_t, std::int64_t, repast::AgentId>;
 using serial_data = std::queue<variant>;
 
 /// @brief An virtual class representing an agent capable of infecting others
@@ -28,8 +28,9 @@ public:
 
     /// @brief The different type of contagious agents
     enum class type {
-        OBJECT,
+        CHAIR,
         FIXED_PERSON,
+        OBJECT,
         PATIENT,
     };
 
@@ -112,28 +113,37 @@ struct unknown_agent_type : public std::exception {
     }
 };
 
+/// @brief Vector containing all the agent types as enum
+/// @details Repast IDs have a type attribute, which is encoded as an int. To
+///          avoid using an int as a type identifier, an enum is used and casted
+///          to/from int when interfacing with repast.
+inline const auto agent_type_lut = std::vector {
+    contagious_agent::type::CHAIR,
+    contagious_agent::type::FIXED_PERSON,
+    contagious_agent::type::OBJECT,
+    contagious_agent::type::PATIENT
+};
+
 /// @brief Convert an agent enum to int
 /// @return The int corresponding
-constexpr int to_int(contagious_agent::type type)
+inline int to_int(contagious_agent::type type)
 {
-
-    using E = contagious_agent::type;
-
-    switch (type) { // clang-format off
-        case E::FIXED_PERSON:   return 0;
-        case E::OBJECT:         return 1;
-        case E::PATIENT:        return 2;
-    } // clang-format on
+    int i = 0;
+    for (auto t : agent_type_lut) {
+        if (t == type) return i;
+        ++i;
+    }
+    throw unknown_agent_type {};
 }
 
 /// @brief Convert an int to a agent enum
-constexpr contagious_agent::type to_agent_enum(int i)
+inline contagious_agent::type to_agent_enum(int i)
 {
-    using E = contagious_agent::type;
+    const auto index = static_cast<decltype(agent_type_lut)::size_type>(i);
 
-    if (i == 0) return E::FIXED_PERSON;
-    if (i == 1) return E::OBJECT;
-    if (i == 2) return E::PATIENT;
+    if (index < agent_type_lut.size()) {
+        return agent_type_lut.at(index);
+    }
 
     throw unknown_agent_type {};
 }

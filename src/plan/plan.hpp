@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <exception>
 #include <fstream>
+#include <ostream>
 #include <map>
 #include <string>
 #include <vector>
@@ -49,7 +50,7 @@ public:
     using tile_type   = plan_tile;
     using column_type = std::vector<tile_type>;
     using key_type    = plan_tile::TILE_ENUM;
-    using length_type = std::uint32_t;
+    using length_type = std::int32_t;
 
     struct dimensions {
         length_type width;
@@ -59,6 +60,14 @@ public:
     struct coordinates {
         length_type x;
         length_type y;
+
+        // Serialization
+        template <typename Archive>
+        void serialize(Archive& ar, const unsigned int version)
+        {
+            ar& x;
+            ar& y;
+        }
     };
 
     /// @brief Pair of coordinates delimiting a zone of the plan
@@ -75,8 +84,8 @@ public:
     plan(length_type width, length_type height)
         : _dimensions { width, height }
     {
-        for (auto i = 0U; i < width; i++) {
-            _tiles.emplace_back( column_type{height, plan_tile::TILE_ENUM::FLOOR } );
+        for (auto i = 0; i < width; i++) {
+            _tiles.emplace_back(column_type {static_cast<std::size_t>(height), plan_tile::TILE_ENUM::FLOOR });
         }
     }
 
@@ -95,7 +104,7 @@ public:
 
         // Scan the newly inserted row for *special* tiles
         const auto x = static_cast<length_type>(_tiles.size() - 1);
-        auto       y = 0U;
+        auto       y = 0;
 
         for (auto tile : _tiles[_tiles.size() - 1]) {
             if (is_special(tile)) {
@@ -105,8 +114,8 @@ public:
         }
 
         // Re-assign width and height of the plan
-        _dimensions.width = _tiles.size();
-        _dimensions.height = _tiles.begin()->size();
+        _dimensions.width  = static_cast<length_type>(_tiles.size());
+        _dimensions.height = static_cast<length_type>(_tiles.begin()->size());
     }
 
     /// @brief Access the (x,y) position
@@ -130,9 +139,10 @@ public:
 
     /// @brief Get a const vector containing coordinates to that points
     /// @return a const vector containing coordinates to the special tiles
-    const auto& get(key_type key) const
+    const auto& get(key_type key)
     {
-        return _special_tiles.at(key);
+        // Yes, create the vector if it doesn't exists
+        return _special_tiles[key];
     }
 
     auto width() const
@@ -146,11 +156,26 @@ public:
     }
 
 private:
-    dimensions _dimensions = {0, 0};
-    // length_type                                              _width = 0;
-    // length_type                                              _height = 0;
+    dimensions                                               _dimensions    = { 0, 0 };
     std::vector<column_type>                                 _tiles         = {};
     std::map<plan_tile::TILE_ENUM, std::vector<coordinates>> _special_tiles = {};
 };
 
+}
+
+// Operators
+
+constexpr bool operator==(const sti::plan::coordinates& lo, const sti::plan::coordinates& ro)
+{
+    return (lo.x == ro.x) && (lo.y == ro.y);
+}
+
+inline std::ostream& operator<<(std::ostream& os, const sti::plan::coordinates& c)
+{
+    os << "["
+       << c.x
+       << ","
+       << c.y
+       << "]";
+    return os;
 }

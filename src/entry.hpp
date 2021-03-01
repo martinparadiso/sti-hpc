@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <fstream>
 #include <memory>
+#include <repast_hpc/Properties.h>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -21,8 +22,12 @@
 
 #include "clock.hpp"
 #include "metric.hpp"
+#include "plan/plan.hpp"
 
 namespace sti {
+
+// Fw. declarations
+class agent_factory;
 
 struct inconsistent_distribution : public std::exception {
     const char* what() const noexcept override
@@ -73,13 +78,15 @@ public:
 
     /// @brief Get the number of days the distribution cover
     /// @return The number of days for which data is available
-    auto days() const {
+    auto days() const
+    {
         return static_cast<std::uint32_t>(_data.axis(0).size());
     }
 
     /// @brief Get the number of bins/intervals in a day
     /// @return The number of intervals in a day
-    auto intervals() const {
+    auto intervals() const
+    {
         return static_cast<std::uint32_t>(_data.axis(1).size());
     }
 
@@ -93,69 +100,58 @@ public:
     }
 
     /// @brief Increment in 1 the number of patitents
-    template<typename... Args>
-    void increment(Args... args) {
+    template <typename... Args>
+    void increment(Args... args)
+    {
         _data(args...);
     }
 
-private:
     hist_t _data;
+private:
 };
 
 /// @brief Hospital entry point, periodically generates
 class hospital_entry {
 
 public:
-    hospital_entry(sti::clock* clock, std::unique_ptr<patient_distribution> patient_admissions)
-        : _clock { clock }
-        , _patient_distribution(std::move(patient_admissions))
-        , _generated_patients { boost::histogram::make_histogram(
-            patient_distribution::axis_t(0, _patient_distribution->days(), "day"),
-            patient_distribution::axis_t(0, _patient_distribution->intervals(), "interval"))
-        }
-          // The length of the interval is the number of seconds in a day divided
-          // by the number of intervals
-        , _interval_length{ (24 * 60 * 60) / _patient_distribution->intervals()}
+    /// @brief Create a hospital entry
+    /// @details The hospital entry is in charge of creating the patients
+    /// @param location The location of the entry
+    /// @param clock The simulation clock
+    /// @param patient_admissions The patient admission histogram
+    /// @param factory The agent factory, for patient creation
+    /// @param props Repast properties
+    hospital_entry(plan::coordinates                     location,
+                   sti::clock*                           clock,
+                   std::unique_ptr<patient_distribution> patient_admissions,
+                   agent_factory*                        factory,
+                   repast::Properties&                   props);
+
+    /// @brief Generate the pending patients
+    void generate_patients();
+
+    /// @brief Get the generated patients
+    auto stadistics() const
     {
+        return std::pair<const patient_distribution::hist_t&,const patient_distribution::hist_t&>{_generated_patients, _patient_distribution->_data};
     }
+
+private:
+    plan::coordinates                         _location;
+    const sti::clock*                         _clock;
+    std::unique_ptr<patient_distribution>     _patient_distribution;
+    sti::metric<patient_distribution::hist_t> _generated_patients;
+    const std::uint32_t                       _interval_length;
+
+    sti::agent_factory* _agent_factory;
+    double              _infected_chance;
 
     /// @brief Ask how many patients are waiting at the door, upon call the counter is cleared
     /// @details Calculate how many patients must be created according to the
     ///          provided distribution. The function assumes the caller is going to create
     ///          those agents, the internal counter of created agents is increased in N.
     /// @return The number of patients waiting admission
-    std::uint64_t patients_waiting()
-    {
-        const auto now         = _clock->date();
-        const auto day         = now.days();
-        const auto day_seconds = now.hours() * 60 * 60 + now.minutes() * 60 + now.seconds();
-        const auto bin         = day_seconds / _interval_length; // Calculate the corresponding bin for this instant
-        const auto bin_offset  = day_seconds % _interval_length; // Seconds since the start of the corresponding interval
-
-        // Get the number of patients expected for this interval and the rate of
-        // admission
-        const auto interval_admission_target = _patient_distribution->get(day, bin);
-        const auto rate = _interval_length / interval_admission_target;
-
-        // The number of patients that were already admitted durning this
-        // interval should be at least the time passed since the start of the
-        // interval divided by the rate
-        const auto expected = bin_offset / rate;
-
-        const auto agents_waiting = static_cast<std::uint64_t>(_generated_patients.at(day, bin)) - expected;
-
-        // Increase the number of agents created and return the value
-        _generated_patients(day, bin, boost::histogram::weight(agents_waiting));
-        return agents_waiting;
-    }
-
-private:
-    const sti::clock*    _clock;
-    std::unique_ptr<patient_distribution> _patient_distribution;
-
-    sti::metric<patient_distribution::hist_t> _generated_patients;
-
-    const std::uint32_t _interval_length;
+    std::uint64_t patients_waiting();
 };
 
 /// @brief Load the patient distribution curve from a file
@@ -187,7 +183,7 @@ inline std::unique_ptr<patient_distribution> load_patient_distribution(std::stri
 
     // Read the first line, if its a header skip it
     std::getline(file, line);
-    if ((std::islower(line.at(0)) != 0) || (std::isupper(line.at(0)) != 0)) {
+    if ( (std::islower(line.at(0)) == 0) && (std::isupper(line.at(0)) == 0)) {
         file.seekg(0);
     }
 
@@ -195,7 +191,7 @@ inline std::unique_ptr<patient_distribution> load_patient_distribution(std::stri
         auto new_day = parse_line(line);
 
         // Make sure all the days have the same intervals
-        if (! data.empty()) {
+        if (!data.empty()) {
             if ((data.end() - 1)->size() != new_day.size()) {
                 throw inconsistent_bins_in_file {};
             }

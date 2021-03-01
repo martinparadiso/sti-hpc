@@ -15,10 +15,6 @@
 
 namespace sti {
 
-class contagious_agent;
-using agent            = contagious_agent;
-using repast_space     = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
-using repast_space_ptr = const repast_space*;
 
 /// @brief Represents the human infection cycle: healthy, incubating, sick
 class human_infection_cycle final : public infection_cycle {

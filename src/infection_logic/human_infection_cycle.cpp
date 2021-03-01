@@ -51,8 +51,12 @@ void sti::human_infection_cycle::tick()
                    << _id.startingRank() << ","
                    << _id.agentType() << ","
                    << _id.currentRank() << "] "
-                   << "Got infected!";
+                   << "Infected";
                 print(msg.str());
+
+                // No need to keep iterating over the remaining agents
+                break;
+
             }
         }
     }
@@ -61,7 +65,7 @@ void sti::human_infection_cycle::tick()
     else if (_stage == STAGE::INCUBATING) {
         const auto time_since_infection = _flyweight->clk->now() - _infection_time;
         if (time_since_infection >= _flyweight->incubation_time) {
-            _stage = STAGE::SICK;
+            _stage = STAGE::SICK;   
         }
     }
 

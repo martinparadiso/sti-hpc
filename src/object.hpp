@@ -12,14 +12,15 @@
 
 namespace sti {
 
-class object_agent final : public contagious_agent {
+/// @brief Generic object 
+class object_agent : public contagious_agent {
 
 public:
     ////////////////////////////////////////////////////////////////////////////
     // FLYWEIGHT
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Person flyweight/common attributes
+    /// @brief Generic object flyweight/common attributes
     struct flyweight {
         const infection_factory* inf_factory;
     };
@@ -62,7 +63,7 @@ public:
 
     /// @brief Serialize the internal state of the infection
     /// @param queue The queue to store the data
-    void serialize(serial_data& queue) const final
+    void serialize(serial_data& queue) const override
     {
         // No internal state, serialize only infect logic
         _infection_logic.serialize(queue);
@@ -70,7 +71,7 @@ public:
 
     /// @brief Deserialize the data and update the agent data
     /// @param queue The queue containing the data
-    void deserialize(serial_data& queue) final
+    void deserialize(serial_data& queue) override
     {
         _infection_logic.deserialize(queue);
     }
@@ -81,20 +82,20 @@ public:
 
     /// @brief Get the type of this agent
     /// @return The type of the agent
-    type get_type() const final
+    type get_type() const override
     {
         return type::OBJECT;
     }
 
     /// @brief Perform the actions this agents is suppossed to
-    void act() final
+    void act() override
     {
         _infection_logic.tick();
     }
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
-    const infection_cycle* get_infection_logic() const final
+    const infection_cycle* get_infection_logic() const override
     {
         return &_infection_logic;
     }
