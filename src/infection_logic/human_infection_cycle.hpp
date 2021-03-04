@@ -8,9 +8,9 @@
 #include <tuple>
 
 #include <repast_hpc/RepastProcess.h>
-#include <repast_hpc/SharedDiscreteSpace.h>
 
 #include "../clock.hpp"
+#include "../space_wrapper.hpp"
 #include "infection_cycle.hpp"
 
 namespace sti {
@@ -25,8 +25,8 @@ public:
 
     /// @brief Struct containing the shared attributes of all infection in humans
     struct flyweight {
-        repast_space_ptr repast_space;
-        clock*           clk;
+        sti::space_wrapper* space;
+        sti::clock*         clk;
 
         precission infect_chance;
         int        infect_distance;
@@ -181,12 +181,10 @@ public:
 
         // Get the position of this object
         const auto location = [&]() {
-            auto location = std::vector<int> {};
-            _flyweight->repast_space->getLocation(_id, location);
-            return repast::Point<int>(location);
+            return _flyweight->space->get_continuous_location(_id);
         }();
 
-        const auto distance = _flyweight->repast_space->getDistanceSq(location, position);
+        const auto distance = sti::sq_distance(location, position);
 
         if (_stage == STAGE::HEALTHY) return 0.0;
         if (distance > static_cast<double>(_flyweight->infect_distance)) return 0.0;

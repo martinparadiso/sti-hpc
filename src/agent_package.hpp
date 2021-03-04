@@ -3,11 +3,14 @@
 
 #include <vector>
 
+#include <boost/serialization/deque.hpp>
+#include <boost/serialization/queue.hpp>
+#include <boost/serialization/variant.hpp>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/SharedContext.h>
 #include <repast_hpc/AgentRequest.h>
 
-#include "agent_creator.hpp"
+#include "agent_factory.hpp"
 #include "contagious_agent.hpp"
 #include "infection_logic/infection_cycle.hpp"
 

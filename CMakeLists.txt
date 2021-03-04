@@ -33,12 +33,25 @@ function(sanitize_address target)
 	endif()
 endfunction()
 
+# Enable LTO
+option(ENABLE_LTO "Enable Link Time Optimization" OFF)
+if (ENABLE_LTO)
+	message("Linking with LTO")
+endif()
+
+function(optional_lto target)
+	if (ENABLE_LTO)
+		set_property(TARGET ${target} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+	endif()
+endfunction()
+
 # Demo ========================================================================
 add_executable(sti-demo "src/main.cpp"
 						"src/clock.cpp"
 						"src/entry.cpp"
 						"src/model.cpp"
 						"src/chair_manager.cpp"
+						"src/space_wrapper.cpp"
 						"src/infection_logic/human_infection_cycle.cpp"
 						"src/infection_logic/object_infection_cycle.cpp"
 			  )

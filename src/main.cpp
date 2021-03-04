@@ -25,7 +25,7 @@ int main(int argc, char** argv)
     // Look for the debug flag
     if (args.size() == 4) {
         const auto third_flag = std::string { args[3] }; 
-        if (third_flag == "--debug") {
+        if (third_flag == "--debug" && world.rank() == 0) {
             // Set a volatile int and expect the debugger to change it
             volatile auto connected = false;
             const auto pid = getpid();

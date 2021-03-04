@@ -13,7 +13,7 @@
 namespace sti {
 
 /// @brief Generic object 
-class object_agent : public contagious_agent {
+class object_agent final : public contagious_agent {
 
 public:
     ////////////////////////////////////////////////////////////////////////////

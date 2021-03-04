@@ -184,7 +184,7 @@ void sti::real_chair_manager::sync()
     auto out_response = std::map<int, std::vector<chair_response_msg>> {};
 
     // First receive the request and releases
-    for (auto i = 0; i < _world->size(); i++) {
+    for (auto i = 0; i < _world->size() - 1; i++) {
         auto tmp_requests = std::vector<chair_request_msg> {};
         auto tmp_releases = std::vector<chair_release_msg> {};
 
@@ -206,6 +206,13 @@ void sti::real_chair_manager::sync()
         auto       response  = search_chair(_chair_pool);
         response.agent_id    = req.agent_id;
         out_response[from_rank].push_back(response);
+    }
+
+    // Generate the missing output buffers, 
+    for (auto i = 0; i < _world->size(); i++) {
+        if (_world->rank() != i) {
+            out_response[i];
+        }
     }
 
     // Send all the messages, the receiver it's in the agent id

@@ -3,7 +3,7 @@
 #include <boost/lexical_cast.hpp>
 #include <sstream>
 
-#include "agent_creator.hpp"
+#include "agent_factory.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "print.hpp"
 

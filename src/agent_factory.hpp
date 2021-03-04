@@ -5,6 +5,7 @@
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/Point.h>
 #include <repast_hpc/Properties.h>
+#include <repast_hpc/SharedContinuousSpace.h>
 
 #include "chair_manager.hpp"
 #include "contagious_agent.hpp"
@@ -15,6 +16,7 @@
 #include "person.hpp"
 #include "object.hpp"
 #include "plan/plan.hpp"
+#include "space_wrapper.hpp"
 
 namespace sti {
 
@@ -34,7 +36,7 @@ public:
     using object_flyweight  = object_agent::flyweight;
 
     using context_ptr = repast::SharedContext<agent>*;
-    using space_ptr   = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>*;
+    using space_ptr   = sti::space_wrapper*;
 
     /// @brief Create a new patient factory
     /// @param context The repast context, to insert the agent
@@ -44,28 +46,28 @@ public:
     /// @param person_fw The flyweight containing all the person shared attributes
     /// @param object_fw The flyweight containing all the object shared attributes
     agent_factory(context_ptr               context,
-                  space_ptr                 discrete_space,
+                  space_ptr                 space,
                   clock*                    c,
                   plan*                     hospital_plan,
                   chair_manager*            chairs,
                   const repast::Properties* props)
         : _context { context }
-        , _discrete_space { discrete_space }
+        , _space { space }
         , _clock { c }
         , _agents_created { 0 }
         , _infection_factory {
             human_infection_cycle::flyweight {
-                _discrete_space,
+                space,
                 _clock,
                 boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("human.infection.chance")),
                 boost::lexical_cast<int>(props->getProperty("human.infection.distance")),
                 timedelta { boost::lexical_cast<timedelta::resolution>(props->getProperty("human.incubation.time")) } },
             object_infection_cycle::flyweight {
-                _discrete_space,
+                space,
                 boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("object.infection.chance")),
                 boost::lexical_cast<int>(props->getProperty("object.infection.distance")) }
         }
-        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, _discrete_space }
+        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, c, space, boost::lexical_cast<double>(props->getProperty("patient.walk.speed")) }
         , _person_flyweight { &_infection_factory }
         , _object_flyweight { &_infection_factory }
     {
@@ -93,7 +95,7 @@ public:
         // Move the agent into position, add it to the repast contexts
         _context->addAgent(patient);
         const auto loc = repast::Point<int> { static_cast<int>(pos.x), static_cast<int>(pos.y) };
-        _discrete_space->moveTo(id, loc);
+        _space->move_to(id, loc);
 
         return patient;
     }
@@ -133,7 +135,7 @@ public:
         // Move the agent into position, add it to the repast contexts
         _context->addAgent(person);
         const auto loc = repast::Point<int> { static_cast<int>(pos.x), static_cast<int>(pos.y) };
-        _discrete_space->moveTo(id, loc);
+        _space->move_to(id, loc);
 
         return person;
     }
@@ -173,7 +175,7 @@ public:
         // Move the agent into position, add it to the repast contexts
         _context->addAgent(object);
         const auto loc = repast::Point<int> { static_cast<int>(pos.x), static_cast<int>(pos.y) };
-        _discrete_space->moveTo(id, loc);
+        _space->move_to(id, loc);
 
         return object;
     }
@@ -193,7 +195,7 @@ public:
 
 private:
     context_ptr _context;
-    space_ptr   _discrete_space;
+    space_ptr   _space;
     clock*      _clock; // To indicate the patient creation time
     unsigned    _agents_created;
 

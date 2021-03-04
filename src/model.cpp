@@ -5,11 +5,13 @@
 #include <iomanip>
 #include <memory>
 
+#include <repast_hpc/RepastProcess.h>
 #include <repast_hpc/Schedule.h>
 #include <sstream>
 #include <string>
 
-#include "agent_creator.hpp"
+#include "agent_factory.hpp"
+#include "agent_package.hpp"
 #include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
@@ -29,7 +31,7 @@ void sti::model::init()
 {
 
     // Get the process local dimensions (the dimensions executed by this process)
-    const auto local_dims = _discrete_space->dimensions();
+    const auto local_dims = _spaces.local_dimensions();
     const auto origin     = plan::dimensions {
         static_cast<plan::length_type>(local_dims.origin().getX()),
         static_cast<plan::length_type>(local_dims.origin().getY())
@@ -48,15 +50,17 @@ void sti::model::init()
     const auto chair_mgr_rank = boost::lexical_cast<int>(_props->getProperty("chair.manager.rank"));
     if (_rank == chair_mgr_rank) {
         // The chair manager is in this process, create the real one
+        print("Creating chair manager server");
         _chair_manager.reset(new real_chair_manager { _communicator, _plan });
     } else {
+        print("Creating chair manager proxy");
         _chair_manager.reset(new proxy_chair_manager { _communicator, chair_mgr_rank });
     }
 
     // Create the agent factory
     print("Creating the agent factory...");
     _agent_factory.reset(new agent_factory { &_context,
-                                             _discrete_space,
+                                             &_spaces,
                                              _clock.get(),
                                              &_plan,
                                              _chair_manager.get(),
@@ -67,9 +71,9 @@ void sti::model::init()
     _receiver = std::make_unique<agent_receiver>(&_context, _agent_factory.get());
 
     // Create the entry logic, if the entry is in this process
-    print("Creating entry...");
     const auto en = _plan.get(plan_tile::TILE_ENUM::ENTRY).at(0);
-    if (_discrete_space->dimensions().contains(std::vector { static_cast<int>(en.x), static_cast<int>(en.y) })) {
+    if (_spaces.local_dimensions().contains(std::vector { static_cast<int>(en.x), static_cast<int>(en.y) })) {
+        print("Creating entry...");
         auto patient_distribution = load_patient_distribution(_props->getProperty("patients.path"));
         _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), *_props });
     }
@@ -78,7 +82,7 @@ void sti::model::init()
     const auto& chairs = _plan.get(plan_tile::TILE_ENUM::CHAIR);
     for (const auto& [x, y] : chairs) {
         const auto chair_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
-        if (_discrete_space->dimensions().contains(chair_loc)) {
+        if (_spaces.local_dimensions().contains(chair_loc)) {
             _agent_factory->insert_new_object({ x, y }, object_infection_cycle::STAGE::CLEAN);
         }
     }
@@ -89,7 +93,7 @@ void sti::model::init()
     personnel.insert(personnel.end(), rist.begin(), rist.end());
     for (const auto& [x, y] : personnel) {
         const auto per_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
-        if (_discrete_space->dimensions().contains(per_loc)) {
+        if (_spaces.local_dimensions().contains(per_loc)) {
             _agent_factory->insert_new_person({ x, y }, human_infection_cycle::STAGE::HEALTHY);
         }
     }
@@ -112,14 +116,25 @@ void sti::model::tick()
     _clock->sync();
     if (_rank == 0) print(_clock->now().str());
 
+    ////////////////////////////////////////////////////////////////////////////
+    // INTER-PROCESS SYNCHONIZATION
+    ////////////////////////////////////////////////////////////////////////////
+
+    _chair_manager->sync(); // Sync the chair pool
+    _spaces.balance(); // Move the agents accross processes
+
+    repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
+    repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
+    repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
+
     // Check if agents are pending creation
     if (_entry) {
         _entry->generate_patients();
     }
 
     // Iterate over all the agents to perform their actions
-    for (const auto& agent : _context) {
-        agent->act();
+    for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
+        (*it)->act();
     }
 }
 

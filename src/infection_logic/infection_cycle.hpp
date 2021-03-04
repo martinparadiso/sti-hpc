@@ -5,15 +5,10 @@
 #include <queue>
 #include <boost/variant.hpp>
 #include <repast_hpc/AgentId.h>
-#include <repast_hpc/SharedDiscreteSpace.h>
 #include <repast_hpc/Point.h>
 
 namespace sti {
 class contagious_agent;
-using agent            = contagious_agent;
-using repast_space     = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
-using repast_space_ptr = repast_space*;
-using const_repast_space_ptr = const repast_space_ptr;
 
 using variant     = boost::variant<bool, float, double, std::int32_t, std::uint32_t, std::uint64_t, std::int64_t, repast::AgentId>;
 using serial_data = std::queue<variant>;
@@ -25,7 +20,7 @@ public:
     using precission = float;
     using distance_t = float;
     using agent_id   = repast::AgentId;
-    using position_t = repast::Point<int>;
+    using position_t = repast::Point<double>;
 
     infection_cycle()                       = default;
     infection_cycle(const infection_cycle&) = default;

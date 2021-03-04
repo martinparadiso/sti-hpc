@@ -3,6 +3,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <math.h>
 #include <repast_hpc/Grid.h>
@@ -15,6 +16,7 @@
 #include "infection_logic/infection_factory.hpp"
 #include "plan/plan.hpp"
 #include "print.hpp"
+#include "space_wrapper.hpp"
 
 namespace sti {
 
@@ -28,10 +30,12 @@ public:
 
     /// @brief Patient common properties
     struct flyweight {
-        const infection_factory* inf_factory;
-        chair_manager*           chairs;
-        plan*                    hospital;
-        repast_space_ptr         repast_space;
+        const sti::infection_factory* inf_factory;
+        sti::chair_manager*           chairs;
+        sti::plan*                    hospital;
+        sti::clock*                   clk;
+        sti::space_wrapper*           space;
+        const double                  walk_speed;
     };
 
     using flyweight_ptr = flyweight*;
@@ -82,6 +86,32 @@ public:
     void serialize(serial_data& queue) const final
     {
         queue.push(_entry_time.epoch());
+
+        { // tmp
+            switch (_stage) {
+            case STAGES::START:
+                queue.push(0);
+                break;
+            case STAGES::WAITING_CHAIR:
+                queue.push(1);
+                break;
+            case STAGES::WALKING_TO_CHAIR:
+                queue.push(2);
+                break;
+            case STAGES::SIT_DOWN:
+                queue.push(3);
+                break;
+            case STAGES::WALKING_TO_EXIT:
+                queue.push(4);
+                break;
+            case STAGES::DULL:
+                queue.push(5);
+                break;
+            }
+            queue.push(_chair_assigned.x);
+            queue.push(_chair_assigned.y);
+            queue.push(_chair_release_time.epoch());
+        } // tmp
         _infection_logic.serialize(queue);
     }
 
@@ -91,6 +121,28 @@ public:
     {
         _entry_time = datetime { boost::get<datetime::resolution>(queue.front()) };
         queue.pop();
+        { // tmp
+            const auto aux = std::array {
+                STAGES::START,
+                STAGES::WAITING_CHAIR,
+                STAGES::WALKING_TO_CHAIR,
+                STAGES::SIT_DOWN,
+                STAGES::WALKING_TO_EXIT,
+                STAGES::DULL
+            };
+            const auto stage_i = boost::get<int>(queue.front());
+            queue.pop();
+            _stage = aux.at(static_cast<std::uint64_t>(stage_i));
+
+            const auto x = boost::get<std::int32_t>(queue.front());
+            queue.pop();
+            const auto y = boost::get<std::int32_t>(queue.front());
+            queue.pop();
+            _chair_assigned = plan::coordinates{x, y};
+
+            _chair_release_time = datetime{ boost::get<datetime::resolution>(queue.front()) };
+            queue.pop();
+        } // tmp
         _infection_logic.deserialize(queue);
     }
 
@@ -133,32 +185,11 @@ public:
                 print(os.str());
             };
 
-            const auto convert_coord = [](const std::vector<int>& vec) {
-                return plan::coordinates {
-                    static_cast<plan::length_type>(vec.at(0)),
-                    static_cast<plan::length_type>(vec.at(1))
-                };
-            };
-
             const auto get_my_loc = [&]() {
-                auto buf = std::vector<int> {};
-                _flyweight->repast_space->getLocation(getId(), buf);
+                const auto repast_coord = _flyweight->space->get_discrete_location(getId());
                 return plan::coordinates {
-                    static_cast<plan::length_type>(buf.at(0)),
-                    static_cast<plan::length_type>(buf.at(1))
-                };
-            };
-
-            const auto get_next_location = [&](plan::coordinates dest) -> plan::coordinates {
-                const auto my_loc = get_my_loc();
-                const auto diff   = plan::coordinates {
-                    dest.x - my_loc.x,
-                    dest.y - my_loc.y
-                };
-                // Clamp the movement
-                return {
-                    my_loc.x + std::clamp(diff.x, -1, 1),
-                    my_loc.y + std::clamp(diff.y, -1, 1)
+                    repast_coord.getX(),
+                    repast_coord.getY()
                 };
             };
 
@@ -198,18 +229,27 @@ public:
 
                 if (get_my_loc() == _chair_assigned) {
                     printas("Arrived at chair");
-                    _stage = STAGES::SIT_DOWN;
+                    // Wait 15 minutes
+                    _chair_release_time = _flyweight->clk->now() + sti::timedelta { 0, 0, 15, 0 };
+                    _stage              = STAGES::SIT_DOWN;
                 } else {
-                    // const auto angles = get_angles_to(_chair_assigned);
-                    const auto next_loc = get_next_location(_chair_assigned);
-                    auto       os       = std::ostringstream {};
-                    os << "Moving to chair :: "
-                       << get_my_loc() << " -> "
-                       << next_loc;
+                    const auto destination = repast::Point<int> {
+                        _chair_assigned.x,
+                        _chair_assigned.y
+                    };
+
+                    const auto my_pos = _flyweight->space->get_continuous_location(getId());
+
+                    const auto final_pos = _flyweight->space->move_towards(getId(),
+                                                                           destination,
+                                                                           _flyweight->walk_speed);
+                    // assert(ret);
+
+                    auto os = std::ostringstream {};
+                    os << "Walking to chair :: "
+                       << my_pos << " -> "
+                       << final_pos;
                     printas(os.str());
-                    const auto next_loc_v = std::vector { next_loc.x, next_loc.y };
-                    const auto ret        = _flyweight->repast_space->moveTo(this, next_loc_v);
-                    assert(ret);
                 }
 
                 return;
@@ -217,7 +257,7 @@ public:
 
             if (_stage == STAGES::SIT_DOWN) {
                 // Wait a couple of ticks
-                if (_ticks_in_chair == 0) {
+                if (_chair_release_time < _flyweight->clk->now()) {
                     _flyweight->chairs->release_chair(_chair_assigned);
                     _chair_assigned = {};
                     auto os         = std::ostringstream {};
@@ -226,12 +266,7 @@ public:
                     printas("Chair released");
                     _stage = STAGES::WALKING_TO_EXIT;
                 } else {
-                    auto os = std::ostringstream {};
-                    os << "Time remaining at chair: "
-                       << _ticks_in_chair
-                       << " ticks";
-                    printas(os.str());
-                    --_ticks_in_chair;
+                    printas("Still waiting for chair release");
                 }
                 return;
             }
@@ -239,21 +274,24 @@ public:
             if (_stage == STAGES::WALKING_TO_EXIT) {
                 const auto& exit_loc = _flyweight->hospital->get(plan_tile::TILE_ENUM::EXIT).at(0);
 
-                if (get_my_loc() == exit_loc) {
-                    printas("Arrived at exit");
-                    _stage = STAGES::DULL;
-                } else {
-                    // const auto angles = get_angles_to(_chair_assigned);
-                    const auto next_loc = get_next_location(exit_loc);
-                    auto       os       = std::ostringstream {};
-                    os << "Moving to exit :: "
-                       << get_my_loc() << " -> "
-                       << next_loc;
-                    printas(os.str());
-                    const auto next_loc_v = std::vector { next_loc.x, next_loc.y };
-                    const auto ret        = _flyweight->repast_space->moveTo(this, next_loc_v);
-                    assert(ret);
-                }
+                const auto my_pos = _flyweight->space->get_continuous_location(getId());
+
+                const auto destination = repast::Point<int> {
+                    exit_loc.x,
+                    exit_loc.y
+                };
+
+                const auto final_pos = _flyweight->space->move_towards(getId(),
+                                                                       destination,
+                                                                       _flyweight->walk_speed);
+
+                auto os = std::ostringstream {};
+                os << "Walking to exit "
+                   << exit_loc
+                   << "  :: "
+                   << my_pos << " -> "
+                   << final_pos;
+                printas(os.str());
                 return;
             };
         }
@@ -275,7 +313,7 @@ private:
     };
     STAGES            _stage          = STAGES::START;
     plan::coordinates _chair_assigned = {};
-    std::uint32_t     _ticks_in_chair = 5;
+    datetime          _chair_release_time;
 }; // patient_agent
 
 } // namespace sti

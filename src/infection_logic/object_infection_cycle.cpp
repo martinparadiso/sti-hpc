@@ -15,22 +15,8 @@ void sti::object_infection_cycle::tick()
 {
     // If the object is clean, try to get infected
     if (_stage == STAGE::CLEAN) {
-        const auto my_location = [&]() {
-            auto vec = std::vector<int> {};
-            _flyweight->repast_space->getLocation(_id, vec);
-            return repast::Point<int>(vec);
-        }();
-
-        // Get nearby agents
-        const auto near_agents = [&]() {
-            auto                                    buf = std::vector<contagious_agent*> {};
-            repast::VN2DGridQuery<contagious_agent> VN2DQuery(_flyweight->repast_space);
-            VN2DQuery.query(my_location, // Search center
-                            _flyweight->infect_distance, // Circle radius
-                            true, // Include agents in the center
-                            buf); // Output
-            return buf;
-        }();
+        const auto my_location = _flyweight->space->get_continuous_location(_id);
+        const auto near_agents = _flyweight->space->agents_around(my_location, _flyweight->infect_distance);
 
         for (const auto& agent : near_agents) {
             // Get the chance of get infected
