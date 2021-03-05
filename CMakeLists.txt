@@ -59,8 +59,8 @@ target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
 
 # Boost
-target_link_directories(sti-demo PRIVATE "${LIB_ROOT_PATH}/boost/lib")
-target_include_directories(sti-demo SYSTEM PUBLIC ${LIB_ROOT_PATH}/boost/include/)
+target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/boost/lib")
+target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/boost/include/)
 target_link_libraries(sti-demo PUBLIC boost_system-mt-x64 boost_filesystem-mt-x64 boost_serialization-mt-x64 boost_mpi-mt-x64)
 
 # MPICH
@@ -85,11 +85,17 @@ target_link_libraries(sti-demo PUBLIC netcdf_c++)
 
 # Repast HPC
 
-target_link_directories(sti-demo PRIVATE "${LIB_ROOT_PATH}/lib")
-target_include_directories(sti-demo SYSTEM PUBLIC ${LIB_ROOT_PATH}/include/)
+target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/repast/lib")
+target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/repast/include/)
 target_link_libraries(sti-demo PUBLIC repast_hpc-2.3.1 relogo-2.3.1)
 
 tidy(sti-demo)
+
+# Add python wrapper for execution ============================================
+add_custom_command(TARGET sti-demo POST_BUILD
+				   COMMAND ${CMAKE_COMMAND} -E copy
+				   ${CMAKE_SOURCE_DIR}/utils/runner.py
+				   ${CMAKE_CURRENT_BINARY_DIR}/runner.py)			
 
 # Test ========================================================================
 add_subdirectory(test)

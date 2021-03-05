@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 import glob
 import argparse
+import os
 
 # Available libraries
 libraries = (
@@ -13,23 +14,24 @@ libraries = (
     'curl',
     'mpich',
     'netcdf',
-    'netcdf-cxx'
+    'netcdf-cxx',
     'repast'
 )
 
-parser = argparse.ArgumentParser(description='Library downloader')
+parser = argparse.ArgumentParser(description='Library downloader. '
+                                 'To compile with an specific compiler, pass CC and CXX env variables as usual.')
 parser.add_argument('libs', nargs='+', choices=(*libraries,
                                                 'all'), help='Libraries to install')
 parser.add_argument('--versions', default='versions.json',
                     help='File containing the library version')
-parser.add_argument('--download-dir', default='./tmp',
+parser.add_argument('--download-folder', default='./tmp',
                     help='Download directory')
-parser.add_argument('--install-dir', default='.',
+parser.add_argument('--install-folder', default='.',
                     help='Installation directory')
 parser.add_argument('-j', '--jobs', default=1, type=int,
                     help='Number of workers used for compilation')
 
-parser.add_argument('--mpicxx', default='mpicxx',
+parser.add_argument('--mpi-compiler', default='mpicxx',
                     help='MPI compiler needed by Boost')
 
 # Library getters ==============================================================
@@ -46,14 +48,15 @@ class Boost(Library):
     required_by = ('repast')
 
     # def __init__(self, version, download_folder, install_folder, mpi_compiler, jobs):
-    def __init__(self, version, args):
+    def __init__(self, version, download_folder, install_folder, args):
         self.version = version.split('.')
-        self.filename = f"boost_{'_'.join(version)}.tar.bz2"
-        self.download_folder = args.download_folder
-        self.install_folder = args.install_folder
+        self.filename = f"boost_{'_'.join(self.version)}.tar.bz2"
+        self.download_folder = download_folder
+        self.install_folder = install_folder
         self.mpi_compiler = args.mpi_compiler
         self.jobs = args.jobs
-        if (len(version) != 3):
+
+        if (len(self.version) != 3):
             raise Exception(f"Invalid boost version {version}")
 
     def download(self):
@@ -106,20 +109,102 @@ class Boost(Library):
         install_output = subprocess.run(['./b2',
                                          f"-j{self.jobs}",
                                          '--layout=tagged',
-                                         'varient=release',
+                                         'variant=release',
                                          'threading=multi',
                                          'stage', 'install'
-                                         ])
+                                         ],
+                                        cwd=workdir)
 
         if install_output.returncode != 0:
             raise Exception(f"Error compiling and install Boost")
 
+
+class Repast(Library):
+
+    name = 'repast'
+    requires = ('boost', 'curl', 'mpich', 'netcdf', 'netcdf-cxx')
+    required_by = ()
+
+    def __init__(self, version, download_folder, install_folder, args):
+        self.version = version.split('.')
+        self.download_folder = download_folder
+        self.install_folder = install_folder
+        self.jobs = args.jobs
+        self.mpi_compiler = args.mpi_compiler
+
+        if version != '2.3.1':
+            raise Exception('Unsupported repast version')
+
+    def download(self):
+
+        repo_folder = Path(f"{self.download_folder}/repast.hpc")
+
+        if repo_folder.is_dir():
+            git_output = subprocess.run(['git', 'pull'], cwd=repo_folder)
+        else:
+            git_output = subprocess.run(['git',
+                                         'clone', 'https://github.com/martinparadiso/repast.hpc.git',
+                                         repo_folder.absolute()])
+
+        if git_output.returncode != 0:
+            raise Exception('Error cloning repast repository')
+
+    def install(self):
+
+        workdir = Path(f"{self.download_folder}/repast.hpc/release")
+        try:
+            workdir.mkdir()
+        except:
+            pass
+
+        # TODO: Temporary solution for the makefile
+        cp_output = subprocess.run(['cp', f"{self.download_folder}/../Makefile.repast", './Makefile'], cwd=workdir)
+
+        if cp_output.returncode != 0:
+            raise Exception('Error copying repast Makefile')
+
+        
+        # TODO: Temporary soluciton for the makefile
+        env = os.environ.copy()
+        env['CC'] = self.mpi_compiler
+        env['PREFIX'] = f"{self.install_folder}/repast/"
+
+        compile_output = subprocess.run(['make',
+                                         f"-j{self.jobs}",
+                                         'all'],
+                                        cwd=workdir,
+                                        env=env)
+
+        if compile_output.returncode != 0:
+            raise Exception('Error compiling repast')
+
+        install_output = subprocess.run(['make',
+                                         'install'],
+                                        cwd=workdir,
+                                        env=env)
+
+        if install_output.returncode != 0:
+            raise Exception('Error installing repast')
+
+
 if (__name__ == '__main__'):
     args = parser.parse_args()
 
-    # Load library version
+    # Load libraries versions
     with open(args.versions) as f:
         lib_versions = json.load(f)
+
+    # Create download folder
+    download_folder = Path(args.download_folder)
+    if not download_folder.is_dir():
+        download_folder.mkdir()
+    print(f"Download folder: {download_folder.absolute()}")
+
+    # Create install folder
+    install_folder = Path(args.install_folder)
+    if not install_folder.is_dir():
+        install_folder.mkdir()
+    print(f"Install folder: {install_folder.absolute()}")
 
     # Install all
     if 'all' in args.libs:
@@ -129,7 +214,10 @@ if (__name__ == '__main__'):
 
         for LibClass in Library.__subclasses__():
             if LibClass.name == lib_str:
-                lib = LibClass(lib_versions[lib_str], args)
+                lib = LibClass(lib_versions[lib_str],
+                               download_folder.absolute(),
+                               install_folder.absolute(),
+                               args)
 
         lib.download()
         lib.install()

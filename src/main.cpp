@@ -49,4 +49,6 @@ int main(int argc, char** argv)
     model.reset();
 
     repast::RepastProcess::instance()->done();
+
+    return 0;
 }

@@ -13,3 +13,6 @@ _deps
 .clangd
 build
 __pycache__
+
+lib/*
+!lib/*.*

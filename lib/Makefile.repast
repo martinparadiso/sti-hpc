@@ -1,0 +1,226 @@
+
+all : repast_hpc relogo rumor zombies
+
+BASE_DIR=${HOME}/repast
+
+repast_hpc_src :=
+relogo_src :=
+rumor_src :=
+zombie_src :=
+
+core_test_src :=
+
+CXX = $(CC)
+CXXLD = $(CC)
+
+CXX_FLAGS = $(CXX_RELEASE_FLAGS) -fopenmp
+
+INCLUDES :=
+LIBS :=
+
+BOOST_INCLUDE = /home/martin/Repositories/sti-hpc/lib/boost/include
+BOOST_LIB_DIR = /home/martin/Repositories/sti-hpc/lib/boost/lib
+BOOST_LIBS = -lboost_system-mt-x64  -lboost_filesystem-mt-x64  -lboost_serialization-mt-x64 -lboost_mpi-mt-x64
+
+NETCDF_HOME = 
+NETCDF_INCLUDE_DIR = $(BASE_DIR)/netcdf/include
+NETCDF_LIB_DIR = $(BASE_DIR)/netcdf/lib
+
+NETCDF_CXX_HOME =
+NETCDF_CXX_INCLUDE_DIR = $(BASE_DIR)/netcdf-cxx/include
+NETCDF_CXX_LIB_DIR = $(BASE_DIR)/netcdf-cxx/lib
+
+CURL_HOME = 
+CURL_INCLUDE_DIR = $(BASE_DIR)/curl/include
+CURL_LIB_DIR = $(BASE_DIR)/curl/lib
+
+INCLUDES += -I $(BOOST_INCLUDE)
+INCLUDES += -I ../src
+INCLUDES += -I $(NETCDF_INCLUDE_DIR)
+INCLUDES += -I $(NETCDF_CXX_INCLUDE_DIR)
+INCLUDES += -I $(CURL_INCLUDE_DIR)
+
+GTEST_HOME = 
+GTEST_LIB = libgtest.a
+TEST_INCLUDES = -I /usr/local/include
+
+LIBS += -L $(BOOST_LIB_DIR) $(BOOST_LIBS)
+LIBS += -L $(NETCDF_LIB_DIR) -lnetcdf
+LIBS += -L $(NETCDF_CXX_LIB_DIR) -lnetcdf_c++
+LIBS += -L $(CURL_LIB_DIR) -lcurl
+
+RPATHS += -Wl,-rpath -Wl,$(NETCDF_LIB_DIR)
+RPATHS += -Wl,-rpath -Wl,$(NETCDF_CXX_LIB_DIR) 
+RPATHS += -Wl,-rpath -Wl,$(CURL_LIB_DIR) 
+RPATHS += -Wl,-rpath -Wl,$(BOOST_LIB_DIR)
+
+TEST_RPATHS = $(RPATHS)
+TEST_RPATHS += -Wl,-rpath -Wl,./bin
+
+# src, build directories
+SRC_DIR=../src
+REPAST_HPC_DIR=$(SRC_DIR)/repast_hpc
+RELOGO_DIR=$(SRC_DIR)/relogo
+RUMOR_DIR=$(SRC_DIR)/rumor_model
+ZOMBIE_DIR=$(SRC_DIR)/zombies
+BUILD_DIR = ./build
+
+include $(REPAST_HPC_DIR)/module.mk
+REPAST_HPC_SOURCES =  $(addprefix ../src/, $(repast_hpc_src))
+RHPC_OBJS = $(addprefix $(BUILD_DIR)/, $(repast_hpc_src))
+REPAST_HPC_OBJECTS = $(subst .cpp,.o,$(RHPC_OBJS))
+REPAST_HPC_DEPS = $(subst .o,.d,$(REPAST_HPC_OBJECTS))
+
+include $(RELOGO_DIR)/module.mk
+RELOGO_SOURCES =  $(addprefix ../src/, $(relogo_src))
+REL_OBJS = $(addprefix $(BUILD_DIR)/, $(relogo_src))
+RELOGO_OBJECTS = $(subst .cpp,.o,$(REL_OBJS))
+RELOGO_DEPS = $(subst .o,.d,$(RELOGO_OBJECTS))
+
+include $(RUMOR_DIR)/module.mk
+RUMOR_SOURCES =  $(addprefix ../src/, $(rumor_src))
+RUMOR_OBJS = $(addprefix $(BUILD_DIR)/, $(rumor_src))
+RUMOR_OBJECTS = $(subst .cpp,.o,$(RUMOR_OBJS))
+RUMOR_DEPS = $(subst .o,.d,$(RUMOR_OBJECTS))
+
+include $(ZOMBIE_DIR)/module.mk
+ZOMBIE_SOURCES =  $(addprefix ../src/, $(zombie_src))
+ZOMBIE_OBJS = $(addprefix $(BUILD_DIR)/, $(zombie_src))
+ZOMBIE_OBJECTS = $(subst .cpp,.o,$(ZOMBIE_OBJS))
+ZOMBIE_DEPS = $(subst .o,.d,$(ZOMBIE_OBJECTS))
+
+VPATH = ../src ../test
+
+include ../test/core/module.mk
+TEST_OBJECTS := $(subst .cpp,.o, $(addprefix $(BUILD_DIR)/, $(core_test_src)))
+TEST_DEPS :=  $(subst .o,.d,$(TEST_OBJECTS))
+
+
+CXX_RELEASE_FLAGS = -Wall -O2 -g0 -std=c++11 -MMD -MP
+CXX_DEBUG_FLAGS = -Wall -O0 -g3 -std=c++11 -MMD -MP
+CXX_FLAGS = $(CXX_RELEASE_FLAGS) -fopenmp
+
+LIB_CXX_FLAGS = $(CXX_FLAGS)
+
+LDFLAGS = -fopenmp
+LIB_LDFLAGS = $(LDFLAGS)
+LIB_EXT =
+
+OS := $(shell uname)
+
+ifeq ($(OS),Darwin)
+ LIB_LDFLAGS += -dynamiclib
+ LIB_EXT = dylib
+else
+ # linux
+ LIB_CXX_FLAGS += -fPIC
+ LIB_LDFLAGS += -shared
+ LIB_EXT = so
+endif
+
+# targets
+REPAST_VERSION=2.3.1
+REPAST_HPC_NAME=repast_hpc-$(REPAST_VERSION)
+REPAST_HPC_LIB=lib$(REPAST_HPC_NAME).$(LIB_EXT)
+
+RELOGO_NAME=relogo-$(REPAST_VERSION)
+RELOGO_LIB=lib$(RELOGO_NAME).$(LIB_EXT)
+
+RUMOR_EXE=rumor_model
+ZOMBIE_EXE=zombie_model
+
+INSTALL_DIR = $(PREFIX)
+REPAST_HPC_INSTALL_INCLUDE = $(INSTALL_DIR)/include/repast_hpc
+RELOGO_INSTALL_INCLUDE = $(INSTALL_DIR)/include/relogo
+INSTALL_LIB = $(INSTALL_DIR)/lib
+
+TEST_NAME = unit_test
+
+SED := sed
+MV := mv -f
+MKDIR := mkdir -p
+CP := cp
+
+ifeq "$(MAKECMDGOALS)" "repast_hpc"
+     -include $(REPAST_HPC_DEPS)
+endif
+
+ifeq "$(MAKECMDGOALS)" "relogo"
+     -include $(REPAST_HPC_DEPS)
+     -include $(RELOGO_DEPS)
+endif
+
+ifeq "$(MAKECMDGOALS)" "rumor"
+     -include $(REPAST_HPC_DEPS)
+     -include $(RUMOR_DEPS)
+endif
+
+ifeq "$(MAKECMDGOALS)" "zombies"
+     -include $(REPAST_HPC_DEPS)
+     -include $(RELOGO_DEPS)
+     -include $(ZOMBIE_DEPS)
+endif
+
+ifeq "$(MAKECMDGOALS)" "all"
+     -include $(REPAST_HPC_DEPS)
+     -include $(RELOGO_DEPS)
+endif
+
+
+ifeq "$(MAKECMDGOALS)" "tests"
+     -include $(REPAST_HPC_DEPS)
+     -include $(RELOGO_DEPS)
+     -include $(TEST_DEPS)
+endif
+
+ifeq "$(MAKECMDGOALS)" ""
+     -include $(REPAST_HPC_DEPS)
+     -include $(RELOGO_DEPS)
+     -include $(RUMOR_DEPS)
+     -include $(ZOMBIE_DEPS)
+endif
+
+
+.PHONY: all repast_hpc relogo clean zombies rumor
+
+install : repast_hpc relogo
+	$(MKDIR) $(REPAST_HPC_INSTALL_INCLUDE)
+	$(MKDIR) $(RELOGO_INSTALL_INCLUDE)
+	$(MKDIR) $(INSTALL_LIB)
+	$(CP) $(REPAST_HPC_DIR)/*.h $(REPAST_HPC_INSTALL_INCLUDE)
+	$(CP) $(RELOGO_DIR)/*.h $(RELOGO_INSTALL_INCLUDE)
+	$(CP) ./bin/$(REPAST_HPC_LIB) $(INSTALL_LIB)
+	$(CP) ./bin/$(RELOGO_LIB) $(INSTALL_LIB)
+
+repast_hpc: $(REPAST_HPC_OBJECTS)
+	-mkdir -p bin
+	$(CXXLD) $^ $(LIB_LDFLAGS) $(RPATHS) -o bin/$(REPAST_HPC_LIB) $(LIBS)
+
+relogo: $(RELOGO_OBJECTS)
+	-mkdir -p bin
+	$(CXXLD) $^ $(LIB_LDFLAGS) $(RPATHS) $(l_CURL) -o bin/$(RELOGO_LIB) $(LIBS) -L./bin
+
+tests : repast_hpc $(TEST_OBJECTS) 
+	$(CXXLD) $(filter-out %.d, $(TEST_OBJECTS)) -lpthread -o $(TEST_NAME) -L./bin -l$(REPAST_HPC_NAME) $(LIBS) $(TEST_RPATHS) $(GTEST_LIB) 
+
+
+rumor:  $(RUMOR_OBJECTS)
+	mkdir -p ./bin
+	cp $(RUMOR_DIR)/config.props ./bin/rumor_config.props
+	cp $(RUMOR_DIR)/model.props ./bin/rumor_model.props
+	$(CXXLD) $(RUMOR_OBJECTS) $(LDFLAGS) -L./bin $(LIBS) -l$(REPAST_HPC_NAME) $(RPATHS) -Wl,-rpath=$(INSTALL_LIB) -o ./bin/$(RUMOR_EXE)
+
+zombies: $(ZOMBIE_OBJECTS)
+	mkdir -p ./bin
+	cp $(ZOMBIE_DIR)/config.props ./bin/zombie_config.props
+	cp $(ZOMBIE_DIR)/model.props ./bin/zombie_model.props
+	$(CXXLD) $(ZOMBIE_OBJECTS) $(LDFLAGS) -L./bin $(LIBS) -l$(REPAST_HPC_NAME) -l$(RELOGO_NAME) $(RPATHS) -Wl,-rpath=$(INSTALL_LIB) -o ./bin/$(ZOMBIE_EXE)
+
+
+$(BUILD_DIR)/%.o : %.cpp
+	 @-mkdir -p $(dir $@)
+	$(CXX) $(CXX_FLAGS) -Wno-deprecated-declarations $(LIB_CXX_FLAGS) $(INCLUDES) $(TEST_INCLUDES) -c $< -o $@
+
+clean :
+	rm -rf $(BUILD_DIR)
+	rm -f bin/*
