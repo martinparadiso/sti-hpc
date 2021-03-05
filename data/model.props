@@ -1,0 +1,25 @@
+# Stop tick
+stop.at = 50
+
+# Hospital file
+hospital.file = ./three_chairs.hospital
+patients.file = ./patients
+
+# Process distribution
+x.process = 1
+y.process = 1
+chair.manager.rank = 0
+
+# Simulation
+seconds.per.tick = 60
+
+# Infection
+human.infection.chance = 0.1
+human.infection.distance = 2
+human.incubation.time = 300
+object.infection.chance = 0.1
+object.infection.distance = 0
+
+patient.walk.speed = 1.0
+patient.infected.chance = 0.3
+    

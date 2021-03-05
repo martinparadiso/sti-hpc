@@ -42,7 +42,7 @@ public:
         , _context(comm)
         , _rank { repast::RepastProcess::instance()->rank() }
         , _stop_at { repast::strToInt(_props->getProperty("stop.at")) }
-        , _plan { load_plan(_props->getProperty("plan.path")) }
+        , _plan { load_plan(_props->getProperty("hospital.file")) }
         , _spaces { _plan, *_props, _context, comm }
         , _clock { std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
     {

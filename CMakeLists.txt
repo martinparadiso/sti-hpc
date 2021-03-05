@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Export compile commands (for clangd)
-set(CMAKE_EXPORT_COMPILE_OPTIONS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
 # Debug and utils ==============================================================

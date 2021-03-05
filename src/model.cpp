@@ -74,7 +74,7 @@ void sti::model::init()
     const auto en = _plan.get(plan_tile::TILE_ENUM::ENTRY).at(0);
     if (_spaces.local_dimensions().contains(std::vector { static_cast<int>(en.x), static_cast<int>(en.y) })) {
         print("Creating entry...");
-        auto patient_distribution = load_patient_distribution(_props->getProperty("patients.path"));
+        auto patient_distribution = load_patient_distribution(_props->getProperty("patients.file"));
         _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), *_props });
     }
 
