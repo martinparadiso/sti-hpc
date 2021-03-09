@@ -1,11 +1,12 @@
 enable_testing()
 
-add_executable(plan_test_bin plan/plan_test.cpp)
-configure_file(plan/plan_generator.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-target_include_directories(plan_test_bin SYSTEM PRIVATE "${PROJECT_SOURCE_DIR}/src/")
-target_compile_options(plan_test_bin PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
-tidy(plan_test_bin)
-add_test(NAME plan_test COMMAND plan_test_bin)
+# This is outedated
+# add_executable(plan_test_bin plan/plan_test.cpp)
+# configure_file(plan/plan_generator.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+# target_include_directories(plan_test_bin SYSTEM PRIVATE "${PROJECT_SOURCE_DIR}/src/")
+# target_compile_options(plan_test_bin PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
+# tidy(plan_test_bin)
+# add_test(NAME plan_test COMMAND plan_test_bin)
 
 # This is outdated
 # add_executable(serialization_test_bin agent/serialization.cpp)

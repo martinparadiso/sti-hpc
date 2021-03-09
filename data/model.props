@@ -2,7 +2,7 @@
 stop.at = 50
 
 # Hospital file
-hospital.file = ./three_chairs.hospital
+hospital.file = ./hospital.json
 patients.file = ./patients
 
 # Process distribution

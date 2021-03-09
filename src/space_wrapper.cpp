@@ -1,21 +1,20 @@
 #include "space_wrapper.hpp"
 
-#include <c++/10/pstl/glue_algorithm_defs.h>
 #include <cmath>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/Moore2DGridQuery.h>
 #include <repast_hpc/Point.h>
 #include <repast_hpc/Properties.h>
 
+#include "hospital_plan.hpp"
 #include "contagious_agent.hpp"
-#include "plan/plan.hpp"
 
 /// @brief Create a space wrapper
 /// @param building_plan The hospital plan
 /// @param props A repast properties object
 /// @param context The repast agent context
 /// @param comm The Boost.MPI communicator
-sti::space_wrapper::space_wrapper(sti::plan& building_plan, properties& props, agent_context& context, communicator* comm)
+sti::space_wrapper::space_wrapper(sti::hospital_plan& building_plan, properties& props, agent_context& context, communicator* comm)
 {
 
     const auto origin             = repast::Point<double> { 0, 0 };

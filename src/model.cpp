@@ -16,13 +16,13 @@
 #include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "entry.hpp"
+#include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "infection_logic/object_infection_cycle.hpp"
 #include "model.hpp"
 #include "patient.hpp"
-#include "plan/plan_file.hpp"
 #include "print.hpp"
 
 /// @brief Initialize the model
@@ -30,28 +30,12 @@
 void sti::model::init()
 {
 
-    // Get the process local dimensions (the dimensions executed by this process)
-    const auto local_dims = _spaces.local_dimensions();
-    const auto origin     = plan::dimensions {
-        static_cast<plan::length_type>(local_dims.origin().getX()),
-        static_cast<plan::length_type>(local_dims.origin().getY())
-    };
-    const auto extent = plan::dimensions {
-        static_cast<plan::length_type>(local_dims.extents().getX()),
-        static_cast<plan::length_type>(local_dims.extents().getY())
-    };
-
-    _local_zone = plan::zone {
-        { origin.width, origin.height },
-        { origin.width + extent.width, origin.height + origin.height }
-    };
-
     // Create the chair manager
     const auto chair_mgr_rank = boost::lexical_cast<int>(_props->getProperty("chair.manager.rank"));
     if (_rank == chair_mgr_rank) {
         // The chair manager is in this process, create the real one
         print("Creating chair manager server");
-        _chair_manager.reset(new real_chair_manager { _communicator, _plan });
+        _chair_manager.reset(new real_chair_manager { _communicator, _hospital });
     } else {
         print("Creating chair manager proxy");
         _chair_manager.reset(new proxy_chair_manager { _communicator, chair_mgr_rank });
@@ -62,7 +46,7 @@ void sti::model::init()
     _agent_factory.reset(new agent_factory { &_context,
                                              &_spaces,
                                              _clock.get(),
-                                             &_plan,
+                                             &_hospital,
                                              _chair_manager.get(),
                                              _props });
 
@@ -71,7 +55,7 @@ void sti::model::init()
     _receiver = std::make_unique<agent_receiver>(&_context, _agent_factory.get());
 
     // Create the entry logic, if the entry is in this process
-    const auto en = _plan.get(plan_tile::TILE_ENUM::ENTRY).at(0);
+    const auto en = _hospital.get_all(hospital_plan::tile_t::ENTRY).at(0);
     if (_spaces.local_dimensions().contains(std::vector { static_cast<int>(en.x), static_cast<int>(en.y) })) {
         print("Creating entry...");
         auto patient_distribution = load_patient_distribution(_props->getProperty("patients.file"));
@@ -79,7 +63,7 @@ void sti::model::init()
     }
 
     // Create chairs (if the chair is in the local space)
-    const auto& chairs = _plan.get(plan_tile::TILE_ENUM::CHAIR);
+    const auto& chairs = _hospital.get_all(hospital_plan::tile_t::CHAIR);
     for (const auto& [x, y] : chairs) {
         const auto chair_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
         if (_spaces.local_dimensions().contains(chair_loc)) {
@@ -88,9 +72,9 @@ void sti::model::init()
     }
 
     // Create medical personnel
-    auto        personnel = _plan.get(plan_tile::TILE_ENUM::DOCTOR);
-    const auto& rist      = _plan.get(plan_tile::TILE_ENUM::RECEPTIONIST);
-    personnel.insert(personnel.end(), rist.begin(), rist.end());
+    auto        personnel = _hospital.get_all(hospital_plan::tile_t::DOCTOR);
+    const auto& recept    = _hospital.get_all(hospital_plan::tile_t::RECEPTIONIST);
+    personnel.insert(personnel.end(), recept.begin(), recept.end());
     for (const auto& [x, y] : personnel) {
         const auto per_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
         if (_spaces.local_dimensions().contains(per_loc)) {
@@ -117,7 +101,7 @@ void sti::model::tick()
     if (_rank == 0) print(_clock->now().str());
 
     ////////////////////////////////////////////////////////////////////////////
-    // INTER-PROCESS SYNCHONIZATION
+    // INTER-PROCESS SYNCHRONIZATION
     ////////////////////////////////////////////////////////////////////////////
 
     _chair_manager->sync(); // Sync the chair pool
@@ -147,10 +131,9 @@ void sti::model::finish()
 
         auto key_oder = std::vector<std::string> { "RunNumber", "stop.at", "Result" };
         _props->writeToSVFile("./output/results.csv", key_oder);
-    }
 
     // Get the information of the entry
-    if (_entry) {
+    if (_entry ) {
         const auto& [entry, expected] = _entry->stadistics();
 
         auto os = std::ostringstream {};
@@ -168,5 +151,6 @@ void sti::model::finish()
         }
 
         print(os.str());
+    }
     }
 }

@@ -21,8 +21,8 @@
 #include <boost/histogram/weight.hpp>
 
 #include "clock.hpp"
+#include "hospital_plan.hpp"
 #include "metric.hpp"
-#include "plan/plan.hpp"
 
 namespace sti {
 
@@ -96,7 +96,7 @@ public:
     /// @return The number of patients entering the hospital in the specified interval
     auto get(std::uint32_t day, std::uint32_t interval) const
     {
-        return static_cast<std::uint64_t>(_data.at(day, interval));
+        return static_cast<std::uint64_t>(_data.at(static_cast<int>(day), interval));
     }
 
     /// @brief Increment in 1 the number of patitents
@@ -107,6 +107,7 @@ public:
     }
 
     hist_t _data;
+
 private:
 };
 
@@ -121,7 +122,7 @@ public:
     /// @param patient_admissions The patient admission histogram
     /// @param factory The agent factory, for patient creation
     /// @param props Repast properties
-    hospital_entry(plan::coordinates                     location,
+    hospital_entry(coordinates                           location,
                    sti::clock*                           clock,
                    std::unique_ptr<patient_distribution> patient_admissions,
                    agent_factory*                        factory,
@@ -133,11 +134,11 @@ public:
     /// @brief Get the generated patients
     auto stadistics() const
     {
-        return std::pair<const patient_distribution::hist_t&,const patient_distribution::hist_t&>{_generated_patients, _patient_distribution->_data};
+        return std::pair<const patient_distribution::hist_t&, const patient_distribution::hist_t&> { _generated_patients, _patient_distribution->_data };
     }
 
 private:
-    plan::coordinates                         _location;
+    coordinates                               _location;
     const sti::clock*                         _clock;
     std::unique_ptr<patient_distribution>     _patient_distribution;
     sti::metric<patient_distribution::hist_t> _generated_patients;
@@ -183,7 +184,7 @@ inline std::unique_ptr<patient_distribution> load_patient_distribution(std::stri
 
     // Read the first line, if its a header skip it
     std::getline(file, line);
-    if ( (std::islower(line.at(0)) == 0) && (std::isupper(line.at(0)) == 0)) {
+    if ((std::islower(line.at(0)) == 0) && (std::isupper(line.at(0)) == 0)) {
         file.seekg(0);
     }
 

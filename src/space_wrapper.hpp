@@ -27,7 +27,7 @@ class GridDimensions;
 namespace sti {
 
 // Forward declarations
-class plan;
+class hospital_plan;
 class contagious_agent;
 
 /// @brief A space wrapper
@@ -55,7 +55,7 @@ public:
     /// @param props A repast properties object
     /// @param context The repast agent context
     /// @param comm The Boost.MPI communicator
-    space_wrapper(sti::plan& building_plan, properties& props, agent_context& context, communicator* comm);
+    space_wrapper(sti::hospital_plan& building_plan, properties& props, agent_context& context, communicator* comm);
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR

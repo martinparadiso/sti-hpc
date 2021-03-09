@@ -126,9 +126,9 @@ public:
     /// @brief Create an agent from a package (deserializing the data)
     sti::contagious_agent* createAgent(const agent_package& package)
     {
-        const auto  id         = package.get_id();
-        const auto  agent_type = sti::to_agent_enum(id.agentType());
-        auto queue       = package.data;
+        const auto id         = package.get_id();
+        const auto agent_type = sti::to_agent_enum(id.agentType());
+        auto       queue      = package.data;
 
         if (agent_type == sti::contagious_agent::type::PATIENT) {
             return _agent_factory->recreate_patient(id, queue);
@@ -139,7 +139,7 @@ public:
         if (agent_type == sti::contagious_agent::type::OBJECT) {
             return _agent_factory->recreate_object(id, queue);
         }
-        throw sti::wrong_serialization{};
+        throw sti::wrong_serialization {};
     }
 
     /// @brief Update a "borrowed" agent

@@ -13,7 +13,7 @@
 /// @param clock The simulation clock
 /// @param patient_admissions The patient admission histogram
 /// @param factory The agent factory, for patient creation
-sti::hospital_entry::hospital_entry(plan::coordinates                     location,
+sti::hospital_entry::hospital_entry(sti::coordinates                     location,
                                     sti::clock*                           clock,
                                     std::unique_ptr<patient_distribution> patient_admissions,
                                     agent_factory*                        factory,

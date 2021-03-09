@@ -12,9 +12,9 @@
 #include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
+#include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
-#include "plan/plan.hpp"
 #include "print.hpp"
 #include "space_wrapper.hpp"
 
@@ -32,7 +32,7 @@ public:
     struct flyweight {
         const sti::infection_factory* inf_factory;
         sti::chair_manager*           chairs;
-        sti::plan*                    hospital;
+        sti::hospital_plan*           hospital;
         sti::clock*                   clk;
         sti::space_wrapper*           space;
         const double                  walk_speed;
@@ -138,9 +138,9 @@ public:
             queue.pop();
             const auto y = boost::get<std::int32_t>(queue.front());
             queue.pop();
-            _chair_assigned = plan::coordinates{x, y};
+            _chair_assigned = coordinates { x, y };
 
-            _chair_release_time = datetime{ boost::get<datetime::resolution>(queue.front()) };
+            _chair_release_time = datetime { boost::get<datetime::resolution>(queue.front()) };
             queue.pop();
         } // tmp
         _infection_logic.deserialize(queue);
@@ -187,7 +187,7 @@ public:
 
             const auto get_my_loc = [&]() {
                 const auto repast_coord = _flyweight->space->get_discrete_location(getId());
-                return plan::coordinates {
+                return coordinates {
                     repast_coord.getX(),
                     repast_coord.getY()
                 };
@@ -262,7 +262,7 @@ public:
                     _chair_assigned = {};
                     auto os         = std::ostringstream {};
                     os << "Chair released, going to exit at "
-                       << _flyweight->hospital->get(plan_tile::TILE_ENUM::EXIT).at(0);
+                       << _flyweight->hospital->get_all(hospital_plan::tile_t::EXIT).at(0);
                     printas("Chair released");
                     _stage = STAGES::WALKING_TO_EXIT;
                 } else {
@@ -272,7 +272,7 @@ public:
             }
 
             if (_stage == STAGES::WALKING_TO_EXIT) {
-                const auto& exit_loc = _flyweight->hospital->get(plan_tile::TILE_ENUM::EXIT).at(0);
+                const auto& exit_loc = _flyweight->hospital->get_all(hospital_plan::tile_t::EXIT).at(0);
 
                 const auto my_pos = _flyweight->space->get_continuous_location(getId());
 
@@ -311,9 +311,9 @@ private:
         WALKING_TO_EXIT,
         DULL,
     };
-    STAGES            _stage          = STAGES::START;
-    plan::coordinates _chair_assigned = {};
-    datetime          _chair_release_time;
+    STAGES      _stage          = STAGES::START;
+    coordinates _chair_assigned = {};
+    datetime    _chair_release_time;
 }; // patient_agent
 
 } // namespace sti

@@ -11,7 +11,8 @@
 #include <utility>
 #include <vector>
 
-#include "plan/plan.hpp"
+// #include "plan/plan.hpp"
+#include "hospital_plan.hpp"
 
 namespace sti {
 
@@ -28,7 +29,7 @@ struct chair_request_msg {
 
 /// @brief A indication that a chair has been released
 struct chair_release_msg {
-    plan::coordinates chair_location;
+    sti::coordinates chair_location;
 
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int version)
@@ -42,7 +43,7 @@ struct chair_response_msg {
     // If a chair was available, the response has the coordinates, if there was no
     // chair available, no coordinates are sent
     repast::AgentId                    agent_id;
-    boost::optional<plan::coordinates> chair_location;
+    boost::optional<sti::coordinates> chair_location;
 
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int version)
@@ -56,7 +57,7 @@ struct chair_response_msg {
 class chair_manager {
 
 public:
-    using coordinates  = plan::coordinates;
+    using coordinates  = sti::coordinates;
     using communicator = boost::mpi::communicator;
     template <typename T>
     using optional = boost::optional<T>;
@@ -138,14 +139,14 @@ class real_chair_manager final : public chair_manager {
 
 public:
     struct chair {
-        plan::coordinates location;
+        sti::coordinates location;
         bool              in_use;
     };
 
     /// @brief Construct a chair manager
     /// @param comm Boost.MPI communicator
     /// @param building Building plan
-    real_chair_manager(communicator* comm, plan& building);
+    real_chair_manager(communicator* comm, const hospital_plan& building);
 
     /// @brief Request an empty chair
     /// @param id The id of the agent requesting a chair

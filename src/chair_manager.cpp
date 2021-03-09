@@ -2,7 +2,7 @@
 #include <vector>
 
 #include "chair_manager.hpp"
-#include "plan/plan.hpp"
+#include "hospital_plan.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 // PROXY_CHAIR_MANAGER
@@ -84,7 +84,7 @@ namespace {
 /// @param chair_pool The chairs
 /// @param location The location of the chair to release
 void release(std::vector<sti::real_chair_manager::chair>& chair_pool,
-             sti::plan::coordinates                       location)
+             sti::coordinates                             location)
 {
     const auto it = std::find_if(chair_pool.begin(), chair_pool.end(), [&](const auto& chair) {
         return chair.location == location;
@@ -123,11 +123,11 @@ sti::chair_response_msg search_chair(std::vector<sti::real_chair_manager::chair>
 // REAL_CHAIR_MANAGER
 ////////////////////////////////////////////////////////////////////////////////
 
-sti::real_chair_manager::real_chair_manager(communicator* comm, plan& building)
+sti::real_chair_manager::real_chair_manager(communicator* comm, const hospital_plan& building)
     : _world { comm }
 {
 
-    for (const auto& [x, y] : building.get(plan_tile::TILE_ENUM::CHAIR)) {
+    for (const auto& [x, y] : building.get_all(hospital_plan::tile_t::CHAIR)) {
         _chair_pool.push_back({ { x, y }, false });
     }
 }
@@ -143,7 +143,7 @@ void sti::real_chair_manager::request_chair(const repast::AgentId& id)
 
 /// @brief Release a chair
 /// @param chair_loc The coordinates of the chair being released
-void sti::real_chair_manager::release_chair(const sti::plan::coordinates& chair_loc)
+void sti::real_chair_manager::release_chair(const sti::coordinates& chair_loc)
 {
     release(_chair_pool, chair_loc);
 } // void release_chair(...)
@@ -208,7 +208,7 @@ void sti::real_chair_manager::sync()
         out_response[from_rank].push_back(response);
     }
 
-    // Generate the missing output buffers, 
+    // Generate the missing output buffers,
     for (auto i = 0; i < _world->size(); i++) {
         if (_world->rank() != i) {
             out_response[i];

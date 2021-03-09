@@ -9,13 +9,13 @@
 
 #include "chair_manager.hpp"
 #include "contagious_agent.hpp"
+#include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "infection_logic/object_infection_cycle.hpp"
 #include "patient.hpp"
 #include "person.hpp"
 #include "object.hpp"
-#include "plan/plan.hpp"
 #include "space_wrapper.hpp"
 
 namespace sti {
@@ -48,7 +48,7 @@ public:
     agent_factory(context_ptr               context,
                   space_ptr                 space,
                   clock*                    c,
-                  plan*                     hospital_plan,
+                  hospital_plan*            hospital_plan,
                   chair_manager*            chairs,
                   const repast::Properties* props)
         : _context { context }
@@ -81,7 +81,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_patient(plan::coordinates            pos,
+    agent_ptr insert_new_patient(coordinates            pos,
                                  human_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();
@@ -121,7 +121,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_person(plan::coordinates            pos,
+    agent_ptr insert_new_person(coordinates            pos,
                                 human_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();
@@ -161,7 +161,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_object(plan::coordinates             pos,
+    agent_ptr insert_new_object(coordinates             pos,
                                 object_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();
