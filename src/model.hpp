@@ -23,6 +23,7 @@
 #include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "entry.hpp"
+#include "exit.hpp"
 #include "hospital_plan.hpp"
 #include "json_loader.hpp"
 #include "space_wrapper.hpp"
@@ -97,6 +98,7 @@ private:
     // Extra classes that the model may or may not have depending on the
     // location
     std::unique_ptr<hospital_entry> _entry {}; // Properly initalized in init()
+    std::unique_ptr<hospital_exit> _exit {};
 }; // class model
 
 } // namespace sti

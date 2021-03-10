@@ -24,6 +24,13 @@
 #include "hospital_plan.hpp"
 #include "metric.hpp"
 
+// Fw. declarations
+namespace boost {
+    namespace json {
+        class array;
+    }
+}
+
 namespace sti {
 
 // Fw. declarations
@@ -131,11 +138,9 @@ public:
     /// @brief Generate the pending patients
     void generate_patients();
 
-    /// @brief Get the generated patients
-    auto stadistics() const
-    {
-        return std::pair<const patient_distribution::hist_t&, const patient_distribution::hist_t&> { _generated_patients, _patient_distribution->_data };
-    }
+    /// @brief Generate a JSON object containing the entry statistics
+    /// @return The Boost.JSON object with the statistics
+    boost::json::array statistics() const;
 
 private:
     coordinates                               _location;

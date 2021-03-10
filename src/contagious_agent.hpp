@@ -6,6 +6,8 @@
 
 #include <boost/variant.hpp>
 #include <repast_hpc/AgentId.h>
+#include <string>
+#include <utility>
 
 #include "clock.hpp"
 #include "infection_logic/infection_factory.hpp"
@@ -96,6 +98,10 @@ public:
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
     virtual const infection_cycle* get_infection_logic() const = 0;
+
+    /// @brief Remove the agent from the simulation and collect the relevant data
+    /// @return A list of key-value pairs, representing output relevant data
+    virtual std::vector<std::pair<std::string, std::string>> kill_and_collect() = 0;
 
 private:
     id_t _id;

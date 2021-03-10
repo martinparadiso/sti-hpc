@@ -12,7 +12,7 @@
 
 namespace sti {
 
-/// @brief Generic object 
+/// @brief Generic object
 class object_agent final : public contagious_agent {
 
 public:
@@ -98,6 +98,27 @@ public:
     const infection_cycle* get_infection_logic() const override
     {
         return &_infection_logic;
+    }
+
+    // TODO: Implement properly
+    std::vector<std::pair<std::string, std::string>> kill_and_collect() override
+    {
+        auto output = std::vector<std::pair<std::string, std::string>>{};
+
+        const auto& stage_str = [&]() {
+            const auto& stage = _infection_logic.get_stage();
+            
+            switch (stage) {
+                case object_infection_cycle::STAGE::CLEAN:
+                    return "clean";
+                case object_infection_cycle::STAGE::INFECTED:
+                    return "infected";
+            }
+        }();
+
+        output.push_back({"stage", stage_str});
+
+        return output;
     }
 
 private:

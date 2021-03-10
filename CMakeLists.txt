@@ -49,6 +49,7 @@ endfunction()
 add_executable(sti-demo "src/main.cpp"
 						"src/clock.cpp"
 						"src/entry.cpp"
+						"src/exit.cpp"
 						"src/hospital_plan.cpp"
 						"src/model.cpp"
 						"src/chair_manager.cpp"

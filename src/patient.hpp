@@ -7,7 +7,9 @@
 #include <cstdint>
 #include <math.h>
 #include <repast_hpc/Grid.h>
+#include <repast_hpc/SharedContext.h>
 #include <sstream>
+#include <vector>
 
 #include "chair_manager.hpp"
 #include "clock.hpp"
@@ -30,12 +32,13 @@ public:
 
     /// @brief Patient common properties
     struct flyweight {
-        const sti::infection_factory* inf_factory;
-        sti::chair_manager*           chairs;
-        sti::hospital_plan*           hospital;
-        sti::clock*                   clk;
-        sti::space_wrapper*           space;
-        const double                  walk_speed;
+        const sti::infection_factory*            inf_factory;
+        sti::chair_manager*                      chairs;
+        sti::hospital_plan*                      hospital;
+        sti::clock*                              clk;
+        repast::SharedContext<contagious_agent>* context;
+        sti::space_wrapper*                      space;
+        const double                             walk_speed;
     };
 
     using flyweight_ptr = flyweight*;
@@ -157,6 +160,46 @@ public:
         return contagious_agent::type::PATIENT;
     }
 
+    // TODO: Implement properly
+    std::vector<std::pair<std::string, std::string>> kill_and_collect() override
+    {
+        auto output = std::vector<std::pair<std::string, std::string>> {};
+
+        const auto& stage_str = [&]() {
+            const auto& stage = _infection_logic.get_stage();
+
+            switch (stage) {
+            case human_infection_cycle::STAGE::HEALTHY:
+                return "healthy";
+            case human_infection_cycle::STAGE::INCUBATING:
+                return "incubating";
+            case human_infection_cycle::STAGE::SICK:
+                return "sick";
+            }
+        }();
+        output.push_back({ "final_stage", stage_str });
+
+        if (_chair_assigned == coordinates { -1, -1 }) {
+            output.push_back({ "chair_assigned", "no" });
+        } else {
+            auto os = std::ostringstream {};
+            os << _chair_assigned;
+            output.push_back({ "chair_assigned", os.str() });
+            output.push_back({ "chair_release_time", _chair_release_time.str() });
+        }
+
+        const auto& infect_time = _infection_logic.get_infection_time();
+        if (infect_time) {
+            output.push_back({ "infection_time", infect_time->str() });
+        }
+
+        // Remove from simulation
+        _flyweight->space->remove_agent(this);
+        _flyweight->context->removeAgent(this);
+
+        return output;
+    }
+
     /// @brief Get the time the patient was admitted at the hospital
     /// @return The date (with a precission of seconds) the patient was admitted
     auto entry_time() const
@@ -259,7 +302,6 @@ public:
                 // Wait a couple of ticks
                 if (_chair_release_time < _flyweight->clk->now()) {
                     _flyweight->chairs->release_chair(_chair_assigned);
-                    _chair_assigned = {};
                     auto os         = std::ostringstream {};
                     os << "Chair released, going to exit at "
                        << _flyweight->hospital->get_all(hospital_plan::tile_t::EXIT).at(0);
@@ -289,7 +331,8 @@ public:
                 os << "Walking to exit "
                    << exit_loc
                    << "  :: "
-                   << my_pos << " -> "
+                   << my_pos << "(" << _flyweight->space->get_discrete_location(getId()) << ")"
+                   << " -> "
                    << final_pos;
                 printas(os.str());
                 return;
@@ -312,7 +355,7 @@ private:
         DULL,
     };
     STAGES      _stage          = STAGES::START;
-    coordinates _chair_assigned = {};
+    coordinates _chair_assigned = { -1, -1 };
     datetime    _chair_release_time;
 }; // patient_agent
 

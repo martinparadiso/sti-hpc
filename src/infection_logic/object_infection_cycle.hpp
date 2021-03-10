@@ -149,6 +149,12 @@ public:
         return _flyweight->infect_chance;
     }
 
+    /// @brief Get the stage of the object infection
+    /// @return An enum, with value CLEAN or INFECTED
+    STAGE get_stage() const {
+        return _stage;
+    }
+
     /// @brief Clean the object, removing contamination
     void clean()
     {

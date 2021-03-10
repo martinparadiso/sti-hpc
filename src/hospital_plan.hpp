@@ -4,7 +4,6 @@
 
 #include <map>
 #include <memory>
-#include <string>
 #include <vector>
 
 // Fw. declarations
@@ -58,7 +57,6 @@ public:
         RECEPTIONIST,
         DOCTOR
     };
-    using doctor_identifier = std::string;
     using length_t          = coordinates::length_t;
     using tile_t            = TYPES;
     using plan_t            = std::vector<std::vector<tile_t>>;

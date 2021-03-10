@@ -3,6 +3,8 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <utility>
 
 #include "contagious_agent.hpp"
 #include "infection_logic.hpp"
@@ -94,6 +96,32 @@ public:
     const infection_cycle* get_infection_logic() const final
     {
         return &_infection_logic;
+    }
+
+    // TODO: Implement properly
+    std::vector<std::pair<std::string, std::string>> kill_and_collect() override
+    {
+        auto output = std::vector<std::pair<std::string, std::string>> {};
+
+        const auto& stage_str = [&]() {
+            const auto& stage = _infection_logic.get_stage();
+
+            switch (stage) {
+            case human_infection_cycle::STAGE::HEALTHY:
+                return "healthy";
+            case human_infection_cycle::STAGE::INCUBATING:
+                return "incubating";
+            case human_infection_cycle::STAGE::SICK:
+                return "sick";
+            }
+        }();
+        output.push_back({"final_stage", stage_str});
+
+        const auto& infect_time = _infection_logic.get_infection_time();
+        if (infect_time) {
+            output.push_back({ "infection_time", infect_time->str() });
+        }
+        return output;
     }
 
 private:

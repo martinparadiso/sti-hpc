@@ -106,6 +106,18 @@ std::vector<sti::space_wrapper::agent*> sti::space_wrapper::agents_around(contin
     return buf;
 }
 
+/// @brief Get the agents located in a specific cell
+/// @param c The cell to query
+/// @return A vector containing the agents in that cell
+std::vector<sti::space_wrapper::agent*> sti::space_wrapper::agents_in_cell(const discrete_point& c) const
+{
+    auto buf   = std::vector<agent*> {};
+    auto query = repast::Moore2DGridQuery<agent> { _discrete_space };
+    query.query(c, 0, true, buf);
+
+    return buf;
+}
+
 /// @brief Move the agent towards a certain cell
 /// @param id The id of the agent
 /// @param cell The discrete point/cell to move to
@@ -194,6 +206,13 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_to(const repast::A
     _continuous_space->moveTo(id, point);
 
     return point;
+}
+
+/// @brief Remove the given agent from the space
+/// @param agent The agent to remove
+void sti::space_wrapper::remove_agent(contagious_agent* agent) {
+    _discrete_space->removeAgent(agent);
+    _continuous_space->removeAgent(agent);
 }
 
 /// @brief Synchronize the agents between the processes

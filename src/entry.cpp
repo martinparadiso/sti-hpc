@@ -1,5 +1,6 @@
 #include "entry.hpp"
 
+#include <boost/json.hpp>
 #include <boost/lexical_cast.hpp>
 #include <sstream>
 
@@ -13,7 +14,7 @@
 /// @param clock The simulation clock
 /// @param patient_admissions The patient admission histogram
 /// @param factory The agent factory, for patient creation
-sti::hospital_entry::hospital_entry(sti::coordinates                     location,
+sti::hospital_entry::hospital_entry(sti::coordinates                      location,
                                     sti::clock*                           clock,
                                     std::unique_ptr<patient_distribution> patient_admissions,
                                     agent_factory*                        factory,
@@ -64,6 +65,29 @@ std::uint64_t sti::hospital_entry::patients_waiting()
     return agents_waiting;
 }
 
+/// @brief Generate a JSON object containing the entry statistics
+/// @return The Boost.JSON object with the statistics
+boost::json::array sti::hospital_entry::statistics() const
+{
+    auto ret_arr = boost::json::array {};
+
+    for (auto day = 0; day < _generated_patients.axis(0).size(); ++day) {
+        auto day_arr = boost::json::array{};
+        for (auto bin = 0; bin < _generated_patients.axis(1).size(); ++bin) {
+            // os << day << ","
+            //     << bin << ","
+            //     << entry.at(day, bin) << ","
+            //     << expected.at(day, bin)
+            //     << "\n";
+            const auto i = static_cast<int>(_generated_patients.at(day, bin));
+            day_arr.push_back(i);
+        }
+        ret_arr.emplace_back(day_arr);
+    }
+
+    return ret_arr;
+}
+
 /// @brief Generate the pending patients
 void sti::hospital_entry::generate_patients()
 {
@@ -73,11 +97,11 @@ void sti::hospital_entry::generate_patients()
 
         using STAGES = human_infection_cycle::STAGE;
 
-        const auto random = repast::Random::instance()->nextDouble();
-        const auto stage  = _infected_chance > random ? STAGES::SICK : STAGES::HEALTHY;
-        const auto * agent_ptr = _agent_factory->insert_new_patient(_location, stage);
+        const auto  random    = repast::Random::instance()->nextDouble();
+        const auto  stage     = _infected_chance > random ? STAGES::SICK : STAGES::HEALTHY;
+        const auto* agent_ptr = _agent_factory->insert_new_patient(_location, stage);
 
-        auto ss = std::stringstream{};
+        auto ss = std::stringstream {};
         ss << "Creating patient :: "
            << agent_ptr->getId() << " :: "
            << (stage == STAGES::SICK ? "SICK" : "HEALTHY");

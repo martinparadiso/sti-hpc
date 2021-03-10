@@ -81,6 +81,11 @@ public:
     /// @return A vector containing the agents inside the circle
     std::vector<agent*> agents_around(continuous_point p, double r) const;
 
+    /// @brief Get the agents located in a specific cell
+    /// @param c The cell to query
+    /// @return A vector containing the agents in that cell
+    std::vector<agent*> agents_in_cell(const discrete_point& c) const;
+
     /// @brief Move the agent towards a certain cell
     /// @param id The id of the agent
     /// @param cell The discrete point/cell to move to
@@ -101,6 +106,10 @@ public:
     /// @param cell The cell to move to
     /// @return The agent new effective location
     continuous_point move_to(const repast::AgentId& id, const discrete_point& cell);
+
+    /// @brief Remove the given agent from the space
+    /// @param agent The agent to remove
+    void remove_agent(contagious_agent* agent);
 
     /// @brief Synchronize the agents between the processes
     void balance();

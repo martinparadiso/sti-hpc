@@ -67,7 +67,7 @@ public:
                 boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("object.infection.chance")),
                 boost::lexical_cast<int>(props->getProperty("object.infection.distance")) }
         }
-        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, c, space, boost::lexical_cast<double>(props->getProperty("patient.walk.speed")) }
+        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, c, context, space, boost::lexical_cast<double>(props->getProperty("patient.walk.speed")) }
         , _person_flyweight { &_infection_factory }
         , _object_flyweight { &_infection_factory }
     {
@@ -81,7 +81,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_patient(coordinates            pos,
+    agent_ptr insert_new_patient(coordinates                  pos,
                                  human_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();
@@ -121,7 +121,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_person(coordinates            pos,
+    agent_ptr insert_new_person(coordinates                  pos,
                                 human_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();
@@ -161,7 +161,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_object(coordinates             pos,
+    agent_ptr insert_new_object(coordinates                   pos,
                                 object_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();

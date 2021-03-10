@@ -1,7 +1,6 @@
-#include <boost/histogram/axis/variant.hpp>
-#include <boost/histogram/indexed.hpp>
-#include <boost/histogram/ostream.hpp>
+#include <boost/json/serialize.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/mpi/communicator.hpp>
 #include <iomanip>
 #include <memory>
 
@@ -16,6 +15,7 @@
 #include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "entry.hpp"
+#include "exit.hpp"
 #include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_cycle.hpp"
@@ -56,10 +56,17 @@ void sti::model::init()
 
     // Create the entry logic, if the entry is in this process
     const auto en = _hospital.get_all(hospital_plan::tile_t::ENTRY).at(0);
-    if (_spaces.local_dimensions().contains(std::vector { static_cast<int>(en.x), static_cast<int>(en.y) })) {
+    if (_spaces.local_dimensions().contains(std::vector { en.x, en.y })) {
         print("Creating entry...");
         auto patient_distribution = load_patient_distribution(_props->getProperty("patients.file"));
         _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), *_props });
+    }
+
+    // Create the exit, if the exit is in this process
+    const auto ex = _hospital.get_all(hospital_plan::tile_t::EXIT).at(0);
+    if (_spaces.local_dimensions().contains(std::vector { ex.x, ex.y })) {
+        print("Creating exit...");
+        _exit.reset(new sti::hospital_exit(&_context, &_spaces, _clock.get(), ex));
     }
 
     // Create chairs (if the chair is in the local space)
@@ -116,6 +123,11 @@ void sti::model::tick()
         _entry->generate_patients();
     }
 
+    // Check if agents are pending exit
+    if (_exit) {
+        _exit->tick();
+    }
+
     // Iterate over all the agents to perform their actions
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
         (*it)->act();
@@ -132,25 +144,29 @@ void sti::model::finish()
         auto key_oder = std::vector<std::string> { "RunNumber", "stop.at", "Result" };
         _props->writeToSVFile("./output/results.csv", key_oder);
 
-    // Get the information of the entry
-    if (_entry ) {
-        const auto& [entry, expected] = _entry->stadistics();
+        // Receive the exit information
+        auto exit_str = std::string{};
+        _communicator->recv(boost::mpi::any_source, 1342, exit_str);
 
-        auto os = std::ostringstream {};
+        auto entry_str = std::string{};
+        _communicator->recv(boost::mpi::any_source, 1343, entry_str);
 
-        // CSV Print
-        os << "DAY,INTERVAL,PATIENTS_GENERATED,PATIENTS_EXPECTED\n";
-        for (auto day = 0; day < entry.axis(0).size(); ++day) {
-            for (auto bin = 0; bin < entry.axis(1).size(); ++bin) {
-                os << day << ","
-                   << bin << ","
-                   << entry.at(day, bin) << ","
-                   << expected.at(day, bin)
-                   << "\n";
-            }
+        print(exit_str);
+        print(entry_str);
+
+    } else { 
+        // TODO: Temp, won't work if entry is in process 0
+        // Transmit the exit information
+        if (_exit) {
+            const auto& data = _exit->finish();
+            _communicator->send(0, 1342, data);
         }
 
-        print(os.str());
+        // Transmit the entry information
+        if (_entry) {
+            const auto& data = boost::json::serialize(_entry->statistics());
+            _communicator->send(0, 1343, data);
+        }
     }
-    }
+
 }
