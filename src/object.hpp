@@ -101,25 +101,7 @@ public:
     }
 
     // TODO: Implement properly
-    std::vector<std::pair<std::string, std::string>> kill_and_collect() override
-    {
-        auto output = std::vector<std::pair<std::string, std::string>>{};
-
-        const auto& stage_str = [&]() {
-            const auto& stage = _infection_logic.get_stage();
-            
-            switch (stage) {
-                case object_infection_cycle::STAGE::CLEAN:
-                    return "clean";
-                case object_infection_cycle::STAGE::INFECTED:
-                    return "infected";
-            }
-        }();
-
-        output.push_back({"stage", stage_str});
-
-        return output;
-    }
+    boost::json::object kill_and_collect() final;
 
 private:
     flyweight_ptr          _flyweight;

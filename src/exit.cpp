@@ -1,5 +1,6 @@
 #include "exit.hpp"
 
+#include <boost/json.hpp>
 #include <repast_hpc/AgentId.h>
 #include <ostream>
 #include <sstream>
@@ -16,9 +17,7 @@
 
 /// @brief Pointer to implementation struct
 struct sti::hospital_exit::impl {
-    std::unordered_map<repast::AgentId, 
-                       std::vector<std::pair<std::string, std::string>>, 
-                       repast::HashId> agent_output_data;
+    boost::json::object agent_output_data;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +58,9 @@ void sti::hospital_exit::tick()
     for (const auto& agent : agents) {
         const auto& id = agent->getId();
         const auto& data = agent->kill_and_collect();
-        _pimpl->agent_output_data.insert({id, data});
+        auto os = std::ostringstream{};
+        os << id;
+        _pimpl->agent_output_data[os.str()] = data;
     }
 }
 
@@ -67,13 +68,6 @@ void sti::hospital_exit::tick()
 std::string sti::hospital_exit::finish() {
     // Print all the agent data
     auto os = std::ostringstream{};
-    for (const auto& [key, vector] : _pimpl->agent_output_data) {
-        os << "[" << key << "] ";
-        for (const auto& [key, value] : vector) {
-            os << key << "=" << value << ",";
-        }
-        os << "\n";
-    }
-
+    os << _pimpl->agent_output_data;
     return os.str();
 }

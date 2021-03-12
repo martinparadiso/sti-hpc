@@ -1,16 +1,23 @@
 /// @brief Agent capable of infecting others
 #pragma once
 
+#include <boost/json/object.hpp>
+#include <boost/variant.hpp>
 #include <cstdint>
 #include <queue>
-
-#include <boost/variant.hpp>
 #include <repast_hpc/AgentId.h>
 #include <string>
 #include <utility>
 
 #include "clock.hpp"
 #include "infection_logic/infection_factory.hpp"
+
+// Fw. declarations
+namespace boost {
+namespace json {
+    class object;
+}
+}
 
 namespace sti {
 
@@ -101,7 +108,7 @@ public:
 
     /// @brief Remove the agent from the simulation and collect the relevant data
     /// @return A list of key-value pairs, representing output relevant data
-    virtual std::vector<std::pair<std::string, std::string>> kill_and_collect() = 0;
+    virtual boost::json::object kill_and_collect() = 0;
 
 private:
     id_t _id;

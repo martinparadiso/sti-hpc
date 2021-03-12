@@ -46,16 +46,20 @@ function(optional_lto target)
 endfunction()
 
 # Demo ========================================================================
-add_executable(sti-demo "src/main.cpp"
+add_executable(sti-demo 
+						"src/chair_manager.cpp"
 						"src/clock.cpp"
 						"src/entry.cpp"
 						"src/exit.cpp"
 						"src/hospital_plan.cpp"
-						"src/model.cpp"
-						"src/chair_manager.cpp"
-						"src/space_wrapper.cpp"
 						"src/infection_logic/human_infection_cycle.cpp"
 						"src/infection_logic/object_infection_cycle.cpp"
+						"src/main.cpp"
+						"src/model.cpp"
+						"src/object.cpp"
+						"src/patient.cpp"
+						"src/person.cpp"
+						"src/space_wrapper.cpp"
 			  )
 target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
