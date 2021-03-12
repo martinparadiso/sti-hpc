@@ -1,5 +1,5 @@
 /// @file json_loader.hpp
-/// @brief Small JSON file load
+/// @brief Small JSON file loader
 #pragma once
 
 #include <boost/json.hpp>
@@ -7,7 +7,7 @@
 #include <string>
 
 namespace sti {
-inline boost::json::value load_json(const std::string& path)
+inline boost::json::object load_json(const std::string& path)
 {
 
     auto       file    = std::ifstream { path };
@@ -16,6 +16,6 @@ inline boost::json::value load_json(const std::string& path)
         std::istreambuf_iterator<char> {},
     };
 
-    return boost::json::parse(content);
+    return boost::json::parse(content).as_object();
 }
 }

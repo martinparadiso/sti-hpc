@@ -83,7 +83,7 @@ private:
     const int                    _rank;
     int                          _stop_at;
 
-    boost::json::value _hospital_props;
+    boost::json::object _hospital_props;
     sti::hospital_plan _hospital;
 
     space_wrapper                   _spaces;

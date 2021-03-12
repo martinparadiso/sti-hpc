@@ -2,15 +2,16 @@
 #pragma once
 
 #include <boost/lexical_cast.hpp>
+#include <boost/json.hpp>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/Point.h>
-#include <repast_hpc/Properties.h>
 #include <repast_hpc/SharedContinuousSpace.h>
 
 #include "chair_manager.hpp"
 #include "contagious_agent.hpp"
 #include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
+#include "infection_logic/infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "infection_logic/object_infection_cycle.hpp"
 #include "patient.hpp"
@@ -45,12 +46,12 @@ public:
     /// @param patient_fw The flyweight containing all the patient shared attributes
     /// @param person_fw The flyweight containing all the person shared attributes
     /// @param object_fw The flyweight containing all the object shared attributes
-    agent_factory(context_ptr               context,
-                  space_ptr                 space,
-                  clock*                    c,
-                  hospital_plan*            hospital_plan,
-                  chair_manager*            chairs,
-                  const repast::Properties* props)
+    agent_factory(context_ptr                context,
+                  space_ptr                  space,
+                  clock*                     c,
+                  hospital_plan*             hospital_plan,
+                  chair_manager*             chairs,
+                  const boost::json::object& props)
         : _context { context }
         , _space { space }
         , _clock { c }
@@ -59,15 +60,23 @@ public:
             human_infection_cycle::flyweight {
                 space,
                 _clock,
-                boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("human.infection.chance")),
-                boost::lexical_cast<int>(props->getProperty("human.infection.distance")),
-                timedelta { boost::lexical_cast<timedelta::resolution>(props->getProperty("human.incubation.time")) } },
+                boost::json::value_to<sti::human_infection_cycle::precission>(props.at("parameters").at("human").at("infection").at("chance")),
+                boost::json::value_to<double>(props.at("parameters").at("human").at("infection").at("distance")),
+                timedelta { boost::json::value_to<timedelta::resolution>(props.at("parameters").at("human").at("incubation").at("seconds")) } },
             object_infection_cycle::flyweight {
                 space,
-                boost::lexical_cast<sti::infection_cycle::precission>(props->getProperty("object.infection.chance")),
-                boost::lexical_cast<int>(props->getProperty("object.infection.distance")) }
+                boost::json::value_to<sti::infection_cycle::precission>(props.at("parameters").at("object").at("infection").at("chance")),
+                boost::json::value_to<double>(props.at("parameters").at("object").at("infection").at("distance")) }
         }
-        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, c, context, space, boost::lexical_cast<double>(props->getProperty("patient.walk.speed")) }
+        , _patient_flyweight {
+            &_infection_factory,
+            chairs,
+            hospital_plan,
+            c,
+            context,
+            space,
+            boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed"))
+        }
         , _person_flyweight { &_infection_factory }
         , _object_flyweight { &_infection_factory }
     {

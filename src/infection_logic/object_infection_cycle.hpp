@@ -21,9 +21,9 @@ public:
     /// @brief Struct containing the shared attributes of all infection in humans
     struct flyweight {
         sti::space_wrapper* space;
-        precission       infect_chance;
+        precission          infect_chance;
 
-        int infect_distance;
+        double infect_distance;
     };
 
     using flyweight_ptr = const flyweight*;
@@ -74,7 +74,7 @@ public:
     /// @param fw The flyweight containing shared data
     object_infection_cycle(flyweight_ptr fw)
         : _id {}
-        , _flyweight {fw}
+        , _flyweight { fw }
         , _stage {}
     {
     }
@@ -151,7 +151,8 @@ public:
 
     /// @brief Get the stage of the object infection
     /// @return An enum, with value CLEAN or INFECTED
-    STAGE get_stage() const {
+    STAGE get_stage() const
+    {
         return _stage;
     }
 

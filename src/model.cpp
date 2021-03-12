@@ -48,7 +48,7 @@ void sti::model::init()
                                              _clock.get(),
                                              &_hospital,
                                              _chair_manager.get(),
-                                             _props });
+                                             _hospital_props });
 
     // Create the package provider and receiver
     _provider = std::make_unique<agent_provider>(&_context);
@@ -58,8 +58,8 @@ void sti::model::init()
     const auto en = _hospital.get_all(hospital_plan::tile_t::ENTRY).at(0);
     if (_spaces.local_dimensions().contains(std::vector { en.x, en.y })) {
         print("Creating entry...");
-        auto patient_distribution = load_patient_distribution(_props->getProperty("patients.file"));
-        _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), *_props });
+        auto patient_distribution = load_patient_distribution(_hospital_props);
+        _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), _hospital_props });
     }
 
     // Create the exit, if the exit is in this process

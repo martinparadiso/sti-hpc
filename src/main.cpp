@@ -1,3 +1,4 @@
+#include <boost/lexical_cast.hpp>
 #include <memory>
 #include <iostream>
 #include <string>
@@ -24,14 +25,18 @@ int main(int argc, char** argv)
 
     // Look for the debug flag
     if (args.size() == 4) {
-        const auto third_flag = std::string { args[3] }; 
-        if (third_flag == "--debug" && world.rank() == 0) {
+        const auto third_flag = std::string { args[3] };
+        if (third_flag.substr(0, 8) == "--debug=") {
             // Set a volatile int and expect the debugger to change it
-            volatile auto connected = false;
-            const auto pid = getpid();
-            std::cout << "Waiting for connection, PID: " << pid << std::endl;
-            while (! connected) {
-                sleep(2);
+            const auto ps_str        = third_flag.substr(8, third_flag.size() - 8);
+            const auto debug_process = boost::lexical_cast<int>(ps_str);
+            if (world.rank() == debug_process) {
+                volatile auto connected = false;
+                const auto    pid       = getpid();
+                std::cout << "Waiting for connection, PID: " << pid << std::endl;
+                while (!connected) {
+                    sleep(2);
+                }
             }
         }
     }

@@ -30,7 +30,7 @@ public:
         sti::clock*         clk;
 
         precission infect_chance;
-        int        infect_distance;
+        double      infect_distance;
         timedelta  incubation_time;
     };
 
@@ -194,13 +194,15 @@ public:
 
     /// @brief Get the stage of the cycle
     /// @return An enum of type HEALTHY, INCUBATING or SICK
-    STAGE get_stage() const {
+    STAGE get_stage() const
+    {
         return _stage;
     }
 
     /// @brief Get the time of infection
     /// @return If the person was infected, the time of infection
-    std::optional<sti::datetime> get_infection_time() const {
+    std::optional<sti::datetime> get_infection_time() const
+    {
         if (_infection_time.epoch() != 0) {
             return _infection_time;
         }

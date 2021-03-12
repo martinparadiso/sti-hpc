@@ -1,7 +1,9 @@
 #include "entry.hpp"
 
 #include <boost/json.hpp>
-#include <boost/lexical_cast.hpp>
+#include <boost/json/array.hpp>
+#include <boost/json/detail/value_to.hpp>
+#include <cstdint>
 #include <sstream>
 
 #include "agent_factory.hpp"
@@ -18,7 +20,7 @@ sti::hospital_entry::hospital_entry(sti::coordinates                      locati
                                     sti::clock*                           clock,
                                     std::unique_ptr<patient_distribution> patient_admissions,
                                     agent_factory*                        factory,
-                                    repast::Properties&                   props)
+                                    const boost::json::object&            props)
     : _location { location }
     , _clock { clock }
     , _patient_distribution(std::move(patient_admissions))
@@ -30,7 +32,7 @@ sti::hospital_entry::hospital_entry(sti::coordinates                      locati
     , _interval_length { (24 * 60 * 60) / _patient_distribution->intervals() }
     , _agent_factory { factory }
     , _infected_chance {
-        boost::lexical_cast<double>(props.getProperty("patient.infected.chance"))
+        boost::json::value_to<decltype(human_infection_cycle::flyweight::infect_chance)>(props.at("parameters").at("patient").at("infected_chance"))
     }
 {
 }
@@ -72,7 +74,7 @@ boost::json::array sti::hospital_entry::statistics() const
     auto ret_arr = boost::json::array {};
 
     for (auto day = 0; day < _generated_patients.axis(0).size(); ++day) {
-        auto day_arr = boost::json::array{};
+        auto day_arr = boost::json::array {};
         for (auto bin = 0; bin < _generated_patients.axis(1).size(); ++bin) {
             // os << day << ","
             //     << bin << ","
@@ -107,4 +109,20 @@ void sti::hospital_entry::generate_patients()
            << (stage == STAGES::SICK ? "SICK" : "HEALTHY");
         print(ss.str());
     }
+}
+
+/// @brief Load the patient distribution curve from a file
+/// @param json The json object containing the influx
+/// @details File format is described in the documentation
+std::unique_ptr<sti::patient_distribution> sti::load_patient_distribution(const boost::json::object& json)
+{
+    const auto& days = boost::json::value_to<boost::json::array>(json.at("parameters").at("patient").at("influx"));
+    auto        data = std::vector<std::vector<std::uint32_t>> {};
+
+    for (const auto& day : days) {
+        const auto day_vec = boost::json::value_to<std::vector<std::uint32_t>>(day);
+        data.push_back(day_vec);
+    }
+
+    return std::make_unique<patient_distribution>(std::move(data));
 }

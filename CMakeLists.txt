@@ -94,10 +94,9 @@ target_link_libraries(sti-demo PUBLIC repast_hpc-2.3.1 relogo-2.3.1)
 tidy(sti-demo)
 
 # Add python wrapper for execution ============================================
-add_custom_command(TARGET sti-demo POST_BUILD
-				   COMMAND ${CMAKE_COMMAND} -E copy
-				   ${CMAKE_SOURCE_DIR}/utils/runner.py
-				   ${CMAKE_CURRENT_BINARY_DIR}/runner.py)			
+configure_file(${CMAKE_SOURCE_DIR}/utils/runner.py
+               ${CMAKE_CURRENT_BINARY_DIR}/runner.py
+               COPYONLY)
 
 # Test ========================================================================
 add_subdirectory(test)

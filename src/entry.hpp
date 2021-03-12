@@ -2,6 +2,11 @@
 #pragma once
 
 #include <algorithm>
+#include <boost/histogram.hpp>
+#include <boost/histogram/axis/integer.hpp>
+#include <boost/histogram/histogram.hpp>
+#include <boost/histogram/make_histogram.hpp>
+#include <boost/histogram/weight.hpp>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -9,16 +14,10 @@
 #include <memory>
 #include <repast_hpc/Properties.h>
 #include <sstream>
-#include <string>
 #include <string_view>
+#include <string>
 #include <tuple>
 #include <vector>
-
-#include <boost/histogram.hpp>
-#include <boost/histogram/axis/integer.hpp>
-#include <boost/histogram/histogram.hpp>
-#include <boost/histogram/make_histogram.hpp>
-#include <boost/histogram/weight.hpp>
 
 #include "clock.hpp"
 #include "hospital_plan.hpp"
@@ -26,9 +25,10 @@
 
 // Fw. declarations
 namespace boost {
-    namespace json {
-        class array;
-    }
+namespace json {
+    class array;
+    class object;
+}
 }
 
 namespace sti {
@@ -133,7 +133,7 @@ public:
                    sti::clock*                           clock,
                    std::unique_ptr<patient_distribution> patient_admissions,
                    agent_factory*                        factory,
-                   repast::Properties&                   props);
+                   const boost::json::object&            props);
 
     /// @brief Generate the pending patients
     void generate_patients();
@@ -161,51 +161,8 @@ private:
 };
 
 /// @brief Load the patient distribution curve from a file
+/// @param json The json object containing the influx
 /// @details File format is described in the documentation
-inline std::unique_ptr<patient_distribution> load_patient_distribution(std::string_view file_path)
-{
-
-    const auto parse_line = [](const auto& line) -> std::vector<std::uint32_t> {
-        auto vector = std::vector<std::uint32_t> {};
-        auto stream = std::stringstream { line };
-        auto i      = std::int32_t { 0 };
-
-        while (stream >> i) {
-            if (i < 0) {
-                throw negative_patients {};
-            }
-            vector.push_back(static_cast<std::uint32_t>(i));
-            if (stream.peek() == ',') {
-                stream.ignore();
-            }
-        }
-
-        return vector;
-    };
-
-    std::ifstream                           file { file_path.begin() };
-    std::string                             line;
-    std::vector<std::vector<std::uint32_t>> data;
-
-    // Read the first line, if its a header skip it
-    std::getline(file, line);
-    if ((std::islower(line.at(0)) == 0) && (std::isupper(line.at(0)) == 0)) {
-        file.seekg(0);
-    }
-
-    while (std::getline(file, line)) {
-        auto new_day = parse_line(line);
-
-        // Make sure all the days have the same intervals
-        if (!data.empty()) {
-            if ((data.end() - 1)->size() != new_day.size()) {
-                throw inconsistent_bins_in_file {};
-            }
-        }
-        data.emplace_back(std::move(new_day));
-    }
-
-    return std::make_unique<patient_distribution>(std::move(data));
-}
+std::unique_ptr<patient_distribution> load_patient_distribution(const boost::json::object& json);
 
 } // namespace sti
