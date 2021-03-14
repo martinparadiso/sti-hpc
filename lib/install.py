@@ -11,11 +11,11 @@ import os
 
 # Available libraries
 libraries = (
-    'boost',
     'curl',
     'mpich',
     'netcdf',
     'netcdf-cxx',
+    'boost',
     'repast'
 )
 
