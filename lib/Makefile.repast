@@ -1,7 +1,6 @@
 
 all : repast_hpc relogo rumor zombies
 
-BASE_DIR=${HOME}/repast
 
 repast_hpc_src :=
 relogo_src :=
@@ -9,6 +8,7 @@ rumor_src :=
 zombie_src :=
 
 core_test_src :=
+
 
 CXX = $(CC)
 CXXLD = $(CC)
@@ -18,8 +18,8 @@ CXX_FLAGS = $(CXX_RELEASE_FLAGS) -fopenmp
 INCLUDES :=
 LIBS :=
 
-BOOST_INCLUDE = /home/martin/Repositories/sti-hpc/lib/boost/include
-BOOST_LIB_DIR = /home/martin/Repositories/sti-hpc/lib/boost/lib
+BOOST_INCLUDE = $(BASE_DIR)/boost/include
+BOOST_LIB_DIR = $(BASE_DIR)/boost/lib
 BOOST_LIBS = -lboost_system-mt-x64  -lboost_filesystem-mt-x64  -lboost_serialization-mt-x64 -lboost_mpi-mt-x64
 
 NETCDF_HOME = 
@@ -180,6 +180,7 @@ ifeq "$(MAKECMDGOALS)" ""
      -include $(ZOMBIE_DEPS)
 endif
 
+export
 
 .PHONY: all repast_hpc relogo clean zombies rumor
 
@@ -194,10 +195,14 @@ install : repast_hpc relogo
 
 repast_hpc: $(REPAST_HPC_OBJECTS)
 	-mkdir -p bin
+	$(info **************************************)
+	$(info =====> $(LIBS))
 	$(CXXLD) $^ $(LIB_LDFLAGS) $(RPATHS) -o bin/$(REPAST_HPC_LIB) $(LIBS)
 
 relogo: $(RELOGO_OBJECTS)
 	-mkdir -p bin
+	$(info **************************************)
+	$(info =====> $(LIBS))
 	$(CXXLD) $^ $(LIB_LDFLAGS) $(RPATHS) $(l_CURL) -o bin/$(RELOGO_LIB) $(LIBS) -L./bin
 
 tests : repast_hpc $(TEST_OBJECTS) 

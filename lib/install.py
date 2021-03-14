@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 import glob
 import argparse
+import logging
 import os
 
 # Available libraries
@@ -18,36 +19,185 @@ libraries = (
     'repast'
 )
 
-parser = argparse.ArgumentParser(description='Library downloader. '
-                                 'To compile with an specific compiler, pass CC and CXX env variables as usual.')
-parser.add_argument('libs', nargs='+', choices=(*libraries,
-                                                'all'), help='Libraries to install')
-parser.add_argument('--versions', default='versions.json',
-                    help='File containing the library version')
-parser.add_argument('--download-folder', default='./tmp',
-                    help='Download directory')
-parser.add_argument('--install-folder', default='.',
-                    help='Installation directory')
-parser.add_argument('-j', '--jobs', default=1, type=int,
-                    help='Number of workers used for compilation')
-
-parser.add_argument('--mpi-compiler', default='mpicxx',
-                    help='MPI compiler needed by Boost')
-
 # Library getters ==============================================================
 
 
+def check_run(program_return, report):
+    if program_return.returncode != 0:
+        raise Exception(report)
+
+
 class Library(object):
-    pass
+
+    def download(self):
+        """Download the given Library"""
+
+        self.file_path = f"{self.download_folder}/{self.filename}"
+
+        # Check if file already exists
+        if glob.glob(self.file_path):
+            logging.info(f"{self.name} already downloaded, skipping")
+            return
+
+        # Download boost with wget
+        url = self.download_url()
+        logging.info(f"Downloading {self.name} from {url}")
+
+        wget_output = subprocess.run(['wget', url, '-O', self.file_path])
+
+        if wget_output.returncode == 0:
+            print(f"{self.name} {'.'.join(self.version)} downloaded")
+        else:
+            raise Exception(
+                f"{self.name} {'.'.join(self.version)} download failed")
+
+    def extract(self):
+        """Extact the already downloaded file"""
+
+        logging.info(f"Extracting {self.name}")
+        tar_output = subprocess.run(['tar', '-xf', self.file_path,
+                                     '--directory', self.download_folder])
+
+        check_run(tar_output, f"Error extracting {self.name}")
+
+    def generic_make_install(self, workdir, cfg_cmd, extra_env={}, extract=True):
+        """Install the already downloaded library"""
+        if extract:
+            self.extract()
+
+        logging.info(f"Installing {self.name}")
+
+        env = os.environ.copy()
+
+        if self.requires:
+            # Manually set the curl include and lib folders
+            env['LDFLAGS'] = ' '.join(
+                [f"-L{self.install_folder}/{l}/lib" for l in self.requires])
+            env['CPPFLAGS'] = ' '.join(
+                [f"-I{self.install_folder}/{l}/include" for l in self.requires])
+
+        env = {**env, **extra_env}
+
+        # Some libraries don't use configure, so check first
+        if cfg_cmd:
+            configure_output = subprocess.run(cfg_cmd,
+                                              cwd=workdir,
+                                              env=env)
+
+            check_run(configure_output, f"Error configuring {self.name}")
+
+        compile_output = subprocess.run(['make', '-j', str(self.jobs), 'all'],
+                                        cwd=workdir,
+                                        env=env)
+
+        check_run(compile_output, f"Error compiling {self.name}")
+
+        install_output = subprocess.run(['make', 'install'], cwd=workdir, env=env)
+
+        check_run(install_output, f"Error installing {self.name}")
+
+
+class Curl(Library):
+
+    name = 'curl'
+    requires = ()
+
+    def __init__(self, version, download_folder, install_folder, args):
+        self.version = version.split('.')
+        self.filename = f"curl-{'.'.join(self.version)}.tar.bz2"
+
+        self.download_folder = download_folder
+        self.install_folder = install_folder
+        self.jobs = args.jobs
+
+    def download_url(self):
+        return f"https://curl.haxx.se/download/{self.filename}"
+
+    def install(self):
+        """Install the already downloaded library"""
+        # Subscripting to remove the trailing extension '.tar.gz'
+        workdir = f"{self.download_folder}/{self.filename[:-8]}"
+
+        super().generic_make_install(workdir,
+                                     ['./configure',
+                                      f"--prefix={self.install_folder}/{self.name}"])
+
+
+class MPICH(Library):
+
+    name = 'mpich'
+    requires = ('curl')
+
+    def __init__(self, version, download_folder, install_folder, args):
+        self.version = version.split('.')
+        self.filename = f"mpich-{'.'.join(self.version)}.tar.gz"
+        self.download_folder = download_folder
+        self.install_folder = install_folder
+        self.jobs = args.jobs
+
+    def download_url(self):
+        return f"https://www.mpich.org/static/downloads/{'.'.join(self.version)}/{self.filename}"
+
+    def install(self):
+        workdir = f"{self.download_folder}/{self.filename[:-7]}"
+
+        super().generic_make_install(workdir,
+                                     ['./configure',
+                                      f"--prefix={self.install_folder}/{self.name}/",
+                                      '--disable-fortran'])
+
+
+class Netcdf(Library):
+
+    name = 'netcdf'
+    requires = ('curl')
+
+    def __init__(self, version, download_folder, install_folder, args):
+        self.version = version.split('.')
+        self.filename = f"netcdf-{'.'.join(self.version)}.tar.gz"
+        self.download_folder = download_folder
+        self.install_folder = install_folder
+        self.jobs = args.jobs
+
+    def download_url(self):
+        return f"ftp://ftp.unidata.ucar.edu/pub/netcdf/old/{self.filename}"
+
+    def install(self):
+        workdir = f"{self.download_folder}/{self.filename[:-7]}"
+
+        super().generic_make_install(workdir, ['./configure',
+                                               f"--prefix={self.install_folder}/{self.name}/",
+                                               '--disable-netcdf-4'])
+
+
+class Netcdfcxx(Library):
+
+    name = 'netcdf-cxx'
+
+    requires = ('curl', 'netcdf')
+
+    def __init__(self, version, download_folder, install_folder, args):
+        self.version = version.split('.')
+        self.filename = f"netcdf-cxx-{'.'.join(self.version)}.tar.gz"
+        self.download_folder = download_folder
+        self.install_folder = install_folder
+        self.jobs = args.jobs
+
+    def download_url(self):
+        return f"ftp://ftp.unidata.ucar.edu/pub/netcdf/{self.filename}"
+
+    def install(self):
+        workdir = f"{self.download_folder}/{self.filename[:-7]}"
+
+        super().generic_make_install(workdir, ['./configure',
+                                               f"--prefix={self.install_folder}/{self.name}/"])
 
 
 class Boost(Library):
 
     name = 'boost'
     requires = ('mpich')
-    required_by = ('repast')
 
-    # def __init__(self, version, download_folder, install_folder, mpi_compiler, jobs):
     def __init__(self, version, download_folder, install_folder, args):
         self.version = version.split('.')
         self.filename = f"boost_{'_'.join(self.version)}.tar.bz2"
@@ -56,41 +206,14 @@ class Boost(Library):
         self.mpi_compiler = args.mpi_compiler
         self.jobs = args.jobs
 
-        if (len(self.version) != 3):
-            raise Exception(f"Invalid boost version {version}")
-
-    def download(self):
-        """Download the library to the given path"""
-
-        self.file_path = f"{self.download_folder}/{self.filename}"
-
-        # Check if file already exists
-        if glob.glob(self.file_path):
-            print('Boost already downloaded, skipping')
-            return
-
-        # Download boost with wget
-        url = f"https://sourceforge.net/projects/boost/files/boost/{'.'.join(self.version)}/{self.filename}/download"
-
-        wget_output = subprocess.run(['wget', url, '-O', self.file_path])
-
-        if wget_output.returncode == 0:
-            print(f"Boost {'.'.join(self.version)} downloaded")
-        else:
-            raise Exception(f"Boost {'.'.join(self.version)} download failed")
+    def download_url(self):
+        return f"https://sourceforge.net/projects/boost/files/boost/{'.'.join(self.version)}/{self.filename}/download"
 
     def install(self):
         """Install the already downloaded library"""
+        super().extract()
 
-        # Extract the file
-        print('Extracting boost')
-        tar_output = subprocess.run(['tar', '-xf', self.file_path,
-                                     '--directory', self.download_folder])
-        if tar_output.returncode != 0:
-            raise Exception('Error extracting Boost')
-
-        # Install boost
-        print('Installing boost')
+        logging.info(f"Installing {self.name}")
         workdir = f"{self.download_folder}/{self.filename[:-8]}"
 
         bootstrap = subprocess.run(['./bootstrap.sh',
@@ -101,7 +224,7 @@ class Boost(Library):
         if bootstrap.returncode != 0:
             raise Exception('Error while running Boost bootstrap')
 
-        # Set the mpi version
+        # Set the mpi version explicitly
         with open(f"{workdir}/project-config.jam", 'a') as config:
             config.write(f"using mpi : {self.mpi_compiler} ;")
 
@@ -115,8 +238,7 @@ class Boost(Library):
                                          ],
                                         cwd=workdir)
 
-        if install_output.returncode != 0:
-            raise Exception(f"Error compiling and install Boost")
+        check_run(install_output, f"Error compiling and install Boost")
 
 
 class Repast(Library):
@@ -132,7 +254,7 @@ class Repast(Library):
         self.jobs = args.jobs
         self.mpi_compiler = args.mpi_compiler
 
-        if version != '2.3.1':
+        if self.version != ['2', '3', '1']:
             raise Exception('Unsupported repast version')
 
     def download(self):
@@ -146,8 +268,7 @@ class Repast(Library):
                                          'clone', 'https://github.com/martinparadiso/repast.hpc.git',
                                          repo_folder.absolute()])
 
-        if git_output.returncode != 0:
-            raise Exception('Error cloning repast repository')
+        check_run(git_output, 'Error cloning repast repository')
 
     def install(self):
 
@@ -158,36 +279,39 @@ class Repast(Library):
             pass
 
         # TODO: Temporary solution for the makefile
-        cp_output = subprocess.run(['cp', f"{self.download_folder}/../Makefile.repast", './Makefile'], cwd=workdir)
+        cp_output = subprocess.run(
+            ['cp', f"{self.download_folder}/../Makefile.repast", './Makefile'], cwd=workdir)
 
-        if cp_output.returncode != 0:
-            raise Exception('Error copying repast Makefile')
+        check_run(cp_output, 'Error copying repast Makefile')
 
-        
-        # TODO: Temporary soluciton for the makefile
-        env = os.environ.copy()
-        env['CC'] = self.mpi_compiler
-        env['PREFIX'] = f"{self.install_folder}/repast/"
+        env_vars = {
+            'CC': self.mpi_compiler,
+            'BASE_DIR' : self.install_folder,
+            'PREFIX' : f"{self.install_folder}/{self.name}"
+        }
 
-        compile_output = subprocess.run(['make',
-                                         f"-j{self.jobs}",
-                                         'all'],
-                                        cwd=workdir,
-                                        env=env)
-
-        if compile_output.returncode != 0:
-            raise Exception('Error compiling repast')
-
-        install_output = subprocess.run(['make',
-                                         'install'],
-                                        cwd=workdir,
-                                        env=env)
-
-        if install_output.returncode != 0:
-            raise Exception('Error installing repast')
+        super().generic_make_install(workdir, [], extra_env=env_vars, extract=False)
 
 
 if (__name__ == '__main__'):
+
+    parser = argparse.ArgumentParser(description='Library downloader. '
+                                     'To compile with an specific compiler, pass CC and CXX env variables as usual.')
+    parser.add_argument('libs', nargs='+', choices=(*libraries,
+                                                    'all'), help='Libraries to install')
+    parser.add_argument('--versions', default='versions.json',
+                        help='File containing the library version')
+    parser.add_argument('--download-folder', default='./tmp',
+                        help='Download directory')
+    parser.add_argument('--install-folder', default='.',
+                        help='Installation directory')
+    parser.add_argument('-j', '--jobs', default=1, type=int,
+                        help='Number of workers used for compilation')
+
+    parser.add_argument('--mpi-compiler', default='./mpich/bin/mpicxx',
+                        help='MPI compiler needed by Boost')
+
+    logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
 
     # Load libraries versions
@@ -205,6 +329,9 @@ if (__name__ == '__main__'):
     if not install_folder.is_dir():
         install_folder.mkdir()
     print(f"Install folder: {install_folder.absolute()}")
+
+    # Set the mpi path as absolute
+    args.mpi_compiler = Path(args.mpi_compiler).absolute()
 
     # Install all
     if 'all' in args.libs:

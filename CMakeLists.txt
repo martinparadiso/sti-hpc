@@ -70,23 +70,23 @@ target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/boos
 target_link_libraries(sti-demo PUBLIC boost_system-mt-x64 boost_filesystem-mt-x64 boost_serialization-mt-x64 boost_mpi-mt-x64)
 
 # MPICH
-target_link_directories(sti-demo PRIVATE "${LIB_ROOT_PATH}/mpich/lib")
-target_include_directories(sti-demo SYSTEM PUBLIC ${LIB_ROOT_PATH}/mpich/include/)
+target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/mpich/lib")
+target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/mpich/include/)
 target_link_libraries(sti-demo PUBLIC mpi)
 
 # cURL
-target_link_directories(sti-demo PRIVATE "${LIB_ROOT_PATH}/curl/lib")
-target_include_directories(sti-demo SYSTEM PUBLIC ${LIB_ROOT_PATH}/curl/include/)
+target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/curl/lib")
+target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/curl/include/)
 target_link_libraries(sti-demo PUBLIC curl)
 
 # NetCDF
-target_link_directories(sti-demo PRIVATE "${LIB_ROOT_PATH}/netcdf/lib")
-target_include_directories(sti-demo SYSTEM PUBLIC ${LIB_ROOT_PATH}/netcdf/include/)
+target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/netcdf/lib")
+target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/netcdf/include/)
 target_link_libraries(sti-demo PUBLIC netcdf)
 
 # NetCDF-C++
-target_link_directories(sti-demo PRIVATE "${LIB_ROOT_PATH}/netcdf-cxx/lib")
-target_include_directories(sti-demo SYSTEM PUBLIC ${LIB_ROOT_PATH}/netcdf-cxx/include/)
+target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/netcdf-cxx/lib")
+target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/netcdf-cxx/include/)
 target_link_libraries(sti-demo PUBLIC netcdf_c++)
 
 # Repast HPC
