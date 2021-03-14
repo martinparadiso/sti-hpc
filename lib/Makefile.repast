@@ -180,8 +180,6 @@ ifeq "$(MAKECMDGOALS)" ""
      -include $(ZOMBIE_DEPS)
 endif
 
-export
-
 .PHONY: all repast_hpc relogo clean zombies rumor
 
 install : repast_hpc relogo
