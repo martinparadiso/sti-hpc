@@ -1,6 +1,3 @@
-# Stop tick
-stop.at = 50
-
 # Hospital file
 hospital.file = ./hospital.json
 

@@ -87,7 +87,7 @@ public:
     /// @return The number of days for which data is available
     auto days() const
     {
-        return static_cast<std::uint32_t>(_data.axis(0).size());
+        return _data.axis(0).size();
     }
 
     /// @brief Get the number of bins/intervals in a day

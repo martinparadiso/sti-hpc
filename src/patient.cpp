@@ -127,6 +127,8 @@ sti::patient_agent::type sti::patient_agent::get_type() const
 boost::json::object sti::patient_agent::kill_and_collect()
 {
     auto output = boost::json::object {};
+    output["type"] = "patient";
+    output["entry_time"] = _entry_time.str();
 
     const auto& stage_str = [&]() {
         const auto& stage = _infection_logic.get_stage();

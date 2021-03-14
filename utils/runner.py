@@ -2,6 +2,7 @@
 
 import argparse
 import subprocess
+import time
 
 parser = argparse.ArgumentParser(description='Simulation runner')
 parser.add_argument('-n', '--nodes', default=4)
@@ -24,5 +25,8 @@ if __name__ == '__main__':
         commands.append(f"--debug={args.debug}")
 
     print(f"Running: {' '.join(commands)}")
+    
+    start_time = time.time()
     subprocess.run(commands)
+    print(f"Program finished in {time.time() - start_time:.2} seconds")
 

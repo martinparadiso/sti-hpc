@@ -43,7 +43,7 @@ public:
         , _props { new repast::Properties(props_file, argc, argv, comm) }
         , _context(comm)
         , _rank { repast::RepastProcess::instance()->rank() }
-        , _stop_at { repast::strToInt(_props->getProperty("stop.at")) }
+        , _stop_at { 0 }
         , _hospital_props { load_json(_props->getProperty("hospital.file")) }
         , _hospital { sti::load_hospital(_hospital_props) }
         , _spaces { _hospital, *_props, _context, comm }

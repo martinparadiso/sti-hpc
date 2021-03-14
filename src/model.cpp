@@ -1,6 +1,7 @@
 #include <boost/json/serialize.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/mpi/communicator.hpp>
+#include <fstream>
 #include <iomanip>
 #include <memory>
 
@@ -54,12 +55,30 @@ void sti::model::init()
     _provider = std::make_unique<agent_provider>(&_context);
     _receiver = std::make_unique<agent_receiver>(&_context, _agent_factory.get());
 
-    // Create the entry logic, if the entry is in this process
+    // Create the entry logic, if the entry is in this process, and send the
+    // rest of the processes the ticks to execute
     const auto en = _hospital.get_all(hospital_plan::tile_t::ENTRY).at(0);
     if (_spaces.local_dimensions().contains(std::vector { en.x, en.y })) {
         print("Creating entry...");
-        auto patient_distribution = load_patient_distribution(_hospital_props);
+        auto       patient_distribution = load_patient_distribution(_hospital_props);
+        const auto days                 = patient_distribution->days();
         _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), _hospital_props });
+
+        // Calculate how many ticks and broadcast to the rest
+        const auto seconds_per_tick = boost::lexical_cast<int>(_props->getProperty("seconds.per.tick"));
+        const auto ticks            = (days * 86400) / seconds_per_tick;
+        _stop_at                    = ticks - 1;
+
+        // Note: can't use broadcast because it requires the "root" process
+        // sending the message, which is unknown
+        for (auto p = 0; p < _communicator->size(); p++) {
+            if (p != _communicator->rank()) {
+                _communicator->send(p, 3854, _stop_at);
+            }
+        }
+    } else {
+        // Wait for the stop value
+        _communicator->recv(boost::mpi::any_source, 3854, _stop_at);
     }
 
     // Create the exit, if the exit is in this process
@@ -143,30 +162,18 @@ void sti::model::finish()
 
         auto key_oder = std::vector<std::string> { "RunNumber", "stop.at", "Result" };
         _props->writeToSVFile("./output/results.csv", key_oder);
-
-        // Receive the exit information
-        auto exit_str = std::string{};
-        _communicator->recv(boost::mpi::any_source, 1342, exit_str);
-
-        auto entry_str = std::string{};
-        _communicator->recv(boost::mpi::any_source, 1343, entry_str);
-
-        print(exit_str);
-        print(entry_str);
-
-    } else { 
-        // TODO: Temp, won't work if entry is in process 0
-        // Transmit the exit information
-        if (_exit) {
-            const auto& data = _exit->finish();
-            _communicator->send(0, 1342, data);
-        }
-
-        // Transmit the entry information
-        if (_entry) {
-            const auto& data = boost::json::serialize(_entry->statistics());
-            _communicator->send(0, 1343, data);
-        }
+    }
+    if (_exit) {
+        const auto& data      = _exit->finish();
+        auto        exit_file = std::ofstream { "./exit.json" };
+        exit_file << data;
+        exit_file.close();
     }
 
+    // Transmit the entry information
+    if (_entry) {
+        const auto& data       = boost::json::serialize(_entry->statistics());
+        auto        entry_file = std::ofstream { "./entry.str" };
+        entry_file << data;
+    }
 }
