@@ -335,7 +335,7 @@ if (__name__ == '__main__'):
 
     # Install all
     if 'all' in args.libs:
-        raise Exception('Unimplemented')
+        args.libs = libraries
 
     for lib_str in args.libs:
 
