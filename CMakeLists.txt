@@ -45,6 +45,9 @@ function(optional_lto target)
 	endif()
 endfunction()
 
+# Set the mpi runner variable
+set(MPIEXEC_BIN "${PROJECT_SOURCE_DIR}/lib/mpich/bin/mpiexec")
+
 # Demo ========================================================================
 add_executable(sti-demo 
 						"src/chair_manager.cpp"
@@ -63,6 +66,8 @@ add_executable(sti-demo
 			  )
 target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
+optional_lto(sti-demo)
+tidy(sti-demo)
 
 # Boost
 target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/boost/lib")
@@ -95,7 +100,6 @@ target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/repast/lib")
 target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/repast/include/)
 target_link_libraries(sti-demo PUBLIC repast_hpc-2.3.1 relogo-2.3.1)
 
-tidy(sti-demo)
 
 # Add python wrapper for execution ============================================
 configure_file(${CMAKE_SOURCE_DIR}/utils/runner.py
