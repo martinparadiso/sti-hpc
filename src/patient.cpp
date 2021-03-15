@@ -1,13 +1,6 @@
 #include "patient.hpp"
 
 ////////////////////////////////////////////////////////////////////////////
-// PIMPL
-////////////////////////////////////////////////////////////////////////////
-
-class sti::patient_agent::pimpl {
-};
-
-////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
 ////////////////////////////////////////////////////////////////////////////
 
@@ -30,87 +23,15 @@ sti::patient_agent::patient_agent(const id_t&                  id,
 /// @param id The agent id
 /// @param fw The agent flyweight
 /// @param data The serialized data
-sti::patient_agent::patient_agent(const id_t&   id,
-                                  flyweight_ptr fw,
-                                  serial_data&  queue)
+sti::patient_agent::patient_agent(const id_t& id, flyweight_ptr fw)
     : contagious_agent { id }
     , _flyweight { fw }
     , _entry_time {}
     , _infection_logic { fw->inf_factory->make_human_cycle() }
 {
-    deserialize(queue);
 }
 
 sti::patient_agent::~patient_agent() = default;
-
-////////////////////////////////////////////////////////////////////////////
-// SERIALIZATION
-////////////////////////////////////////////////////////////////////////////
-
-/// @brief Serialize the internal state of the infection
-/// @param queue The queue to store the data
-void sti::patient_agent::serialize(serial_data& queue) const
-{
-    queue.push(_entry_time.epoch());
-
-    { // tmp
-        switch (_stage) {
-        case STAGES::START:
-            queue.push(0);
-            break;
-        case STAGES::WAITING_CHAIR:
-            queue.push(1);
-            break;
-        case STAGES::WALKING_TO_CHAIR:
-            queue.push(2);
-            break;
-        case STAGES::SIT_DOWN:
-            queue.push(3);
-            break;
-        case STAGES::WALKING_TO_EXIT:
-            queue.push(4);
-            break;
-        case STAGES::DULL:
-            queue.push(5);
-            break;
-        }
-        queue.push(_chair_assigned.x);
-        queue.push(_chair_assigned.y);
-        queue.push(_chair_release_time.epoch());
-    } // tmp
-    _infection_logic.serialize(queue);
-}
-
-/// @brief Deserialize the data and update the agent data
-/// @param queue The queue containing the data
-void sti::patient_agent::deserialize(serial_data& queue)
-{
-    _entry_time = datetime { boost::get<datetime::resolution>(queue.front()) };
-    queue.pop();
-    { // tmp
-        const auto aux = std::array {
-            STAGES::START,
-            STAGES::WAITING_CHAIR,
-            STAGES::WALKING_TO_CHAIR,
-            STAGES::SIT_DOWN,
-            STAGES::WALKING_TO_EXIT,
-            STAGES::DULL
-        };
-        const auto stage_i = boost::get<int>(queue.front());
-        queue.pop();
-        _stage = aux.at(static_cast<std::uint64_t>(stage_i));
-
-        const auto x = boost::get<std::int32_t>(queue.front());
-        queue.pop();
-        const auto y = boost::get<std::int32_t>(queue.front());
-        queue.pop();
-        _chair_assigned = coordinates { x, y };
-
-        _chair_release_time = datetime { boost::get<datetime::resolution>(queue.front()) };
-        queue.pop();
-    } // tmp
-    _infection_logic.deserialize(queue);
-}
 
 ////////////////////////////////////////////////////////////////////////////
 // BAHAVIOUR
@@ -126,8 +47,8 @@ sti::patient_agent::type sti::patient_agent::get_type() const
 // TODO: Implement properly
 boost::json::object sti::patient_agent::kill_and_collect()
 {
-    auto output = boost::json::object {};
-    output["type"] = "patient";
+    auto output          = boost::json::object {};
+    output["type"]       = "patient";
     output["entry_time"] = _entry_time.str();
 
     const auto& stage_str = [&]() {

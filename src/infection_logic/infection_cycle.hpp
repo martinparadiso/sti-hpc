@@ -10,9 +10,6 @@
 namespace sti {
 class contagious_agent;
 
-using variant     = boost::variant<bool, float, double, std::int32_t, std::uint32_t, std::uint64_t, std::int64_t, repast::AgentId>;
-using serial_data = std::queue<variant>;
-
 /// @brief Base class/interface for the different types of infections
 class infection_cycle {
 
@@ -38,18 +35,6 @@ public:
 
     /// @brief Run the infection algorithm, polling nearby agents trying to get infected
     virtual void tick() = 0;
-
-    ////////////////////////////////////////////////////////////////////////////
-    // SERIALIZATION
-    ////////////////////////////////////////////////////////////////////////////
-
-    /// @brief Serialize the internal state of the infection
-    /// @param queue The queue to store the data
-    virtual void serialize(serial_data& queue) const = 0;
-
-    /// @brief Deserialize the data and update the agent data
-    /// @param queue The queue containing the data
-    virtual void deserialize(serial_data& queue) = 0;
 
 }; // class infection_cycle
 

@@ -3,6 +3,9 @@
 #pragma once
 
 #include <algorithm>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/serialization/unique_ptr.hpp>
 #include <array>
 #include <cstdint>
 #include <math.h>
@@ -45,12 +48,6 @@ public:
     using flyweight_ptr = flyweight*;
 
     ////////////////////////////////////////////////////////////////////////////
-    // PIMPL
-    ////////////////////////////////////////////////////////////////////////////
-
-    class pimpl;
-
-    ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
@@ -66,13 +63,10 @@ public:
                   const datetime&              entry_time,
                   const human_infection_cycle& hic);
 
-    /// @brief Create a new patient from serialized data
+    /// @brief Create an empty patient
     /// @param id The agent id
     /// @param fw The agent flyweight
-    /// @param data The serialized data
-    patient_agent(const id_t&   id,
-                  flyweight_ptr fw,
-                  serial_data&  queue);
+    patient_agent(const id_t& id, flyweight_ptr fw);
 
     ~patient_agent();
 
@@ -80,13 +74,30 @@ public:
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialize the internal state of the infection
-    /// @param queue The queue to store the data
-    void serialize(serial_data& queue) const final;
+    /// @brief Serialize the agent state into a string using Boost.Serialization
+    /// @return A string with the serialized data
+    serial_data serialize() override
+    {
+        auto ss = std::stringstream {};
+        { // Used to make sure the stream is flushed
+            auto oa = boost::archive::text_oarchive { ss };
+            oa << (*this);
+        }
+        return ss.str();
+    }
 
-    /// @brief Deserialize the data and update the agent data
-    /// @param queue The queue containing the data
-    void deserialize(serial_data& queue) final;
+    /// @brief Reconstruct the agent state from a string using Boost.Serialization
+    /// @param data The serialized data
+    void serialize(const id_t& id, const serial_data& data) override
+    {
+        contagious_agent::id(id);
+        auto ss = std::stringstream {};
+        ss << data;
+        { // Used to make sure the stream is flushed
+            auto ia = boost::archive::text_iarchive { ss };
+            ia >> (*this);
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     // BAHAVIOUR
@@ -109,13 +120,6 @@ public:
 
     void act() final;
 
-private:
-    flyweight_ptr         _flyweight;
-    datetime              _entry_time;
-    human_infection_cycle _infection_logic;
-
-    std::unique_ptr<pimpl> _pimpl;
-
     // TODO: Remove this, temp
     enum class STAGES {
         START,
@@ -125,9 +129,42 @@ private:
         WALKING_TO_EXIT,
         DULL,
     };
+private:
+    friend class boost::serialization::access;
+
+    // Private serialization, for security
+    template <class Archive>
+    void serialize(Archive& ar, const unsigned int /*unused*/)
+    {
+        ar& _entry_time;
+        ar& _infection_logic;
+        ar& _stage;
+        ar& _chair_assigned;
+        ar& _chair_release_time;
+    }
+
+    flyweight_ptr         _flyweight;
+    datetime              _entry_time;
+    human_infection_cycle _infection_logic;
+
+
     STAGES      _stage          = STAGES::START;
     coordinates _chair_assigned = { -1, -1 };
     datetime    _chair_release_time;
 }; // patient_agent
 
 } // namespace sti
+
+// Enum serialization
+namespace boost {
+namespace serialization {
+
+    template <class Archive>
+    void serialize(Archive& ar, sti::patient_agent::STAGES& s, const unsigned int /*unused*/)
+    {
+        ar& s;
+    } // void serialize(...)
+
+} // namespace serialization
+} // namespaces boost
+

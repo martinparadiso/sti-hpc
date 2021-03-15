@@ -36,41 +36,11 @@ public:
     enum STAGE { CLEAN,
                  INFECTED };
 
-    /// @brief Error trying to convert an int to an ENUM
-    struct bad_stage_cast : public std::exception {
-        const char* what() const noexcept override
-        {
-            return "Exception: Can't cast int to object_infection_cycle::STAGE";
-        }
-    };
-
-    /// @brief Convert an enum to int
-    /// @param stage The stage to serialize
-    /// @return The integer representing the enum
-    constexpr static std::uint32_t to_int(STAGE stage)
-    {
-        switch (stage) { // clang-format off
-            case STAGE::CLEAN:    return 0;
-            case STAGE::INFECTED: return 1;
-        } // clang-format on
-    }
-
-    /// @brief Deserialize/convert an int to enum
-    /// @param i The number to deserialize/convert to enum
-    /// @return the corresponding enum
-    /// @throws bad_stage_cast If the enum is out of range
-    constexpr static STAGE to_enum(std::uint32_t i)
-    {
-        if (i == 0) return STAGE::CLEAN;
-        if (i == 1) return STAGE::INFECTED;
-        throw bad_stage_cast {};
-    }
-
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Default construct an empty object, flyweight is still needed
+    /// @brief Construct an empty object, flyweight is still needed
     /// @param fw The flyweight containing shared data
     object_infection_cycle(flyweight_ptr fw)
         : _id {}
@@ -88,40 +58,6 @@ public:
         , _flyweight { fw }
         , _stage { is }
     {
-    }
-
-    /// @brief Construct an object infection logic from serialized data
-    /// @param id The id of the agent associated with this cycle
-    /// @param fw The object flyweight
-    /// @param queue The serialized data
-    object_infection_cycle(const agent_id& id, flyweight_ptr fw, serial_data& queue)
-        : _id { id }
-        , _flyweight { fw }
-        , _stage {}
-    {
-        deserialize(queue);
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // SERIALIZATION
-    ////////////////////////////////////////////////////////////////////////////
-
-    /// @brief Serialize the internal state of the infection
-    /// @param queue The queue to store the data
-    void serialize(serial_data& queue) const final
-    {
-        queue.push(_id);
-        queue.push(to_int(_stage));
-    }
-
-    /// @brief Deserialize the data and update the agent data
-    /// @param queue The queue containing the data
-    void deserialize(serial_data& queue) final
-    {
-        _id = boost::get<repast::AgentId>(queue.front());
-        queue.pop();
-        _stage = to_enum(boost::get<std::uint32_t>(queue.front()));
-        queue.pop();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -173,9 +109,32 @@ public:
     }
 
 private:
+    friend class boost::serialization::access;
+
+    // Private serialization, for security
+    template <class Archive>
+    void serialize(Archive& ar, const unsigned int /*unused*/)
+    {
+        ar& _id;
+        ar& _stage;
+    }
+
     agent_id      _id;
     flyweight_ptr _flyweight;
     STAGE         _stage;
 }; // class object_infection_cycle
 
 } // namespace sti
+
+// Enum serialization
+namespace boost {
+namespace serialization {
+
+    template <class Archive>
+    void serialize(Archive& ar, sti::object_infection_cycle::STAGE& s, const unsigned int /*unused*/)
+    {
+        ar& s;
+    } // void serialize(...)
+
+} // namespace serialization
+} // namespaces boost

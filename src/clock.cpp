@@ -27,7 +27,7 @@ std::string sti::timedelta::str() const
 /// @details The format returned is [Day, Hours/Minutes/Seconds]
 std::string sti::datetime::str() const
 {
-    return timedelta::str();
+    return _timedelta.str();
 }
 
 /// @brief Adjust time, must be executed every tick

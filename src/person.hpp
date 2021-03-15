@@ -2,6 +2,8 @@
 /// @brief Person with no logic or mobility, only transmission
 #pragma once
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -41,37 +43,42 @@ public:
     {
     }
 
-    /// @brief Create a new person from serialized data
-    /// @param id The agent id
+    /// @brief Create an empty person
     /// @param fw The agent flyweight
-    /// @param data The serialized data
-    /// @param inf An infection factory
-    person_agent(const id_t&      id,
-                 const flyweight* fw,
-                 serial_data&     queue)
-        : contagious_agent { id }
+    person_agent(const id_t& id, const flyweight* fw)
+        : contagious_agent {id  }
         , _flyweight { fw }
         , _infection_logic { fw->inf_factory->make_human_cycle() }
     {
-        deserialize(queue);
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialize the internal state of the infection
-    /// @param queue The queue to store the data
-    void serialize(serial_data& queue) const final
+    /// @brief Serialize the agent state into a string using Boost.Serialization
+    /// @return A string with the serialized data
+    serial_data serialize() override
     {
-        _infection_logic.serialize(queue);
+        auto ss = std::stringstream {};
+        { // Used to make sure the stream is flushed
+            auto oa = boost::archive::text_oarchive { ss };
+            oa << (*this);
+        }
+        return ss.str();
     }
 
-    /// @brief Deserialize the data and update the agent data
-    /// @param queue The queue containing the data
-    void deserialize(serial_data& queue) final
+    /// @brief Reconstruct the agent state from a string using Boost.Serialization
+    /// @param data The serialized data
+    void serialize(const id_t& id, const serial_data& data) override
     {
-        _infection_logic.deserialize(queue);
+        contagious_agent::id(id);
+        auto ss = std::stringstream {};
+        ss << data;
+        { // Used to make sure the stream is flushed
+            auto ia = boost::archive::text_iarchive { ss };
+            ia >> (*this);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -102,6 +109,14 @@ public:
     boost::json::object kill_and_collect() override;
 
 private:
+    friend class boost::serialization::access;
+
+    // Private serialization, for security
+    template <class Archive>
+    void serialize(Archive& ar, const unsigned int /*unused*/)
+    {
+        ar& _infection_logic;
+    }
     flyweight_ptr         _flyweight;
     human_infection_cycle _infection_logic;
 

@@ -1,6 +1,7 @@
 /// @brief Clock class, to simulate passsage of time
 #pragma once
 
+#include <boost/serialization/access.hpp>
 #include <cstdint>
 #include <string>
 
@@ -78,11 +79,20 @@ public:
     std::string str() const;
 
 private:
+    friend class boost::serialization::access;
+
+    // Private serialization, for security
+    template <class Archive>
+    void serialize(Archive& ar, const unsigned int /*unused*/)
+    {
+        ar& _length;
+    }
+
     resolution _length;
 };
 
 /// @brief An instant of time, counting from the start of the simulation
-class datetime : private timedelta {
+class datetime {
 
 public:
     using resolution = timedelta::resolution;
@@ -94,7 +104,7 @@ public:
     /// @brief Construct a datetime object
     /// @param seconds The number of seconds passed since the start of the simulation
     constexpr explicit datetime(resolution seconds = 0)
-        : timedelta(seconds)
+        : _timedelta(seconds)
     {
     }
 
@@ -104,7 +114,7 @@ public:
     /// @param minutes The number of minutes
     /// @param seconds The number of seconds
     constexpr datetime(resolution days, resolution hours, resolution minutes, resolution seconds)
-        : timedelta { days, hours, minutes, seconds }
+        : _timedelta { days, hours, minutes, seconds }
     {
     }
 
@@ -116,19 +126,31 @@ public:
     /// @return The number of seconds
     constexpr auto epoch() const
     {
-        return timedelta::length();
+        return _timedelta.length();
     }
 
     /// @brief Get the date in human format
     /// @details A struct containing the date in a human redeable format
-    constexpr human_date human() const
+    constexpr timedelta::human_date human() const
     {
-        return timedelta::human();
+        return _timedelta.human();
     }
 
     /// @brief Get the date in string format
     /// @details The format returned is [Day, Hours/Minutes/Seconds]
     std::string str() const;
+
+private:
+    friend class boost::serialization::access;
+
+    // Private serialization, for security
+    template <class Archive>
+    void serialize(Archive& ar, const unsigned int /*unused*/)
+    {
+        ar& _timedelta;
+    }
+
+    timedelta _timedelta;
 };
 
 /// @brief A clock that encapsulates repast time
@@ -166,13 +188,13 @@ private:
 /// @brief Add two timedeltas
 constexpr timedelta operator+(const timedelta& lho, const timedelta& rho)
 {
-    return timedelta{lho.length() + rho.length()};
+    return timedelta { lho.length() + rho.length() };
 }
 
 /// @brief Add a timedelta to a datetime
 constexpr datetime operator+(const datetime& lho, const timedelta& rho)
 {
-    return datetime{lho.epoch() + rho.length()};
+    return datetime { lho.epoch() + rho.length() };
 }
 
 /// @brief Compare two instants of time

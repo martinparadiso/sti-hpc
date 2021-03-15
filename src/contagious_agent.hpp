@@ -21,14 +21,13 @@ namespace json {
 
 namespace sti {
 
-using variant     = boost::variant<bool, float, double, std::int32_t, std::uint32_t, std::uint64_t, std::int64_t, repast::AgentId>;
-using serial_data = std::queue<variant>;
+// The data is serialized into a string with Boost.Serialization
+using serial_data = std::string;
 
 /// @brief An virtual class representing an agent capable of infecting others
 class contagious_agent {
 
 public:
-    contagious_agent()                        = default;
     contagious_agent(const contagious_agent&) = default;
     contagious_agent(contagious_agent&&)      = default;
     contagious_agent& operator=(const contagious_agent&) = default;
@@ -58,13 +57,14 @@ public:
     // SERIALIZATION
     ////////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Serialize the internal state of the infection
-    /// @param queue The queue to store the data
-    virtual void serialize(serial_data& queue) const = 0;
+    /// @brief Serialize the agent state into a string using Boost.Serialization
+    /// @return A string with the serialized data
+    virtual serial_data serialize() = 0;
 
-    /// @brief Deserialize the data and update the agent data
-    /// @param queue The queue containing the data
-    virtual void deserialize(serial_data& queue) = 0;
+    /// @brief Reconstruct the agent state from a string using Boost.Serialization
+    /// @param id The new AgentId
+    /// @param data The serialized data
+    virtual void serialize(const id_t& id, const serial_data& data) = 0;
 
     ////////////////////////////////////////////////////////////////////////////////
     // REPAST REQUIRED METHODS
@@ -73,6 +73,13 @@ public:
     /// @brief Get the agent id
     /// @return The repast id
     repast::AgentId& getId()
+    {
+        return _id;
+    }
+
+    /// @brief Get a reference to the AgentID
+    /// @note Needed to properly serialize it
+    repast::AgentId& id_ref()
     {
         return _id;
     }

@@ -1,8 +1,10 @@
 /// @brief Serialization of parallel agent
 #pragma once
 
+#include <sstream>
 #include <vector>
 
+#include <boost/archive/text_oarchive.hpp>
 #include <boost/serialization/deque.hpp>
 #include <boost/serialization/queue.hpp>
 #include <boost/serialization/variant.hpp>
@@ -34,12 +36,9 @@ struct agent_package {
     /// @brief Create a new package, passing id and the contagious agent data
     /// @param id The repast ID
     /// @param data The serialized data of the contagious agent
-    agent_package(const repast::AgentId& id, const sti::serial_data& data)
-        : id { id.id() }
-        , rank { id.startingRank() }
-        , type { id.agentType() }
-        , current_rank { id.currentRank() }
-        , data { data }
+    agent_package(const repast::AgentId& id, std::string&& data)
+        : id { id }
+        , data { std::move(data) }
     {
     }
 
@@ -47,9 +46,6 @@ struct agent_package {
     void serialize(Archive& ar, const unsigned int version)
     {
         ar& id;
-        ar& rank;
-        ar& type;
-        ar& current_rank;
         ar& data;
     }
 
@@ -57,16 +53,14 @@ struct agent_package {
     /// @return The repast ID
     repast::AgentId get_id() const
     {
-        return repast::AgentId { id, rank, type, current_rank };
+        return id;
     }
 
-    int id {};
-    int rank {};
-    int type {};
-    int current_rank {};
+    repast::AgentId id {};
 
-    // Use generic data structure
-    sti::serial_data data;
+    // Use Boost.Serialization to serialize the contagious_agent into a string
+    // using boost::archive::text_iarchive and boost::archive::text_oarchive
+    std::string data;
 
 }; // class agent_package
 
@@ -85,10 +79,9 @@ public:
     /// @brief Serialize an agent and add it to a vector
     static void providePackage(sti::contagious_agent* agent, std::vector<agent_package>& out)
     {
-        const auto id    = agent->getId();
-        auto       queue = sti::serial_data {};
-        agent->serialize(queue);
-        auto package = agent_package { id, queue };
+        const auto id      = agent->getId();
+        auto       data    = agent->serialize();
+        auto       package = agent_package { id, std::move(data) };
         out.push_back(package);
     }
 
@@ -126,27 +119,26 @@ public:
     /// @brief Create an agent from a package (deserializing the data)
     sti::contagious_agent* createAgent(const agent_package& package)
     {
-        const auto id         = package.get_id();
-        const auto agent_type = sti::to_agent_enum(id.agentType());
-        auto       queue      = package.data;
+        const auto id          = package.get_id();
+        const auto agent_type  = sti::to_agent_enum(id.agentType());
+        auto       string_data = package.data;
 
         if (agent_type == sti::contagious_agent::type::PATIENT) {
-            return _agent_factory->recreate_patient(id, queue);
+            return _agent_factory->recreate_patient(id, string_data);
         }
         if (agent_type == sti::contagious_agent::type::FIXED_PERSON) {
-            return _agent_factory->recreate_person(id, queue);
+            return _agent_factory->recreate_person(id, string_data);
         }
         if (agent_type == sti::contagious_agent::type::OBJECT) {
-            return _agent_factory->recreate_object(id, queue);
+            return _agent_factory->recreate_object(id, string_data);
         }
         throw sti::wrong_serialization {};
     }
 
     /// @brief Update a "borrowed" agent
-    void updateAgent(const agent_package& package)
+    void updateAgent(const agent_package& pkg)
     {
-        auto queue = package.data;
-        _context->getAgent(package.get_id())->deserialize(queue);
+        _context->getAgent(pkg.get_id())->serialize(pkg.get_id(), pkg.data);
     }
 
 private:

@@ -36,6 +36,9 @@ add_test(NAME mpqueue_test COMMAND ${MPIEXEC_BIN} -np 4 "${CMAKE_CURRENT_BINARY_
 
 add_executable(time_test_bin time/time.cpp)
 target_include_directories(time_test_bin SYSTEM PRIVATE "${PROJECT_SOURCE_DIR}/src/")
+target_link_directories(time_test_bin PRIVATE "${LIB_ROOT_PATH}/boost/lib")
+target_include_directories(time_test_bin SYSTEM PUBLIC ${LIB_ROOT_PATH}/boost/include/)
+target_link_libraries(time_test_bin PUBLIC boost_system-mt-x64 boost_filesystem-mt-x64 boost_serialization-mt-x64 boost_mpi-mt-x64)
 target_compile_options(time_test_bin PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
 tidy(time_test_bin)
 add_test(NAME time_test COMMAND time_test_bin)

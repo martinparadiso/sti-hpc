@@ -68,15 +68,7 @@ public:
                 boost::json::value_to<sti::infection_cycle::precission>(props.at("parameters").at("object").at("infection").at("chance")),
                 boost::json::value_to<double>(props.at("parameters").at("object").at("infection").at("distance")) }
         }
-        , _patient_flyweight {
-            &_infection_factory,
-            chairs,
-            hospital_plan,
-            c,
-            context,
-            space,
-            boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed"))
-        }
+        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, c, context, space, boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed")) }
         , _person_flyweight { &_infection_factory }
         , _object_flyweight { &_infection_factory }
     {
@@ -117,8 +109,8 @@ public:
                                serial_data&           data)
     {
         auto* patient = new patient_agent { id,
-                                            &_patient_flyweight,
-                                            data };
+                                            &_patient_flyweight };
+        patient->serialize(id, data);
         return patient;
     };
 
@@ -156,10 +148,10 @@ public:
     agent_ptr recreate_person(const repast::AgentId& id,
                               serial_data&           data) const
     {
-        auto* patient = new person_agent { id,
-                                           &_person_flyweight,
-                                           data };
-        return patient;
+        auto* person = new person_agent { id,
+                                          &_person_flyweight };
+        person->serialize(id, data);
+        return person;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -196,10 +188,10 @@ public:
     agent_ptr recreate_object(const repast::AgentId& id,
                               serial_data&           data) const
     {
-        auto* patient = new object_agent { id,
-                                           &_object_flyweight,
-                                           data };
-        return patient;
+        auto* object = new object_agent { id,
+                                          &_object_flyweight };
+        object->serialize(id, data);
+        return object;
     };
 
 private:
