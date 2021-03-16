@@ -3,6 +3,7 @@
 import argparse
 import subprocess
 import time
+from pathlib import Path
 
 parser = argparse.ArgumentParser(
     description='Simulation runner. Facilitates the execution of the simulation')
@@ -19,6 +20,11 @@ parser.add_argument('--debug', type=int,
 
 if __name__ == '__main__':
     args = parser.parse_args()
+
+    # Create the output folder
+    output_folder = Path('../output')
+    if not output_folder.exists():
+        output_folder.mkdir()
 
     commands = [args.mpi,
                 '-np', str(args.nodes),

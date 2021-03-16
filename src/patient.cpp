@@ -1,5 +1,10 @@
 #include "patient.hpp"
 
+#include <boost/json/value_from.hpp>
+#include <repast_hpc/Point.h>
+
+#include "json_serialization.hpp"
+
 ////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
 ////////////////////////////////////////////////////////////////////////////
@@ -49,7 +54,7 @@ boost::json::object sti::patient_agent::kill_and_collect()
 {
     auto output          = boost::json::object {};
     output["type"]       = "patient";
-    output["entry_time"] = _entry_time.str();
+    output["entry_time"] = boost::json::value_from(_entry_time);
 
     const auto& stage_str = [&]() {
         const auto& stage = _infection_logic.get_stage();
@@ -68,16 +73,17 @@ boost::json::object sti::patient_agent::kill_and_collect()
     if (_chair_assigned == coordinates { -1, -1 }) {
         output["chair_assigned"] = "no";
     } else {
-        auto os = std::ostringstream {};
-        os << _chair_assigned;
-        output["chair_assigned"]     = os.str();
-        output["chair_release_time"] = _chair_release_time.str();
+        output["chair_assigned"]     = boost::json::value_from(_chair_assigned);
+        output["chair_release_time"] = boost::json::value_from(_chair_release_time);
     }
 
     const auto& infect_time = _infection_logic.get_infection_time();
     if (infect_time) {
-        output["infection_time"] = infect_time->str();
+        output["infection_time"] = boost::json::value_from((*infect_time));
     }
+
+    output["steps"] = _steps;
+    output["path"] = boost::json::value_from(_path);
 
     // Remove from simulation
     _flyweight->space->remove_agent(this);
@@ -107,13 +113,6 @@ void sti::patient_agent::act()
     // The patient 0 must request a chair, and walk to it
     if (getId().id() != 0) {
 
-        const auto printas = [&](const auto& str) {
-            auto os = std::ostringstream {};
-            os << getId() << ": "
-               << str;
-            print(os.str());
-        };
-
         const auto get_my_loc = [&]() {
             const auto repast_coord = _flyweight->space->get_discrete_location(getId());
             return coordinates {
@@ -125,7 +124,6 @@ void sti::patient_agent::act()
         if (_stage == STAGES::START) {
             // Request a chair
             _flyweight->chairs->request_chair(getId());
-            printas("Requested chair");
             _stage = STAGES::WAITING_CHAIR;
             return;
         }
@@ -138,18 +136,10 @@ void sti::patient_agent::act()
                 if (response->chair_location) {
 
                     _chair_assigned = response->chair_location.get();
-                    auto os         = std::ostringstream {};
-                    os << "Got chair:"
-                       << _chair_assigned;
-                    printas(os.str());
                     _stage = STAGES::WALKING_TO_CHAIR;
                 } else {
-                    auto os = std::ostringstream {};
-                    printas("No chair available, leaving");
                     _stage = STAGES::WALKING_TO_EXIT;
                 }
-            } else {
-                printas("No response from chair manager");
             }
             return;
         }
@@ -157,7 +147,6 @@ void sti::patient_agent::act()
         if (_stage == STAGES::WALKING_TO_CHAIR) {
 
             if (get_my_loc() == _chair_assigned) {
-                printas("Arrived at chair");
                 // Wait 15 minutes
                 _chair_release_time = _flyweight->clk->now() + sti::timedelta { 0, 0, 15, 0 };
                 _stage              = STAGES::SIT_DOWN;
@@ -172,13 +161,8 @@ void sti::patient_agent::act()
                 const auto final_pos = _flyweight->space->move_towards(getId(),
                                                                        destination,
                                                                        _flyweight->walk_speed);
-                // assert(ret);
-
-                auto os = std::ostringstream {};
-                os << "Walking to chair :: "
-                   << my_pos << " -> "
-                   << final_pos;
-                printas(os.str());
+                _path.push_back(final_pos);
+                _steps++;
             }
 
             return;
@@ -188,13 +172,7 @@ void sti::patient_agent::act()
             // Wait a couple of ticks
             if (_chair_release_time < _flyweight->clk->now()) {
                 _flyweight->chairs->release_chair(_chair_assigned);
-                auto os = std::ostringstream {};
-                os << "Chair released, going to exit at "
-                   << _flyweight->hospital->get_all(hospital_plan::tile_t::EXIT).at(0);
-                printas("Chair released");
                 _stage = STAGES::WALKING_TO_EXIT;
-            } else {
-                printas("Still waiting for chair release");
             }
             return;
         }
@@ -212,15 +190,8 @@ void sti::patient_agent::act()
             const auto final_pos = _flyweight->space->move_towards(getId(),
                                                                    destination,
                                                                    _flyweight->walk_speed);
-
-            auto os = std::ostringstream {};
-            os << "Walking to exit "
-               << exit_loc
-               << "  :: "
-               << my_pos << "(" << _flyweight->space->get_discrete_location(getId()) << ")"
-               << " -> "
-               << final_pos;
-            printas(os.str());
+            _path.push_back(final_pos);
+            _steps++;
             return;
         };
     }

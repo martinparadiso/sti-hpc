@@ -126,17 +126,6 @@ void sti::model::tick()
     _clock->sync();
     if (_rank == 0) print(_clock->now().str());
 
-    ////////////////////////////////////////////////////////////////////////////
-    // INTER-PROCESS SYNCHRONIZATION
-    ////////////////////////////////////////////////////////////////////////////
-
-    _chair_manager->sync(); // Sync the chair pool
-    _spaces.balance(); // Move the agents accross processes
-
-    repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
-    repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
-    repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
-
     // Check if agents are pending creation
     if (_entry) {
         _entry->generate_patients();
@@ -151,6 +140,18 @@ void sti::model::tick()
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
         (*it)->act();
     }
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    // INTER-PROCESS SYNCHRONIZATION
+    ////////////////////////////////////////////////////////////////////////////
+
+    _chair_manager->sync(); // Sync the chair pool
+    repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
+    _spaces.balance(); // Move the agents accross processes
+    repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
+    repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
+
 }
 
 /// @brief Final function for data collection and such
@@ -165,7 +166,7 @@ void sti::model::finish()
     }
     if (_exit) {
         const auto& data      = _exit->finish();
-        auto        exit_file = std::ofstream { "./exit.json" };
+        auto        exit_file = std::ofstream { "../output/exit.json" };
         exit_file << data;
         exit_file.close();
     }
@@ -173,7 +174,7 @@ void sti::model::finish()
     // Transmit the entry information
     if (_entry) {
         const auto& data       = boost::json::serialize(_entry->statistics());
-        auto        entry_file = std::ofstream { "./entry.str" };
+        auto        entry_file = std::ofstream { "../output/entry.json" };
         entry_file << data;
     }
 }

@@ -12,6 +12,7 @@
 #include <memory>
 #include <repast_hpc/Grid.h>
 #include <repast_hpc/SharedContext.h>
+#include <repast_hpc/Point.h>
 #include <sstream>
 #include <vector>
 
@@ -141,6 +142,8 @@ private:
         ar& _stage;
         ar& _chair_assigned;
         ar& _chair_release_time;
+        ar& _path;
+        ar& _steps;
     }
 
     flyweight_ptr         _flyweight;
@@ -151,6 +154,10 @@ private:
     STAGES      _stage          = STAGES::START;
     coordinates _chair_assigned = { -1, -1 };
     datetime    _chair_release_time;
+
+    // TMP
+    std::vector<point> _path {};
+    unsigned _steps {};
 }; // patient_agent
 
 } // namespace sti

@@ -4,6 +4,7 @@
 
 #include <map>
 #include <memory>
+#include <repast_hpc/Point.h>
 #include <vector>
 
 // Fw. declarations
@@ -43,6 +44,42 @@ struct coordinates {
     }
 };
 
+struct point {
+    using length_t = double;
+
+    length_t x;
+    length_t y;
+
+    point() = default;
+
+    point(length_t x, length_t y)
+        : x { x }
+        , y { y }
+    {
+    }
+
+    /// @brief Cast from repast point
+    point(const repast::Point<double>& rp)
+        : x { rp.getX() }
+        , y { rp.getY() }
+    {
+    }
+
+    /// @brief Cast to repast point
+    explicit operator repast::Point<double>() const
+    {
+        return { x, y };
+    }
+
+    // Serialization
+    template <typename Archive>
+    void serialize(Archive& ar, const unsigned int version)
+    {
+        ar& x;
+        ar& y;
+    }
+};
+
 /// @brief Hospital abstaction, provides access to all hospital-related functions
 class hospital_plan {
 public:
@@ -57,9 +94,9 @@ public:
         RECEPTIONIST,
         DOCTOR
     };
-    using length_t          = coordinates::length_t;
-    using tile_t            = TYPES;
-    using plan_t            = std::vector<std::vector<tile_t>>;
+    using length_t = coordinates::length_t;
+    using tile_t   = TYPES;
+    using plan_t   = std::vector<std::vector<tile_t>>;
 
     using chair_manager_owning_ptr  = std::unique_ptr<sti::chair_manager>;
     using hospital_entry_owning_ptr = std::unique_ptr<sti::hospital_entry>;
