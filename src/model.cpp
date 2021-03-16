@@ -24,7 +24,6 @@
 #include "infection_logic/object_infection_cycle.hpp"
 #include "model.hpp"
 #include "patient.hpp"
-#include "print.hpp"
 
 /// @brief Initialize the model
 /// @details Loads the map
@@ -35,15 +34,12 @@ void sti::model::init()
     const auto chair_mgr_rank = boost::lexical_cast<int>(_props->getProperty("chair.manager.rank"));
     if (_rank == chair_mgr_rank) {
         // The chair manager is in this process, create the real one
-        print("Creating chair manager server");
         _chair_manager.reset(new real_chair_manager { _communicator, _hospital });
     } else {
-        print("Creating chair manager proxy");
         _chair_manager.reset(new proxy_chair_manager { _communicator, chair_mgr_rank });
     }
 
     // Create the agent factory
-    print("Creating the agent factory...");
     _agent_factory.reset(new agent_factory { &_context,
                                              &_spaces,
                                              _clock.get(),
@@ -59,7 +55,6 @@ void sti::model::init()
     // rest of the processes the ticks to execute
     const auto en = _hospital.get_all(hospital_plan::tile_t::ENTRY).at(0);
     if (_spaces.local_dimensions().contains(std::vector { en.x, en.y })) {
-        print("Creating entry...");
         auto       patient_distribution = load_patient_distribution(_hospital_props);
         const auto days                 = patient_distribution->days();
         _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), _hospital_props });
@@ -84,7 +79,6 @@ void sti::model::init()
     // Create the exit, if the exit is in this process
     const auto ex = _hospital.get_all(hospital_plan::tile_t::EXIT).at(0);
     if (_spaces.local_dimensions().contains(std::vector { ex.x, ex.y })) {
-        print("Creating exit...");
         _exit.reset(new sti::hospital_exit(&_context, &_spaces, _clock.get(), ex));
     }
 
@@ -122,9 +116,8 @@ void sti::model::init_schedule(repast::ScheduleRunner& runner)
 /// @brief Periodic funcion
 void sti::model::tick()
 {
-    // Sync the clock, print time
+    // Sync the clock with the simulation tick
     _clock->sync();
-    if (_rank == 0) print(_clock->now().str());
 
     // Check if agents are pending creation
     if (_entry) {

@@ -2,6 +2,7 @@
 /// @brief Hospital exit, in charge of removing agents
 #pragma once
 
+#include <boost/json/object.hpp>
 #include <memory>
 
 #include "hospital_plan.hpp"
@@ -63,7 +64,7 @@ public:
     /// @brief Perform all the finishing actions, returning the metrics
     /// @return A string containing the serialized data and metrics
     [[nodiscard]]
-    std::string finish();
+    boost::json::object finish();
 
 private:
     repast_context_ptr _context;

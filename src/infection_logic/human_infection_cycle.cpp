@@ -7,10 +7,6 @@
 #include "human_infection_cycle.hpp"
 #include "../contagious_agent.hpp"
 
-// TODO: remove
-#include <sstream>
-#include "../print.hpp"
-
 void sti::human_infection_cycle::tick()
 {
     // If healthy try to get infected
@@ -30,16 +26,6 @@ void sti::human_infection_cycle::tick()
                 // Oh no, I got infected!
                 _stage          = STAGE::INCUBATING;
                 _infection_time = _flyweight->clk->now();
-
-                // TODO: Remove this
-                auto msg = std::stringstream{};
-                msg << "["
-                   << _id.id() << ","
-                   << _id.startingRank() << ","
-                   << _id.agentType() << ","
-                   << _id.currentRank() << "] "
-                   << "Infected";
-                print(msg.str());
 
                 // No need to keep iterating over the remaining agents
                 break;

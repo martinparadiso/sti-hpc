@@ -7,10 +7,6 @@
 #include "object_infection_cycle.hpp"
 #include "../contagious_agent.hpp"
 
-// TODO: remove
-#include <sstream>
-#include "../print.hpp"
-
 void sti::object_infection_cycle::tick()
 {
     // If the object is clean, try to get infected
@@ -29,15 +25,6 @@ void sti::object_infection_cycle::tick()
                 // Oh no, I got infected!
                 _stage          = STAGE::INFECTED;
 
-                // TODO: Remove this
-                auto msg = std::stringstream{};
-                msg << "["
-                   << _id.id() << ","
-                   << _id.startingRank() << ","
-                   << _id.agentType() << ","
-                   << _id.currentRank() << "] "
-                   << "Got infected!";
-                print(msg.str());
             }
         }
     }

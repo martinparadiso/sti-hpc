@@ -9,7 +9,6 @@
 
 #include "hospital_plan.hpp"
 #include "contagious_agent.hpp"
-#include "print.hpp"
 
 /// @brief Create a space wrapper
 /// @param building_plan The hospital plan
@@ -184,12 +183,6 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_to(const repast::A
         static_cast<int>(point.getX()),
         static_cast<int>(point.getY())
     };
-
-    auto os = std::ostringstream{};
-    os << id << " :: "
-       << cell << " ; "
-       << point;
-    sti::print(os.str());
 
     _discrete_space->moveTo(id, cell);
     _continuous_space->moveTo(id, point);

@@ -8,7 +8,6 @@
 #include <repast_hpc/RepastProcess.h>
 
 #include "model.hpp"
-#include "print.hpp"
 
 int main(int argc, char** argv)
 {

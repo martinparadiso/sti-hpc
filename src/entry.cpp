@@ -8,7 +8,6 @@
 
 #include "agent_factory.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
-#include "print.hpp"
 
 /// @brief Create a hospital entry
 /// @details The hospital entry is in charge of creating the patients
@@ -76,11 +75,6 @@ boost::json::array sti::hospital_entry::statistics() const
     for (auto day = 0; day < _generated_patients.axis(0).size(); ++day) {
         auto day_arr = boost::json::array {};
         for (auto bin = 0; bin < _generated_patients.axis(1).size(); ++bin) {
-            // os << day << ","
-            //     << bin << ","
-            //     << entry.at(day, bin) << ","
-            //     << expected.at(day, bin)
-            //     << "\n";
             const auto i = static_cast<int>(_generated_patients.at(day, bin));
             day_arr.push_back(i);
         }
@@ -99,15 +93,9 @@ void sti::hospital_entry::generate_patients()
 
         using STAGES = human_infection_cycle::STAGE;
 
-        const auto  random    = repast::Random::instance()->nextDouble();
-        const auto  stage     = _infected_chance > random ? STAGES::SICK : STAGES::HEALTHY;
-        const auto* agent_ptr = _agent_factory->insert_new_patient(_location, stage);
-
-        auto ss = std::stringstream {};
-        ss << "Creating patient :: "
-           << agent_ptr->getId() << " :: "
-           << (stage == STAGES::SICK ? "SICK" : "HEALTHY");
-        print(ss.str());
+        const auto random = repast::Random::instance()->nextDouble();
+        const auto stage  = _infected_chance > random ? STAGES::SICK : STAGES::HEALTHY;
+        _agent_factory->insert_new_patient(_location, stage);
     }
 }
 

@@ -22,7 +22,6 @@
 #include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
-#include "print.hpp"
 #include "space_wrapper.hpp"
 
 namespace sti {
@@ -68,6 +67,14 @@ public:
     /// @param id The agent id
     /// @param fw The agent flyweight
     patient_agent(const id_t& id, flyweight_ptr fw);
+
+    // Remove the copy constructors
+    patient_agent(const patient_agent&) = delete;
+    patient_agent& operator=(const patient_agent&) = delete;
+
+    // Default move
+    patient_agent(patient_agent&&) noexcept = default;
+    patient_agent& operator=(patient_agent&&) noexcept = default;
 
     ~patient_agent();
 

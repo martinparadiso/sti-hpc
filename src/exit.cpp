@@ -9,11 +9,7 @@
 #include <vector>
 
 #include "contagious_agent.hpp"
-#include "print.hpp"
 #include "space_wrapper.hpp"
-
-// TODO: Proper output
-#include <iostream>
 
 /// @brief Pointer to implementation struct
 struct sti::hospital_exit::impl {
@@ -65,9 +61,6 @@ void sti::hospital_exit::tick()
 }
 
 /// @brief Perform all the finishing actions, saving data and such
-std::string sti::hospital_exit::finish() {
-    // Print all the agent data
-    auto os = std::ostringstream{};
-    os << _pimpl->agent_output_data;
-    return os.str();
+boost::json::object sti::hospital_exit::finish() {
+    return _pimpl->agent_output_data;
 }
