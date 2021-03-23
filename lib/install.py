@@ -76,6 +76,12 @@ class Library(object):
             env['CPPFLAGS'] = ' '.join(
                 [f"-I{self.install_folder}/{l}/include" for l in self.requires])
 
+        if self.debug:
+            if 'CPPFLAGS' in env:
+                env['CPPFLAGS'] += (' -g')
+            else:
+                env['CPPFLAGS'] = '-g'
+
         env = {**env, **extra_env}
 
         # Some libraries don't use configure, so check first
@@ -92,7 +98,8 @@ class Library(object):
 
         check_run(compile_output, f"Error compiling {self.name}")
 
-        install_output = subprocess.run(['make', 'install'], cwd=workdir, env=env)
+        install_output = subprocess.run(
+            ['make', 'install'], cwd=workdir, env=env)
 
         check_run(install_output, f"Error installing {self.name}")
 
@@ -109,6 +116,7 @@ class Curl(Library):
         self.download_folder = download_folder
         self.install_folder = install_folder
         self.jobs = args.jobs
+        self.debug = args.debug
 
     def download_url(self):
         return f"https://curl.haxx.se/download/{self.filename}"
@@ -134,6 +142,7 @@ class MPICH(Library):
         self.download_folder = download_folder
         self.install_folder = install_folder
         self.jobs = args.jobs
+        self.debug = args.debug
 
     def download_url(self):
         return f"https://www.mpich.org/static/downloads/{'.'.join(self.version)}/{self.filename}"
@@ -158,6 +167,7 @@ class Netcdf(Library):
         self.download_folder = download_folder
         self.install_folder = install_folder
         self.jobs = args.jobs
+        self.debug = args.debug
 
     def download_url(self):
         return f"ftp://ftp.unidata.ucar.edu/pub/netcdf/old/{self.filename}"
@@ -182,6 +192,7 @@ class Netcdfcxx(Library):
         self.download_folder = download_folder
         self.install_folder = install_folder
         self.jobs = args.jobs
+        self.debug = args.debug
 
     def download_url(self):
         return f"ftp://ftp.unidata.ucar.edu/pub/netcdf/{self.filename}"
@@ -205,6 +216,7 @@ class Boost(Library):
         self.install_folder = install_folder
         self.mpi_compiler = args.mpi_compiler
         self.jobs = args.jobs
+        self.debug = args.debug
 
     def download_url(self):
         return f"https://sourceforge.net/projects/boost/files/boost/{'.'.join(self.version)}/{self.filename}/download"
@@ -229,13 +241,16 @@ class Boost(Library):
             config.write(f"using mpi : {self.mpi_compiler} ;")
 
         # Compile and install
-        install_output = subprocess.run(['./b2',
-                                         f"-j{self.jobs}",
-                                         '--layout=tagged',
-                                         'variant=release',
-                                         'threading=multi',
-                                         'stage', 'install'
-                                         ],
+        boost_command = ['./b2',
+                         f"-j{self.jobs}",
+                         '--layout=tagged',
+                         'variant=release',
+                         'threading=multi',
+                         'stage', 'install'
+                         ]
+        if self.debug:
+            boost_command.append('--debug-symbols=on')
+        install_output = subprocess.run(boost_command,
                                         cwd=workdir)
 
         check_run(install_output, f"Error compiling and install Boost")
@@ -253,6 +268,7 @@ class Repast(Library):
         self.install_folder = install_folder
         self.jobs = args.jobs
         self.mpi_compiler = args.mpi_compiler
+        self.debug = args.debug
 
         if self.version != ['2', '3', '1']:
             raise Exception('Unsupported repast version')
@@ -267,9 +283,12 @@ class Repast(Library):
             git_output = subprocess.run(['git',
                                          'clone', 'https://github.com/martinparadiso/repast.hpc.git',
                                          repo_folder.absolute()])
+            git_switch = subprocess.run(['git',
+                                         'switch', 'development'],
+                                         cwd=repo_folder.absolute())
 
         check_run(git_output, 'Error cloning repast repository')
-
+        check_run(git_switch, 'Error switching to development branch')
     def install(self):
 
         workdir = Path(f"{self.download_folder}/repast.hpc/release")
@@ -286,11 +305,12 @@ class Repast(Library):
 
         env_vars = {
             'CC': self.mpi_compiler,
-            'BASE_DIR' : self.install_folder,
-            'PREFIX' : f"{self.install_folder}/{self.name}"
+            'BASE_DIR': self.install_folder,
+            'PREFIX': f"{self.install_folder}/{self.name}"
         }
 
-        super().generic_make_install(workdir, [], extra_env=env_vars, extract=False)
+        super().generic_make_install(workdir, [],
+                                     extra_env=env_vars, extract=False)
 
 
 if (__name__ == '__main__'):
@@ -307,7 +327,8 @@ if (__name__ == '__main__'):
                         help='Installation directory')
     parser.add_argument('-j', '--jobs', default=1, type=int,
                         help='Number of workers used for compilation')
-
+    parser.add_argument('-g', '--debug', action='store_true',
+                        help='Pass the -g flag to the compiler to generate debug info')
     parser.add_argument('--mpi-compiler', default='./mpich/bin/mpicxx',
                         help='MPI compiler needed by Boost')
 

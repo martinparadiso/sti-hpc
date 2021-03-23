@@ -4,8 +4,10 @@
 
 #include <map>
 #include <memory>
-#include <repast_hpc/Point.h>
 #include <vector>
+
+#include "coordinates.hpp"
+#include "reception.hpp"
 
 // Fw. declarations
 namespace repast {
@@ -18,6 +20,7 @@ namespace mpi {
 }
 namespace json {
     class value;
+    class object;
 }
 }
 
@@ -29,61 +32,9 @@ class hospital_entry;
 class hospital_exit;
 class hospital_plan;
 
-struct coordinates {
-    using length_t = int;
+namespace tiles {
 
-    length_t x;
-    length_t y;
-
-    // Serialization
-    template <typename Archive>
-    void serialize(Archive& ar, const unsigned int version)
-    {
-        ar& x;
-        ar& y;
-    }
-};
-
-struct point {
-    using length_t = double;
-
-    length_t x;
-    length_t y;
-
-    point() = default;
-
-    point(length_t x, length_t y)
-        : x { x }
-        , y { y }
-    {
-    }
-
-    /// @brief Cast from repast point
-    point(const repast::Point<double>& rp)
-        : x { rp.getX() }
-        , y { rp.getY() }
-    {
-    }
-
-    /// @brief Cast to repast point
-    explicit operator repast::Point<double>() const
-    {
-        return { x, y };
-    }
-
-    // Serialization
-    template <typename Archive>
-    void serialize(Archive& ar, const unsigned int version)
-    {
-        ar& x;
-        ar& y;
-    }
-};
-
-/// @brief Hospital abstaction, provides access to all hospital-related functions
-class hospital_plan {
-public:
-    enum class TYPES {
+    enum class ENUMS {
         FLOOR,
         WALL,
         CHAIR,
@@ -92,34 +43,118 @@ public:
         TRIAGE,
         ICU,
         RECEPTIONIST,
-        DOCTOR
+        RECEPTION_PATIENT_CHAIR,
+        DOCTOR,
+        DOCTOR_PATIENT_CHAIR
     };
-    using length_t = coordinates::length_t;
-    using tile_t   = TYPES;
-    using plan_t   = std::vector<std::vector<tile_t>>;
 
-    using chair_manager_owning_ptr  = std::unique_ptr<sti::chair_manager>;
-    using hospital_entry_owning_ptr = std::unique_ptr<sti::hospital_entry>;
-    using hospital_exit_owning_ptr  = std::unique_ptr<sti::hospital_exit>;
+    using grid = std::vector<std::vector<ENUMS>>;
 
-    /// @brief Load a hospital from a file
-    /// @param tree The json properties
-    /// @return A hospital
-    friend hospital_plan load_hospital(const boost::json::value& tree);
+    /// @brief Wall tile
+    struct wall {
+        coordinates<int> location;
+
+        /// @brief Load the walls from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of walls
+        static std::vector<wall> load(const boost::json::object& hospital, grid& map);
+    };
+
+    /// @brief Chair tile, storing the chair location
+    struct chair {
+        coordinates<int> location;
+
+        /// @brief Load the chairs from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of walls
+        static std::vector<chair> load(const boost::json::object& hospital, grid& map);
+    };
+
+    /// @brief Entry tile, storing the entry location
+    struct entry {
+        coordinates<int> location;
+
+        /// @brief Load the entry from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of entry
+        static entry load(const boost::json::object& hospital, grid& map);
+    };
+
+    /// @brief Exit tile, storing the exit location
+    struct exit {
+        coordinates<int> location;
+
+        /// @brief Load the exit from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of entry
+        static exit load(const boost::json::object& hospital, grid& map);
+    };
+
+    /// @brief Triage tile, storing the triage location
+    struct triage {
+        coordinates<int> location;
+
+        /// @brief Load the triage from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of entry
+        static triage load(const boost::json::object& hospital, grid& map);
+    };
+
+    /// @brief ICU tile, storing the icu location
+    struct icu {
+        coordinates<int> location;
+
+        /// @brief Load the ICU from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of entry
+        static icu load(const boost::json::object& hospital, grid& map);
+    };
+
+    /// @brief Receptionist tile, storing the receptionist and patient location
+    struct receptionist {
+        coordinates<int> location;
+        coordinates<int> patient_chair;
+
+        /// @brief Load the receptionists from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of receptionists
+        static std::vector<receptionist> load(const boost::json::object& hospital, grid& map);
+    };
+
+    /// @brief Doctor tile, storing the location, type and patient location
+    struct doctor {
+        coordinates<int> location;
+        coordinates<int> patient_chair;
+        std::string      type;
+
+        /// @brief Load the doctors from a hospital, store the enums in the map and return the list
+        /// @param hospital The JSON containing the hospital information
+        /// @param map The map to store the enum
+        /// @return The list of doctors
+        static std::vector<doctor> load(const boost::json::object& hospital, grid& map);
+    };
+
+} // namespace tiles
+
+/// @brief Hospital abstaction, provides access to all hospital-related functions
+class hospital_plan {
+public:
+    using length_t = sti::coordinates<int>::length_t;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
-    hospital_plan() = delete;
-
-    hospital_plan(const hospital_plan&) = delete;
-    hospital_plan& operator=(const hospital_plan&) = delete;
-
-    hospital_plan(hospital_plan&&) noexcept;
-    hospital_plan& operator=(hospital_plan&&) noexcept;
-
-    ~hospital_plan();
+    /// @brief Load a hospital from a JSON object
+    /// @param json The JSON containing the hospital description
+    hospital_plan(const boost::json::object& json);
 
     ////////////////////////////////////////////////////////////////////////////
     // HOSPITAL PLAN
@@ -137,45 +172,54 @@ public:
         return _height;
     }
 
-    /// @brief Insert a new tile in a specific position
-    /// @param position The location to insert
-    /// @param t The type to insert
-    void insert(const coordinates& position, tile_t t);
+    /// @brief Access the location
+    /// @param l The location
+    /// @return A reference to the tile
+    tiles::ENUMS& operator[](const coordinates<int>& l);
 
-    /// @brief Get the tile type in a specific point
-    /// @param position The position to query
-    /// @return The tile type located in that position
-    tile_t get(const coordinates& position) const;
+    /// @brief Access the location
+    /// @param l The location
+    /// @return A reference to the tile
+    const tiles::ENUMS& operator[](const coordinates<int>& l) const;
 
-    /// @brief Get all the specified tiles of type e present in the file
-    /// @param e The desired type
-    /// @return A vector containing the coordinates of all the specified tiles
-    const std::vector<coordinates>& get_all(TYPES e) const;
+    /// @brief Get all the walls
+    const std::vector<tiles::wall>& walls() const;
+
+    /// @brief Get all the chairs
+    const std::vector<tiles::chair>& chairs() const;
+
+    /// @brief Get the entry
+    tiles::entry entry() const;
+
+    /// @brief Get the exit
+    tiles::exit exit() const;
+
+    /// @brief Get triage
+    tiles::triage triage() const;
+
+    /// @brief Get the icu
+    tiles::icu icu() const;
+
+    /// @brief Get all the receptionists
+    const std::vector<tiles::receptionist>& receptionists() const;
+
+    /// @brief Get all the doctors
+    const std::vector<tiles::doctor>& doctors() const;
 
 private:
-    ////////////////////////////////////////////////////////////////////////////
-    // PRIVATE COMPLEX INITIALIZATION
-    ////////////////////////////////////////////////////////////////////////////
-    hospital_plan(length_t width, length_t height);
-
-    /// @brief Create a new empty hospital
-    /// @param width The width of the hospital
-    /// @param height The height of the hospital
-
-    plan_t                                          _plan;
-    std::map<tile_t, std::vector<sti::coordinates>> _special_tiles;
-
     length_t _width;
     length_t _height;
+
+    tiles::grid _grid;
+
+    std::vector<tiles::wall>         _walls;
+    std::vector<tiles::chair>        _chairs;
+    tiles::entry                     _entry;
+    tiles::exit                      _exit;
+    tiles::triage                    _triage;
+    tiles::icu                       _icu;
+    std::vector<tiles::receptionist> _receptionists;
+    std::vector<tiles::doctor>       _doctors;
 };
 
-/// @brief Load a hospital from a file
-/// @param tree The json properties
-/// @return A hospital
-hospital_plan load_hospital(const boost::json::value& tree);
-
 } // namespace sti
-
-bool operator==(const sti::coordinates& lo, const sti::coordinates& ro);
-
-std::ostream& operator<<(std::ostream& os, const sti::coordinates& c);

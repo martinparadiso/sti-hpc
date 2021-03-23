@@ -22,6 +22,7 @@
 #include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
+#include "reception.hpp"
 #include "space_wrapper.hpp"
 
 namespace sti {
@@ -37,12 +38,14 @@ public:
     /// @brief Patient common properties
     struct flyweight {
         const sti::infection_factory*            inf_factory;
-        sti::chair_manager*                      chairs;
-        sti::hospital_plan*                      hospital;
-        sti::clock*                              clk;
         repast::SharedContext<contagious_agent>* context;
         sti::space_wrapper*                      space;
+        sti::clock*                              clk;
+        sti::hospital_plan*                      hospital;
+        sti::chair_manager*                      chairs;
+        sti::reception*                          reception;
         const double                             walk_speed;
+        sti::timedelta                           reception_time;
     };
 
     using flyweight_ptr = flyweight*;
@@ -130,13 +133,16 @@ public:
 
     // TODO: Remove this, temp
     enum class STAGES {
-        START,
-        WAITING_CHAIR,
-        WALKING_TO_CHAIR,
-        SIT_DOWN,
-        WALKING_TO_EXIT,
+        START, // Request a chair
+        WAITING_CHAIR, // Wait for the chair assignment
+        WALKING_TO_CHAIR, // Walk to the chair, if arrived, request reception
+        WAIT_FOR_RECEPTION, // Wait until its my turn
+        WALKING_TO_RECEPTION, // Release the chair, Walk to reception
+        WAIT_IN_RECEPTION, // Wait 15 minutes for atention
+        WALKING_TO_EXIT, // Walk to exit
         DULL,
     };
+
 private:
     friend class boost::serialization::access;
 
@@ -148,23 +154,20 @@ private:
         ar& _infection_logic;
         ar& _stage;
         ar& _chair_assigned;
-        ar& _chair_release_time;
+        ar& _reception_assigned;
+        ar& _reception_time;
         ar& _path;
-        ar& _steps;
     }
 
     flyweight_ptr         _flyweight;
     datetime              _entry_time;
     human_infection_cycle _infection_logic;
 
-
-    STAGES      _stage          = STAGES::START;
-    coordinates _chair_assigned = { -1, -1 };
-    datetime    _chair_release_time;
-
-    // TMP
-    std::vector<point> _path {};
-    unsigned _steps {};
+    STAGES                           _stage              = STAGES::START;
+    coordinates<int>                 _chair_assigned     = { -1, -1 };
+    coordinates<int>                 _reception_assigned = { -1, -1 };
+    datetime                         _reception_time {};
+    std::vector<coordinates<double>> _path {};
 }; // patient_agent
 
 } // namespace sti
@@ -181,4 +184,3 @@ namespace serialization {
 
 } // namespace serialization
 } // namespaces boost
-

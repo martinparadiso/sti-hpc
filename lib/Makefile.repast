@@ -193,14 +193,10 @@ install : repast_hpc relogo
 
 repast_hpc: $(REPAST_HPC_OBJECTS)
 	-mkdir -p bin
-	$(info **************************************)
-	$(info =====> $(LIBS))
 	$(CXXLD) $^ $(LIB_LDFLAGS) $(RPATHS) -o bin/$(REPAST_HPC_LIB) $(LIBS)
 
 relogo: $(RELOGO_OBJECTS)
 	-mkdir -p bin
-	$(info **************************************)
-	$(info =====> $(LIBS))
 	$(CXXLD) $^ $(LIB_LDFLAGS) $(RPATHS) $(l_CURL) -o bin/$(RELOGO_LIB) $(LIBS) -L./bin
 
 tests : repast_hpc $(TEST_OBJECTS) 

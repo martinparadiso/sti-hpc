@@ -25,10 +25,10 @@ struct sti::hospital_exit::impl {
 /// @param space Space wrapper
 /// @param clk The world clock
 /// @param location The tile the exit is located
-sti::hospital_exit::hospital_exit(repast_context_ptr context,
-                                  space_ptr          space,
-                                  clock_ptr          clk,
-                                  sti::coordinates   location)
+sti::hospital_exit::hospital_exit(repast_context_ptr    context,
+                                  space_ptr             space,
+                                  clock_ptr             clk,
+                                  sti::coordinates<int> location)
 
     : _context { context }
     , _space { space }
@@ -48,19 +48,20 @@ sti::hospital_exit::~hospital_exit() = default;
 void sti::hospital_exit::tick()
 {
     // Check if there are any agents in this location
-    const auto agents = _space->agents_in_cell({_location.x, _location.y});
+    const auto agents = _space->agents_in_cell({ _location.x, _location.y });
 
     // Remove all the agents in the exit position
     for (const auto& agent : agents) {
-        const auto& id = agent->getId();
+        const auto& id   = agent->getId();
         const auto& data = agent->kill_and_collect();
-        auto os = std::ostringstream{};
+        auto        os   = std::ostringstream {};
         os << id;
         _pimpl->agent_output_data[os.str()] = data;
     }
 }
 
 /// @brief Perform all the finishing actions, saving data and such
-boost::json::object sti::hospital_exit::finish() {
+boost::json::object sti::hospital_exit::finish()
+{
     return _pimpl->agent_output_data;
 }

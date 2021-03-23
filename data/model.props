@@ -5,6 +5,7 @@ hospital.file = ./hospital.json
 x.process = 2
 y.process = 2
 chair.manager.rank = 0
+reception.manager.rank = 0
 
 # Simulation
 seconds.per.tick = 60

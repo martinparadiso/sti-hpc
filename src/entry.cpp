@@ -15,7 +15,7 @@
 /// @param clock The simulation clock
 /// @param patient_admissions The patient admission histogram
 /// @param factory The agent factory, for patient creation
-sti::hospital_entry::hospital_entry(sti::coordinates                      location,
+sti::hospital_entry::hospital_entry(sti::coordinates<int>                 location,
                                     sti::clock*                           clock,
                                     std::unique_ptr<patient_distribution> patient_admissions,
                                     agent_factory*                        factory,
@@ -52,12 +52,19 @@ std::uint64_t sti::hospital_entry::patients_waiting()
     // Get the number of patients expected for this interval and the rate of
     // admission
     const auto interval_admission_target = _patient_distribution->get(day, bin);
-    const auto rate                      = _interval_length / interval_admission_target;
 
-    // The number of patients that were already admitted durning this
-    // interval should be at least the time passed since the start of the
-    // interval divided by the rate
-    const auto expected = 1 + bin_offset / rate;
+    const auto expected = [&]() {
+        // Guard to make sure we don't divide by zero
+        if (interval_admission_target == 0) {
+            return 0UL;
+        }
+
+        // The number of patients that were already admitted durning this
+        // interval should be at least the time passed since the start of the
+        // interval divided by the rate
+        const auto rate = _interval_length / interval_admission_target;
+        return 1 + bin_offset / rate;
+    }();
 
     const auto agents_waiting = expected - static_cast<std::uint64_t>(_generated_patients.at(day, bin));
 

@@ -41,10 +41,10 @@ public:
     /// @param space Space wrapper
     /// @param clk The world clock
     /// @param location The tile the exit is located
-    hospital_exit(repast_context_ptr context,
-                  space_ptr          space,
-                  clock_ptr          clk,
-                  sti::coordinates   location);
+    hospital_exit(repast_context_ptr    context,
+                  space_ptr             space,
+                  clock_ptr             clk,
+                  sti::coordinates<int> location);
 
     hospital_exit(const hospital_exit&) = delete;
     hospital_exit& operator=(const hospital_exit&) = delete;
@@ -63,14 +63,13 @@ public:
 
     /// @brief Perform all the finishing actions, returning the metrics
     /// @return A string containing the serialized data and metrics
-    [[nodiscard]]
-    boost::json::object finish();
+    [[nodiscard]] boost::json::object finish();
 
 private:
-    repast_context_ptr _context;
-    space_ptr          _space;
-    clock_ptr          _clock;
-    sti::coordinates   _location;
+    repast_context_ptr    _context;
+    space_ptr             _space;
+    clock_ptr             _clock;
+    sti::coordinates<int> _location;
     struct impl;
     std::unique_ptr<impl> _pimpl;
 

@@ -129,7 +129,7 @@ public:
     /// @param patient_admissions The patient admission histogram
     /// @param factory The agent factory, for patient creation
     /// @param props Repast properties
-    hospital_entry(coordinates                           location,
+    hospital_entry(coordinates<int>                      location,
                    sti::clock*                           clock,
                    std::unique_ptr<patient_distribution> patient_admissions,
                    agent_factory*                        factory,
@@ -143,7 +143,7 @@ public:
     boost::json::array statistics() const;
 
 private:
-    coordinates                               _location;
+    coordinates<int>                          _location;
     const sti::clock*                         _clock;
     std::unique_ptr<patient_distribution>     _patient_distribution;
     sti::metric<patient_distribution::hist_t> _generated_patients;

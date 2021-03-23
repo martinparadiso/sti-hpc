@@ -14,16 +14,19 @@ class Point(object):
 
 class Tile(object):
 
-    def store(self, out: dict, p: Point):
+    def __init__(self):
+        self.location = None
+
+    def store(self, out: dict):
         try:
-            out[self.key].append(p.__dict__)
+            out[self.key].append(self.location.__dict__)
         except:
-            out[self.key] = [p.__dict__]
+            out[self.key] = [self.location.__dict__]
 
 
 class Floor(Tile):
 
-    def store(self, out: dict, p: Point):
+    def store(self, out: dict):
         pass
 
 
@@ -39,31 +42,61 @@ class Chair(Tile):
 
 class Entry(Tile):
 
-    def store(self, out: dict, p: Point):
-        out['entry'] = p.__dict__
+    def store(self, out: dict):
+        out['entry'] = self.location.__dict__
 
 
 class Exit(Tile):
 
-    def store(self, out: dict, p: Point):
-        out['exit'] = p.__dict__
+    def store(self, out: dict):
+        out['exit'] = self.location.__dict__
 
 
 class Triage(Tile):
 
-    def store(self, out: dict, p: Point):
-        out['triage'] = p.__dict__
+    def store(self, out: dict):
+        out['triage'] = self.location.__dict__
 
 
 class ICU(Tile):
 
-    def store(self, out: dict, p: Point):
-        out['ICU'] = p.__dict__
+    def store(self, out: dict):
+        out['ICU'] = self.location.__dict__
 
 
 class Receptionist(Tile):
 
     key = 'receptionists'
+
+    def __init__(self):
+        """Creates a new reception, the patient location stablish the location
+           the patient will stand when assigned to this receptionist"""
+        self.patient_location = None
+
+    def store(self, out: dict):
+        # TODO
+        data = {
+            'location': self.location.__dict__,
+            'patient_chair': self.patient_location.location.__dict__
+        }
+
+        try:
+            out[self.key].append(data)
+        except:
+            out[self.key] = [data]
+
+
+class ReceptionistChair(Tile):
+
+    key = 'receptionists'
+
+    def __init__(self, associated_receptionist: Receptionist):
+        self.associated_receptionist = associated_receptionist
+        self.associated_receptionist.patient_location = self
+
+    def store(self, out: dict):
+        # The receptionist is in charge of storing
+        pass
 
 
 class Doctor(Tile):
@@ -72,17 +105,72 @@ class Doctor(Tile):
 
     def __init__(self, specialty: str):
         self.specialty = specialty
+        self.patient_location = None
 
-    def store(self, out: dict, p: Point):
+    def store(self, out: dict):
         data = {
             'type': self.specialty,
-            **p.__dict__
+            **self.location.__dict__,
+            'patient_chair': self.patient_location.location.__dict__
         }
 
         try:
             out[self.key].append(data)
         except:
             out[self.key] = [data]
+
+
+class DoctorChair(Tile):
+
+    key = 'receptionists'
+
+    def __init__(self, associated_doctor: Doctor):
+        self.associated_doctor = associated_doctor
+        self.associated_doctor.patient_location = self
+
+    def store(self, out: dict):
+        # The receptionist is in charge of storing
+        pass
+
+
+def char_art(tile: Tile, hospital_dims: tuple) -> str:
+    """Get the "ASCII" art of a given tile. The extra information is needed for
+       the door arrows"""
+
+    lut = {
+        Floor: ' ',
+        Wall: '#',
+        Chair: 'h',
+        Triage: 'T',
+        ICU: 'I',
+        Receptionist: 'R',
+        ReceptionistChair: 'h',
+        Doctor: 'D',
+        DoctorChair: 'h',
+    }
+
+    if tile.__class__ in lut:
+        return lut[tile.__class__]
+
+    if tile.__class__ is Entry:
+        if tile.location.x == 0:
+            return '→'
+        if tile.location.x == hospital_dims[0]:
+            return '←'
+        if tile.location.y == 0:
+            return '↑'
+        if tile.location.y == hospital_dims[1]:
+            return '↓'
+
+    if tile.__class__ is Exit:
+        if tile.location.x == 0:
+            return '←'
+        if tile.location.x == hospital_dims[0]:
+            return '→'
+        if tile.location.y == 0:
+            return '↓'
+        if tile.location.y == hospital_dims[1]:
+            return '↑'
 
 
 class SimulationParameters(object):
@@ -95,7 +183,12 @@ class SimulationParameters(object):
                 'distance': float,
             },
             'incubation': {
-                'seconds': int
+                'time': {
+                    'days': int,
+                    'hours': int,
+                    'minutes': int,
+                    'seconds': int
+                }
             }
         },
 
@@ -109,6 +202,15 @@ class SimulationParameters(object):
         'patient': {
             'walk_speed': float,
             'infected_chance': float,
+        },
+
+        'reception': {
+            'attention_time': {
+                'days': int,
+                'hours': int,
+                'minutes': int,
+                'seconds': int
+            }
         }
     }
 
@@ -223,6 +325,12 @@ class Hospital(object):
         if value.__class__ is Doctor:
             self.parameters.add_doctor(value.specialty)
         self.data[key[0]][key[1]] = value
+        point = Point(key[0], key[1])
+        if point.x > len(self.data) or point.y > len(self.data[0]):
+            raise IndexError()
+        point.x %= len(self.data)
+        point.y %= len(self.data[0])
+        self.data[key[0]][key[1]].location = point
 
     def border_walls(self):
         """Add walls to the borders"""
@@ -254,27 +362,45 @@ class Hospital(object):
         out['building']['height'] = len(self.data[0])
         for x in range(len(self.data)):
             for y in range(len(self.data[x])):
-                self.data[x][y].store(out['building'], Point(x, y))
+                self.data[x][y].store(out['building'])
 
         out['parameters'] = self.parameters.parameters
         out['parameters']['patient']['influx'] = self.patient_influx.histogram
 
         return out
 
+    def char_art(self) -> str:
+        """Get the map formatted in ASCII string"""
+        string = ""
+
+        for y in range(len(self.data[0]) - 1, -1, -1):
+            string += f"{y:2d} │"
+            for x in range(len(self.data)):
+                string += char_art(self[x, y], (x, y))
+            string += '\n'
+
+        string += f"───┼{''.join(['─' for x in range(len(self.data))])}\n"
+        string += f"   │{''.join([str(x % 10) for x in range(len(self.data))])}"
+
+        return string
+
 
 # Test zone
 hospital = Hospital(10, 10)
 hospital.border_walls()
 
-hospital[5, 5] = Doctor('general_practitioner')
-hospital[5, 7] = Doctor('radiologist')
+hospital[3, 8] = Doctor('general_practitioner')
+hospital[3, 7] = DoctorChair(hospital[3, 8])
+hospital[5, 8] = Doctor('radiologist')
+hospital[5, 7] = DoctorChair(hospital[5, 8])
 
-hospital[1, 5] = Receptionist()
+hospital[8, 2] = Receptionist()
+hospital[8, 3] = ReceptionistChair(hospital[8, 2])
 hospital[1, 3] = Triage()
-hospital[9, 9] = ICU()
+hospital[8, 8] = ICU()
 
-for i in range(3, 8, 2):
-    hospital[2, i] = Chair()
+for i in range(1, 4, 1):
+    hospital[i, 2] = Chair()
 
 hospital[0, 5] = Entry()
 hospital[9, 5] = Exit()
@@ -288,7 +414,12 @@ hospital.parameters['human'] = {
     },
 
     'incubation': {
-        'seconds': 120
+        'time': {
+            'days': 0,
+            'hours': 0,
+            'minutes': 15,
+            'seconds': 0
+        }
     }
 }
 hospital.parameters['object'] = {
@@ -301,6 +432,14 @@ hospital.parameters['patient'] = {
     'walk_speed': 1.0,
     'infected_chance': 0.5
 }
+hospital.parameters['reception'] = {
+    'attention_time': {
+        'days': 0,
+        'hours': 0,
+        'minutes': 15,
+        'seconds': 0
+    }
+}
 hospital.parameters['doctors'] = {}
 hospital.parameters['doctors']['radiologist'] = {
     'chance': 0.8
@@ -310,10 +449,12 @@ hospital.parameters['doctors']['general_practitioner'] = {
 }
 
 # Add the patient admission rate
-for day in range(14):
-    hospital.patient_influx.new_day([randrange(10, 51) for x in range(12)])
+hospital.patient_influx.new_day([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+for day in range(1, 14):
+    hospital.patient_influx.new_day([0 for x in range(12)])
 
 d = hospital.dictionary()
-print(json.dumps(d, indent=4))
 with open('./data/hospital.json', 'w') as f:
     json.dump(d, f, indent=4)
+
+print(hospital.char_art())

@@ -32,7 +32,7 @@ if __name__ == '__main__':
                 f"./{args.config}",
                 f"./{args.model}"]
 
-    if args.debug:
+    if args.debug is not None:
         commands.append(f"--debug={args.debug}")
 
     print(f"Running: {' '.join(commands)}")

@@ -24,6 +24,7 @@
 #include "infection_logic/object_infection_cycle.hpp"
 #include "model.hpp"
 #include "patient.hpp"
+#include "reception.hpp"
 
 /// @brief Initialize the model
 /// @details Loads the map
@@ -39,12 +40,16 @@ void sti::model::init()
         _chair_manager.reset(new proxy_chair_manager { _communicator, chair_mgr_rank });
     }
 
+    // Create the reception
+    _reception.reset(new reception{*_props, _communicator, _hospital});
+
     // Create the agent factory
     _agent_factory.reset(new agent_factory { &_context,
                                              &_spaces,
                                              _clock.get(),
                                              &_hospital,
                                              _chair_manager.get(),
+                                             _reception.get(),
                                              _hospital_props });
 
     // Create the package provider and receiver
@@ -53,11 +58,11 @@ void sti::model::init()
 
     // Create the entry logic, if the entry is in this process, and send the
     // rest of the processes the ticks to execute
-    const auto en = _hospital.get_all(hospital_plan::tile_t::ENTRY).at(0);
-    if (_spaces.local_dimensions().contains(std::vector { en.x, en.y })) {
+    const auto en = _hospital.entry();
+    if (_spaces.local_dimensions().contains(std::vector { en.location.x, en.location.y })) {
         auto       patient_distribution = load_patient_distribution(_hospital_props);
         const auto days                 = patient_distribution->days();
-        _entry.reset(new sti::hospital_entry { en, _clock.get(), std::move(patient_distribution), _agent_factory.get(), _hospital_props });
+        _entry.reset(new sti::hospital_entry { en.location, _clock.get(), std::move(patient_distribution), _agent_factory.get(), _hospital_props });
 
         // Calculate how many ticks and broadcast to the rest
         const auto seconds_per_tick = boost::lexical_cast<int>(_props->getProperty("seconds.per.tick"));
@@ -77,29 +82,38 @@ void sti::model::init()
     }
 
     // Create the exit, if the exit is in this process
-    const auto ex = _hospital.get_all(hospital_plan::tile_t::EXIT).at(0);
-    if (_spaces.local_dimensions().contains(std::vector { ex.x, ex.y })) {
-        _exit.reset(new sti::hospital_exit(&_context, &_spaces, _clock.get(), ex));
+    const auto ex = _hospital.exit();
+    if (_spaces.local_dimensions().contains(std::vector { ex.location.x, ex.location.y })) {
+        _exit.reset(new sti::hospital_exit(&_context, &_spaces, _clock.get(), ex.location));
     }
 
     // Create chairs (if the chair is in the local space)
-    const auto& chairs = _hospital.get_all(hospital_plan::tile_t::CHAIR);
-    for (const auto& [x, y] : chairs) {
+    const auto& chairs = _hospital.chairs();
+    for (const auto& chair : chairs) {
+        const auto& [x, y]   = chair.location;
         const auto chair_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
         if (_spaces.local_dimensions().contains(chair_loc)) {
             _agent_factory->insert_new_object({ x, y }, object_infection_cycle::STAGE::CLEAN);
         }
     }
 
+
     // Create medical personnel
-    auto        personnel = _hospital.get_all(hospital_plan::tile_t::DOCTOR);
-    const auto& recept    = _hospital.get_all(hospital_plan::tile_t::RECEPTIONIST);
-    personnel.insert(personnel.end(), recept.begin(), recept.end());
-    for (const auto& [x, y] : personnel) {
-        const auto per_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
-        if (_spaces.local_dimensions().contains(per_loc)) {
-            _agent_factory->insert_new_person({ x, y }, human_infection_cycle::STAGE::HEALTHY);
+    const auto& doctors      = _hospital.doctors();
+    const auto& receptionits = _hospital.receptionists();
+
+    for (const auto& doctor : doctors) {
+        if (_spaces.local_dimensions().contains(doctor.location)) {
+            // TODO: Issue #51
+            _agent_factory->insert_new_person(doctor.location, human_infection_cycle::STAGE::HEALTHY);
         }
+    }
+    for (const auto& receptionist : receptionits) {
+        if (_spaces.local_dimensions().contains(receptionist.location)) {
+            // TODO: Issue #51
+            _agent_factory->insert_new_person(receptionist.location, human_infection_cycle::STAGE::HEALTHY);
+        }
+
     }
 
 } // sti::model::init()
@@ -118,6 +132,18 @@ void sti::model::tick()
 {
     // Sync the clock with the simulation tick
     _clock->sync();
+    
+    ////////////////////////////////////////////////////////////////////////////
+    // INTER-PROCESS SYNCHRONIZATION
+    ////////////////////////////////////////////////////////////////////////////
+
+    _chair_manager->sync(); // Sync the chair pool
+    _reception->sync();
+
+    _spaces.balance(); // Move the agents accross processes
+    repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
+    repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
+    repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
 
     // Check if agents are pending creation
     if (_entry) {
@@ -133,17 +159,6 @@ void sti::model::tick()
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
         (*it)->act();
     }
-
-
-    ////////////////////////////////////////////////////////////////////////////
-    // INTER-PROCESS SYNCHRONIZATION
-    ////////////////////////////////////////////////////////////////////////////
-
-    _chair_manager->sync(); // Sync the chair pool
-    repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
-    _spaces.balance(); // Move the agents accross processes
-    repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
-    repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
 
 }
 

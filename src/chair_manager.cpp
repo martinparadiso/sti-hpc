@@ -84,7 +84,7 @@ namespace {
 /// @param chair_pool The chairs
 /// @param location The location of the chair to release
 void release(std::vector<sti::real_chair_manager::chair>& chair_pool,
-             sti::coordinates                             location)
+             sti::coordinates<int>                        location)
 {
     const auto it = std::find_if(chair_pool.begin(), chair_pool.end(), [&](const auto& chair) {
         return chair.location == location;
@@ -127,8 +127,8 @@ sti::real_chair_manager::real_chair_manager(communicator* comm, const hospital_p
     : _world { comm }
 {
 
-    for (const auto& [x, y] : building.get_all(hospital_plan::tile_t::CHAIR)) {
-        _chair_pool.push_back({ { x, y }, false });
+    for (const auto& chair : building.chairs()) {
+        _chair_pool.push_back({ chair.location, false });
     }
 }
 
@@ -143,7 +143,7 @@ void sti::real_chair_manager::request_chair(const repast::AgentId& id)
 
 /// @brief Release a chair
 /// @param chair_loc The coordinates of the chair being released
-void sti::real_chair_manager::release_chair(const sti::coordinates& chair_loc)
+void sti::real_chair_manager::release_chair(const sti::coordinates<int>& chair_loc)
 {
     release(_chair_pool, chair_loc);
 } // void release_chair(...)

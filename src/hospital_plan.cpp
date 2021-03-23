@@ -2,160 +2,221 @@
 /// @brief Hospital definitions
 #include "hospital_plan.hpp"
 
-#include <array>
-#include <boost/lexical_cast.hpp>
-#include <fstream>
-#include <iterator>
-#include <memory>
-#include <string>
+#include "json_serialization.hpp"
+
+#include <boost/json.hpp>
+#include <boost/json/object.hpp>
 #include <boost/json/src.hpp>
-#include <repast_hpc/Properties.h>
+#include <string>
 #include <vector>
 
-////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// HOSPITAL TILES
+////////////////////////////////////////////////////////////////////////////////
+
+// Helper functions
+namespace {
+
+// sti::coordinates<int> get_location(const boost::json::value& json)
+// {
+//     return {
+//         boost::json::value_to<int>(json.at("x")),
+//         boost::json::value_to<int>(json.at("y"))
+//     };
+// }
+
+/// @brief Generic load for simple types that have only location
+template <typename T, sti::tiles::ENUMS e>
+std::vector<T> load_several(const boost::json::value& json,
+                            const std::string&        key,
+                            sti::tiles::grid&         grid)
+{
+    auto vector = std::vector<T> {};
+    for (const auto& element : boost::json::value_to<std::vector<boost::json::value>>(json.at("building").at(key))) {
+        const auto loc = boost::json::value_to<sti::coordinates<int>>(element);
+
+        grid.at(static_cast<std::size_t>(loc.x)).at(static_cast<std::size_t>(loc.y)) = e;
+        vector.push_back(T { loc });
+    }
+    return vector;
+}
+
+/// @brief Generic load for simple types that have only location
+template <typename T, sti::tiles::ENUMS e>
+T load_one(const boost::json::value& json,
+           const std::string&        key,
+           sti::tiles::grid&         grid)
+{
+    const auto loc = boost::json::value_to<sti::coordinates<int>>((json.at("building").at(key)));
+
+    grid.at(static_cast<std::size_t>(loc.x)).at(static_cast<std::size_t>(loc.y)) = e;
+    return T { loc };
+}
+
+} // namespace
+
+std::vector<sti::tiles::wall> sti::tiles::wall::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+    return load_several<wall, ENUMS::WALL>(hospital, "walls", map);
+}
+
+std::vector<sti::tiles::chair> sti::tiles::chair::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+    return load_several<chair, ENUMS::CHAIR>(hospital, "chairs", map);
+}
+
+sti::tiles::entry sti::tiles::entry::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+    return load_one<entry, ENUMS::ENTRY>(hospital, "entry", map);
+}
+
+sti::tiles::exit sti::tiles::exit::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+    return load_one<exit, ENUMS::EXIT>(hospital, "exit", map);
+}
+
+sti::tiles::triage sti::tiles::triage::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+    return load_one<triage, ENUMS::TRIAGE>(hospital, "triage", map);
+}
+
+sti::tiles::icu sti::tiles::icu::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+    return load_one<icu, ENUMS::ICU>(hospital, "ICU", map);
+}
+
+std::vector<sti::tiles::receptionist> sti::tiles::receptionist::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+
+    auto vector = std::vector<receptionist> {};
+
+    for (const auto& element : boost::json::value_to<std::vector<boost::json::value>>(hospital.at("building").at("receptionists"))) {
+        const auto location      = boost::json::value_to<sti::coordinates<int>>(element.at("location"));
+        const auto patient_chair = boost::json::value_to<sti::coordinates<int>>(element.at("patient_chair"));
+        map.at(static_cast<std::size_t>(location.x))
+            .at(static_cast<std::size_t>(location.y))
+            = ENUMS::RECEPTIONIST;
+        map.at(static_cast<std::size_t>(location.x))
+            .at(static_cast<std::size_t>(location.y))
+            = ENUMS::RECEPTION_PATIENT_CHAIR;
+        vector.push_back(receptionist { location, patient_chair });
+    }
+    return vector;
+}
+
+std::vector<sti::tiles::doctor> sti::tiles::doctor::load(const boost::json::object& hospital, sti::tiles::grid& map)
+{
+
+    auto vector = std::vector<doctor> {};
+
+    for (const auto& element : boost::json::value_to<std::vector<boost::json::value>>(hospital.at("building").at("doctors"))) {
+        const auto location      = boost::json::value_to<sti::coordinates<int>>(element);
+        const auto patient_chair = boost::json::value_to<sti::coordinates<int>>(element.at("patient_chair"));
+        const auto type          = boost::json::value_to<std::string>(element.at("type"));
+        map.at(static_cast<std::size_t>(location.x))
+            .at(static_cast<std::size_t>(location.y))
+            = ENUMS::DOCTOR;
+        map.at(static_cast<std::size_t>(location.x))
+            .at(static_cast<std::size_t>(location.y))
+            = ENUMS::DOCTOR_PATIENT_CHAIR;
+        vector.push_back(doctor { location, patient_chair, type });
+    }
+    return vector;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // HOSPITAL // CONSTRUCTION
-////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-sti::hospital_plan::hospital_plan(hospital_plan&&) noexcept = default;
-sti::hospital_plan& sti::hospital_plan::operator=(sti::hospital_plan&&) noexcept = default;
-
-// Destructor definition required by unique_ptr
-sti::hospital_plan::~hospital_plan() = default;
+/// @brief Load a hospital from a JSON object
+/// @param json The JSON containing the hospital description
+sti::hospital_plan::hospital_plan(const boost::json::object& json)
+    : _width { boost::json::value_to<int>(json.at("building").at("width")) }
+    , _height { boost::json::value_to<int>(json.at("building").at("height")) }
+    , _grid { std::vector { static_cast<std::size_t>(_width),
+                            std::vector {
+                                static_cast<std::size_t>(_height),
+                                tiles::ENUMS::FLOOR } } }
+    , _walls { tiles::wall::load(json, _grid) }
+    , _chairs { tiles::chair::load(json, _grid) }
+    , _entry { tiles::entry::load(json, _grid) }
+    , _exit { tiles::exit::load(json, _grid) }
+    , _triage { tiles::triage::load(json, _grid) }
+    , _icu { tiles::icu::load(json, _grid) }
+    , _receptionists { tiles::receptionist::load(json, _grid) }
+    , _doctors { tiles::doctor::load(json, _grid) }
+{
+}
 
 ////////////////////////////////////////////////////////////////////////////
 // HOSPITAL // PLAN
 ////////////////////////////////////////////////////////////////////////////
 
-/// @brief Insert a new tile in a specific position
-/// @param position The location to insert
-/// @param t The type to set
-void sti::hospital_plan::insert(const sti::coordinates& position, sti::hospital_plan::tile_t t)
+/// @brief Access the location
+/// @param l The location
+/// @return A reference to the tile
+sti::tiles::ENUMS& sti::hospital_plan::operator[](const coordinates<int>& l)
 {
-    const auto x = static_cast<decltype(_plan)::size_type>(position.x);
-    const auto y = static_cast<decltype(_plan)::size_type>(position.y);
-
-    const auto not_special = std::array { tile_t::FLOOR, tile_t::WALL };
-    const auto is_special  = [&](auto tile) -> bool {
-        for (auto not_special_tile : not_special) {
-            if (not_special_tile == tile) return false;
-        }
-        return true;
-    };
-
-    if (is_special(t)) {
-        _special_tiles[t].push_back(position);
-    }
-
-    _plan.at(x).at(y) = t;
+    const auto x = static_cast<decltype(_grid)::size_type>(l.x);
+    const auto y = static_cast<decltype(_grid)::size_type>(l.y);
+    return _grid.at(x).at(y);
 }
 
-/// @brief Get the tile in a specific point
-/// @param position The position to query
-/// @return The tile located in that position
-sti::hospital_plan::tile_t sti::hospital_plan::get(const sti::coordinates& position) const
+/// @brief Access the location
+/// @param l The location
+/// @return A reference to the tile
+const sti::tiles::ENUMS& sti::hospital_plan::operator[](const coordinates<int>& l) const
 {
-    const auto x = static_cast<decltype(_plan)::size_type>(position.x);
-    const auto y = static_cast<decltype(_plan)::size_type>(position.y);
-
-    return _plan.at(x).at(y);
+    const auto x = static_cast<decltype(_grid)::size_type>(l.x);
+    const auto y = static_cast<decltype(_grid)::size_type>(l.y);
+    return _grid.at(x).at(y);
 }
 
-/// @brief Get all the specified tiles of type e present in the file
-/// @return A vector containing the coordinates of all the specified tiles
-const std::vector<sti::coordinates>& sti::hospital_plan::get_all(sti::hospital_plan::TYPES e) const
+/// @brief Get all the walls
+const std::vector<sti::tiles::wall>& sti::hospital_plan::walls() const
 {
-    return _special_tiles.at(e);
+    return _walls;
 }
 
-////////////////////////////////////////////////////////////////////////////
-// PRIVATE COMPLEX INITIALIZATION
-////////////////////////////////////////////////////////////////////////////
-
-/// @brief Create a new empty hospital
-/// @param width The width of the hospital
-/// @param height The height of the hospital
-sti::hospital_plan::hospital_plan(length_t width, length_t height)
-    : _width { width }
-    , _height { height }
+/// @brief Get all the chairs
+const std::vector<sti::tiles::chair>& sti::hospital_plan::chairs() const
 {
-
-    const auto y = static_cast<std::vector<tile_t>::size_type>(height);
-
-    for (auto x = 0; x < width; x++) {
-        _plan.push_back(std::vector<tile_t> { y, tile_t::FLOOR });
-    }
+    return _chairs;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// HOSPITAL LOADING
-////////////////////////////////////////////////////////////////////////////////
-
-/// @brief Load a hospital from a file
-/// @param tree The json properties
-/// @return A hospital
-sti::hospital_plan sti::load_hospital(const boost::json::value& tree)
+/// @brief Get the entry
+sti::tiles::entry sti::hospital_plan::entry() const
 {
-
-    namespace json = boost::json;
-    using tile_t   = sti::hospital_plan::tile_t;
-
-    // First load the hospital plan
-    const auto width  = json::value_to<int>(tree.at("building").at("width"));
-    const auto height = json::value_to<int>(tree.at("building").at("height"));
-
-    auto hospital = sti::hospital_plan { width, height };
-
-    // Load all the tiles, first tiles that can appear multiple times, then
-    // single use tiles
-    
-    const auto multi_tiles = std::vector<std::pair<std::string, tile_t>> {
-        { "walls", tile_t::WALL },
-        { "chairs", tile_t::CHAIR },
-        { "receptionists", tile_t::RECEPTIONIST },
-        { "doctors", tile_t::DOCTOR },
-    };
-
-    const auto unique_tile = std::vector<std::pair<std::string, tile_t>> {
-        { "entry", tile_t::ENTRY },
-        { "exit", tile_t::EXIT },
-        { "triage", tile_t::TRIAGE },
-        { "ICU", tile_t::ICU },
-    };
-
-    for (const auto& [key, type] : multi_tiles) {
-        for (const auto& location : json::value_to<std::vector<json::value>>(tree.at("building").at(key))) {
-            const auto& x = json::value_to<int>(location.at("x"));
-            const auto& y = json::value_to<int>(location.at("y"));
-
-            hospital.insert({ x, y }, type);
-        }
-    }
-
-    for (const auto& [key, type] : unique_tile) {
-        const auto& x = json::value_to<int>(tree.at("building").at(key).at("x"));
-        const auto& y = json::value_to<int>(tree.at("building").at(key).at("y"));
-
-        hospital.insert({ x, y }, type);
-    }
-
-    return hospital;
+    return _entry;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// OPERATOR OVERLOADING
-////////////////////////////////////////////////////////////////////////////////
-
-bool operator==(const sti::coordinates& lo, const sti::coordinates& ro)
+/// @brief Get the exit
+sti::tiles::exit sti::hospital_plan::exit() const
 {
-    return (lo.x == ro.x) && (lo.y == ro.y);
+    return _exit;
 }
 
-std::ostream& operator<<(std::ostream& os, const sti::coordinates& c)
+/// @brief Get triage
+sti::tiles::triage sti::hospital_plan::triage() const
 {
-    os << "["
-       << c.x
-       << ","
-       << c.y
-       << "]";
-    return os;
+    return _triage;
+}
+
+/// @brief Get the icu
+sti::tiles::icu sti::hospital_plan::icu() const
+{
+    return _icu;
+}
+
+/// @brief Get all the receptionists
+const std::vector<sti::tiles::receptionist>& sti::hospital_plan::receptionists() const
+{
+    return _receptionists;
+}
+
+/// @brief Get all the doctors
+const std::vector<sti::tiles::doctor>& sti::hospital_plan::doctors() const
+{
+    return _doctors;
 }

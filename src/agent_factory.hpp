@@ -14,9 +14,11 @@
 #include "infection_logic/infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "infection_logic/object_infection_cycle.hpp"
+#include "json_serialization.hpp"
+#include "object.hpp"
 #include "patient.hpp"
 #include "person.hpp"
-#include "object.hpp"
+#include "reception.hpp"
 #include "space_wrapper.hpp"
 
 namespace sti {
@@ -48,13 +50,14 @@ public:
     /// @param object_fw The flyweight containing all the object shared attributes
     agent_factory(context_ptr                context,
                   space_ptr                  space,
-                  clock*                     c,
-                  hospital_plan*             hospital_plan,
-                  chair_manager*             chairs,
+                  sti::clock*                clock,
+                  sti::hospital_plan*        hospital_plan,
+                  sti::chair_manager*        chairs,
+                  sti::reception*            reception,
                   const boost::json::object& props)
         : _context { context }
         , _space { space }
-        , _clock { c }
+        , _clock { clock }
         , _agents_created { 0 }
         , _infection_factory {
             human_infection_cycle::flyweight {
@@ -62,13 +65,23 @@ public:
                 _clock,
                 boost::json::value_to<sti::human_infection_cycle::precission>(props.at("parameters").at("human").at("infection").at("chance")),
                 boost::json::value_to<double>(props.at("parameters").at("human").at("infection").at("distance")),
-                timedelta { boost::json::value_to<timedelta::resolution>(props.at("parameters").at("human").at("incubation").at("seconds")) } },
+                timedelta { boost::json::value_to<timedelta>(props.at("parameters").at("human").at("incubation").at("time")) } },
             object_infection_cycle::flyweight {
                 space,
                 boost::json::value_to<sti::infection_cycle::precission>(props.at("parameters").at("object").at("infection").at("chance")),
                 boost::json::value_to<double>(props.at("parameters").at("object").at("infection").at("distance")) }
         }
-        , _patient_flyweight { &_infection_factory, chairs, hospital_plan, c, context, space, boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed")) }
+        , _patient_flyweight { // clang-format off
+            &_infection_factory,
+            context,
+            space,
+            clock,
+            hospital_plan,
+            chairs,
+            reception,
+            boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed")),
+            boost::json::value_to<timedelta>(props.at("parameters").at("reception").at("attention_time"))
+        } // clang-format on
         , _person_flyweight { &_infection_factory }
         , _object_flyweight { &_infection_factory }
     {
@@ -82,7 +95,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_patient(coordinates                  pos,
+    agent_ptr insert_new_patient(coordinates<int>             pos,
                                  human_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();
@@ -122,7 +135,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_person(coordinates                  pos,
+    agent_ptr insert_new_person(coordinates<int>             pos,
                                 human_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();
@@ -162,7 +175,7 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_object(coordinates                   pos,
+    agent_ptr insert_new_object(coordinates<int>              pos,
                                 object_infection_cycle::STAGE st)
     {
         const auto rank = repast::RepastProcess::instance()->rank();

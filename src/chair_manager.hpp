@@ -21,7 +21,7 @@ struct chair_request_msg {
     repast::AgentId agent_id;
 
     template <typename Archive>
-    void serialize(Archive& ar, const unsigned int version)
+    void serialize(Archive& ar, const unsigned int /*unused*/)
     {
         ar& agent_id;
     }
@@ -29,10 +29,10 @@ struct chair_request_msg {
 
 /// @brief A indication that a chair has been released
 struct chair_release_msg {
-    sti::coordinates chair_location;
+    sti::coordinates<int> chair_location;
 
     template <typename Archive>
-    void serialize(Archive& ar, const unsigned int version)
+    void serialize(Archive& ar, const unsigned int /*unused*/)
     {
         ar& chair_location;
     }
@@ -42,11 +42,11 @@ struct chair_release_msg {
 struct chair_response_msg {
     // If a chair was available, the response has the coordinates, if there was no
     // chair available, no coordinates are sent
-    repast::AgentId                    agent_id;
-    boost::optional<sti::coordinates> chair_location;
+    repast::AgentId                        agent_id;
+    boost::optional<sti::coordinates<int>> chair_location;
 
     template <typename Archive>
-    void serialize(Archive& ar, const unsigned int version)
+    void serialize(Archive& ar, const unsigned int /*unused*/)
     {
         ar& agent_id;
         ar& chair_location;
@@ -57,13 +57,13 @@ struct chair_response_msg {
 class chair_manager {
 
 public:
-    using coordinates  = sti::coordinates;
+    using coordinates  = sti::coordinates<int>;
     using communicator = boost::mpi::communicator;
     template <typename T>
     using optional = boost::optional<T>;
 
     static constexpr auto mpi_base_tag = 716823;
-    
+
     chair_manager() = default;
 
     chair_manager(const chair_manager&) = default;
@@ -139,8 +139,8 @@ class real_chair_manager final : public chair_manager {
 
 public:
     struct chair {
-        sti::coordinates location;
-        bool              in_use;
+        sti::coordinates<int> location;
+        bool                  in_use;
     };
 
     /// @brief Construct a chair manager

@@ -62,7 +62,10 @@ add_executable(sti-demo
 						"src/object.cpp"
 						"src/patient.cpp"
 						"src/person.cpp"
+						"src/reception.cpp"
 						"src/space_wrapper.cpp"
+						"src/queue_manager/proxy_queue_manager.cpp"
+						"src/queue_manager/real_queue_manager.cpp"
 			  )
 target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)

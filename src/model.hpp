@@ -1,7 +1,6 @@
 /// @brief Simulation model
 #pragma once
 
-
 #include <boost/lexical_cast.hpp>
 #include <cstdint>
 #include <memory>
@@ -45,7 +44,7 @@ public:
         , _rank { repast::RepastProcess::instance()->rank() }
         , _stop_at { 0 }
         , _hospital_props { load_json(_props->getProperty("hospital.file")) }
-        , _hospital { sti::load_hospital(_hospital_props) }
+        , _hospital { _hospital_props }
         , _spaces { _hospital, *_props, _context, comm }
         , _clock { std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
     {
@@ -84,7 +83,7 @@ private:
     int                          _stop_at;
 
     boost::json::object _hospital_props;
-    sti::hospital_plan _hospital;
+    sti::hospital_plan  _hospital;
 
     space_wrapper                   _spaces;
     std::unique_ptr<agent_provider> _provider;
@@ -93,12 +92,12 @@ private:
     std::unique_ptr<clock> _clock;
 
     std::unique_ptr<agent_factory> _agent_factory {}; // Properly initalized in init()
-    std::unique_ptr<chair_manager> _chair_manager {}; // Properly initalized in init()
 
-    // Extra classes that the model may or may not have depending on the
-    // location
+    std::unique_ptr<chair_manager> _chair_manager {}; // Properly initalized in init()
+    std::unique_ptr<reception>     _reception {}; // Propertly initialized in init()
+
     std::unique_ptr<hospital_entry> _entry {}; // Properly initalized in init()
-    std::unique_ptr<hospital_exit> _exit {};
+    std::unique_ptr<hospital_exit>  _exit {}; // Properly initalized in init()
 }; // class model
 
 } // namespace sti
