@@ -17,32 +17,32 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Clang tidy function
 function(tidy target)
-	set_target_properties(${target} PROPERTIES CXX_CLANG_TIDY clang-tidy)
+    set_target_properties(${target} PROPERTIES CXX_CLANG_TIDY clang-tidy)
 endfunction()
 
 # Address sanitation
 option(ASAN "Enable address sanitation options" OFF)
 if(ASAN)
-	message("Builing with address sanitation")
+    message("Builing with address sanitation")
 endif()
 
 function(sanitize_address target)
-	if(ASAN)
-		target_compile_options(${target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-		target_link_options(${target} PUBLIC -fsanitize=address)
-	endif()
+    if(ASAN)
+        target_compile_options(${target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+        target_link_options(${target} PUBLIC -fsanitize=address)
+    endif()
 endfunction()
 
 # Enable LTO
 option(ENABLE_LTO "Enable Link Time Optimization" OFF)
 if (ENABLE_LTO)
-	message("Linking with LTO")
+    message("Linking with LTO")
 endif()
 
 function(optional_lto target)
-	if (ENABLE_LTO)
-		set_property(TARGET ${target} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-	endif()
+    if (ENABLE_LTO)
+        set_property(TARGET ${target} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
 endfunction()
 
 # Set the mpi runner variable
@@ -50,23 +50,24 @@ set(MPIEXEC_BIN "${PROJECT_SOURCE_DIR}/lib/mpich/bin/mpiexec")
 
 # Demo ========================================================================
 add_executable(sti-demo 
-						"src/chair_manager.cpp"
-						"src/clock.cpp"
-						"src/entry.cpp"
-						"src/exit.cpp"
-						"src/hospital_plan.cpp"
-						"src/infection_logic/human_infection_cycle.cpp"
-						"src/infection_logic/object_infection_cycle.cpp"
-						"src/main.cpp"
-						"src/model.cpp"
-						"src/object.cpp"
-						"src/patient.cpp"
-						"src/person.cpp"
-						"src/reception.cpp"
-						"src/space_wrapper.cpp"
-						"src/queue_manager/proxy_queue_manager.cpp"
-						"src/queue_manager/real_queue_manager.cpp"
-			  )
+                        "src/chair_manager.cpp"
+                        "src/clock.cpp"
+                        "src/entry.cpp"
+                        "src/exit.cpp"
+                        "src/hospital_plan.cpp"
+                        "src/infection_logic/human_infection_cycle.cpp"
+                        "src/infection_logic/object_infection_cycle.cpp"
+                        "src/main.cpp"
+                        "src/model.cpp"
+                        "src/object.cpp"
+                        "src/patient.cpp"
+                        "src/person.cpp"
+                        "src/queue_manager/proxy_queue_manager.cpp"
+                        "src/queue_manager/real_queue_manager.cpp"
+                        "src/reception.cpp"
+                        "src/space_wrapper.cpp"
+                        "src/triage.cpp"
+              )
 target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
 optional_lto(sti-demo)

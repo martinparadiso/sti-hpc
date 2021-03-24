@@ -126,6 +126,22 @@ std::vector<sti::space_wrapper::agent*> sti::space_wrapper::agents_in_cell(const
 /// @return The agent new effective location
 sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repast::AgentId& id, const discrete_point& cell, space_unit d)
 {
+
+    auto target_point = repast::Point<double> {
+        static_cast<double>(cell.getX() + 0.5),
+        static_cast<double>(cell.getY() + 0.5)
+    };
+
+    return move_towards(id, target_point, d);
+}
+
+/// @brief Move the agent towards a certain point
+/// @param id The id of the agent
+/// @param cell The point to move to
+/// @param d Distance to move
+/// @return The agent new effective location
+sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repast::AgentId& id, const continuous_point& point, space_unit d)
+{
     const auto agent_pt = [&]() {
         auto buf = std::vector<double> {};
         _continuous_space->getLocation(id, buf);
@@ -135,20 +151,9 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repa
         };
     }();
 
-    auto target_pt = repast::Point<double> {
-        static_cast<double>(cell.getX() + 0.5),
-        static_cast<double>(cell.getY() + 0.5)
-    };
-
-    // The movement should be in the direction of the point, with the length of d
-    auto vector = repast::Point<double> {
-        target_pt.getX() - agent_pt.getX(),
-        target_pt.getY() - target_pt.getY()
-    };
-
     // Calculate the distance in each axis
-    auto x = target_pt.getX() - agent_pt.getX();
-    auto y = target_pt.getY() - agent_pt.getY();
+    auto x = point.getX() - agent_pt.getX();
+    auto y = point.getY() - agent_pt.getY();
 
     // Calculate the length of the vector
     const auto length = std::sqrt(x * x + y * y);
@@ -158,7 +163,7 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repa
 
     // If the length is 0 (the agent is already at that location), don't move
     if (d == 0.0) {
-        return target_pt;
+        return point;
     }
 
     x *= d / length;
@@ -211,7 +216,8 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_to(const repast::A
 
 /// @brief Remove the given agent from the space
 /// @param agent The agent to remove
-void sti::space_wrapper::remove_agent(contagious_agent* agent) {
+void sti::space_wrapper::remove_agent(contagious_agent* agent)
+{
     _discrete_space->removeAgent(agent);
     _continuous_space->removeAgent(agent);
 }

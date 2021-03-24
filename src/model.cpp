@@ -43,6 +43,9 @@ void sti::model::init()
     // Create the reception
     _reception.reset(new reception{*_props, _communicator, _hospital});
 
+    // Create the triage
+    _triage.reset(new triage{*_props, _communicator, _hospital});
+
     // Create the agent factory
     _agent_factory.reset(new agent_factory { &_context,
                                              &_spaces,
@@ -50,6 +53,7 @@ void sti::model::init()
                                              &_hospital,
                                              _chair_manager.get(),
                                              _reception.get(),
+                                             _triage.get(),
                                              _hospital_props });
 
     // Create the package provider and receiver
@@ -137,8 +141,9 @@ void sti::model::tick()
     // INTER-PROCESS SYNCHRONIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    _chair_manager->sync(); // Sync the chair pool
+    _chair_manager->sync();
     _reception->sync();
+    _triage->sync();
 
     _spaces.balance(); // Move the agents accross processes
     repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);

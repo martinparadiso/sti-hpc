@@ -25,7 +25,7 @@ public:
 
     // The front of the queue, containing the next agents/patients to be
     // attended and their assigned location
-    using front_type = std::vector<std::pair<sti::coordinates<int>, agent_id>>;
+    using front_type = std::vector<std::pair<sti::coordinates<double>, agent_id>>;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
@@ -56,7 +56,7 @@ public:
     /// @brief Check if the given agent is next in the attention
     /// @param id The agent id
     /// @return If the agent is in the front of the queue, the coordinates
-    virtual boost::optional<coordinates<int>> is_my_turn(const agent_id& id) = 0;
+    virtual boost::optional<coordinates<double>> is_my_turn(const agent_id& id) = 0;
 
     /// @brief Synchronize the real queue and the remote queues
     virtual void sync() = 0;

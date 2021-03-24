@@ -93,6 +93,13 @@ public:
     /// @return The agent new effective location
     continuous_point move_towards(const repast::AgentId& id, const discrete_point& cell, space_unit d);
 
+    /// @brief Move the agent towards a certain point
+    /// @param id The id of the agent
+    /// @param cell The point to move to
+    /// @param d Distance to move
+    /// @return The agent new effective location
+    continuous_point move_towards(const repast::AgentId& id, const continuous_point& point, space_unit d);
+
     /// @brief Move the agent to a specific point
     /// @param id The id of the agent
     /// @param point The exact point to move the agent to

@@ -95,6 +95,7 @@ private:
 
     std::unique_ptr<chair_manager> _chair_manager {}; // Properly initalized in init()
     std::unique_ptr<reception>     _reception {}; // Propertly initialized in init()
+    std::unique_ptr<triage>        _triage {}; // Propertly initialized in init()
 
     std::unique_ptr<hospital_entry> _entry {}; // Properly initalized in init()
     std::unique_ptr<hospital_exit>  _exit {}; // Properly initalized in init()

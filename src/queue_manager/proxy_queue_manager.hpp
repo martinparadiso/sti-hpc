@@ -36,7 +36,7 @@ public:
     /// @brief Check if the given agent is next in the attention
     /// @param id The agent id
     /// @return If the agent is in the front of the queue, the coordinates
-    boost::optional<coordinates<int>> is_my_turn(const agent_id& id) override;
+    boost::optional<coordinates<double>> is_my_turn(const agent_id& id) override;
 
     /// @brief Synchronize the real queue and the remote queues
     void sync() override;

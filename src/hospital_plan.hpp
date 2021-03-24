@@ -68,7 +68,7 @@ namespace tiles {
         /// @brief Load the chairs from a hospital, store the enums in the map and return the list
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
-        /// @return The list of walls
+        /// @return The list of chairs
         static std::vector<chair> load(const boost::json::object& hospital, grid& map);
     };
 
@@ -79,7 +79,7 @@ namespace tiles {
         /// @brief Load the entry from a hospital, store the enums in the map and return the list
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
-        /// @return The list of entry
+        /// @return The entry
         static entry load(const boost::json::object& hospital, grid& map);
     };
 
@@ -90,7 +90,7 @@ namespace tiles {
         /// @brief Load the exit from a hospital, store the enums in the map and return the list
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
-        /// @return The list of entry
+        /// @return exit
         static exit load(const boost::json::object& hospital, grid& map);
     };
 
@@ -101,8 +101,8 @@ namespace tiles {
         /// @brief Load the triage from a hospital, store the enums in the map and return the list
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
-        /// @return The list of entry
-        static triage load(const boost::json::object& hospital, grid& map);
+        /// @return The list of triages
+        static std::vector<triage> load(const boost::json::object& hospital, grid& map);
     };
 
     /// @brief ICU tile, storing the icu location
@@ -112,7 +112,7 @@ namespace tiles {
         /// @brief Load the ICU from a hospital, store the enums in the map and return the list
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
-        /// @return The list of entry
+        /// @return The ICU location
         static icu load(const boost::json::object& hospital, grid& map);
     };
 
@@ -195,7 +195,7 @@ public:
     tiles::exit exit() const;
 
     /// @brief Get triage
-    tiles::triage triage() const;
+    const std::vector<tiles::triage>& triages() const;
 
     /// @brief Get the icu
     tiles::icu icu() const;
@@ -216,7 +216,7 @@ private:
     std::vector<tiles::chair>        _chairs;
     tiles::entry                     _entry;
     tiles::exit                      _exit;
-    tiles::triage                    _triage;
+    std::vector<tiles::triage>       _triages;
     tiles::icu                       _icu;
     std::vector<tiles::receptionist> _receptionists;
     std::vector<tiles::doctor>       _doctors;

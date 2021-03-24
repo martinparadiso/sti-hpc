@@ -54,6 +54,7 @@ public:
                   sti::hospital_plan*        hospital_plan,
                   sti::chair_manager*        chairs,
                   sti::reception*            reception,
+                  sti::triage*               triage,
                   const boost::json::object& props)
         : _context { context }
         , _space { space }
@@ -79,8 +80,10 @@ public:
             hospital_plan,
             chairs,
             reception,
+            triage,
             boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed")),
-            boost::json::value_to<timedelta>(props.at("parameters").at("reception").at("attention_time"))
+            boost::json::value_to<timedelta>(props.at("parameters").at("reception").at("attention_time")),
+            boost::json::value_to<timedelta>(props.at("parameters").at("triage").at("attention_time"))
         } // clang-format on
         , _person_flyweight { &_infection_factory }
         , _object_flyweight { &_infection_factory }

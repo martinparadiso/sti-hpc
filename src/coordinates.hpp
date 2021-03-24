@@ -34,6 +34,15 @@ struct coordinates {
         return { x, y };
     }
 
+    /// @brief Cast a discrete coordinates to double
+    coordinates<double> continuous() const {
+        static_assert(std::is_same_v<int, T>, "Can't convert from double to double");
+        return {
+            static_cast<double>(x) + 0.5,
+            static_cast<double>(y) + 0.5,
+        };
+    }
+
     // Serialization
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int /*unused*/)

@@ -10,20 +10,13 @@
 /// @param comm The MPI Communicator
 /// @param tag The MPI tag for the communication
 /// @param positions The "boxes"/fronts of the queue
-sti::real_queue_manager::real_queue_manager(communicator_ptr comm,
-                                            int tag,
-                                             const std::vector<sti::tiles::receptionist>& boxes)
+sti::real_queue_manager::real_queue_manager(communicator_ptr                        comm,
+                                            int                                     tag,
+                                            const std::vector<coordinates<double>>& boxes)
     : _communicator { comm }
     , _tag { tag }
     , _queue {}
-    , _boxes { [&](){
-        auto return_vector = std::vector<coordinates<int>>{};
-        std::for_each(boxes.begin(), boxes.end(),
-                      [&](const auto& loc){
-                          return_vector.push_back(loc.patient_chair);
-                      });
-        return return_vector;
-    }() }
+    , _boxes { boxes }
 {
 }
 
@@ -48,7 +41,7 @@ void sti::real_queue_manager::dequeue(const agent_id& id)
 /// @brief Check if the given agent is next in the attention
 /// @param id The agent id
 /// @return If the agent is in the front of the queue, the coordinates
-boost::optional<sti::coordinates<int>> sti::real_queue_manager::is_my_turn(const agent_id& id)
+boost::optional<sti::coordinates<double>> sti::real_queue_manager::is_my_turn(const agent_id& id)
 {
     // Iterate over the queue and the list of boxes at the same time. Stop if
     // there are no more boxes or no more patients
@@ -99,7 +92,7 @@ void sti::real_queue_manager::sync()
 
     // First insert the new ones, then remove
     for (const auto& vector : to_enqueue) {
-        for (const auto& new_agent : vector)  {
+        for (const auto& new_agent : vector) {
             this->enqueue(new_agent);
         }
     }

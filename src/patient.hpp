@@ -19,11 +19,13 @@
 #include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
+#include "coordinates.hpp"
 #include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "reception.hpp"
 #include "space_wrapper.hpp"
+#include "triage.hpp"
 
 namespace sti {
 
@@ -44,8 +46,10 @@ public:
         sti::hospital_plan*                      hospital;
         sti::chair_manager*                      chairs;
         sti::reception*                          reception;
+        sti::triage*                             triage;
         const double                             walk_speed;
         sti::timedelta                           reception_time;
+        sti::timedelta                           triage_duration;
     };
 
     using flyweight_ptr = flyweight*;
@@ -138,7 +142,12 @@ public:
         WALKING_TO_CHAIR, // Walk to the chair, if arrived, request reception
         WAIT_FOR_RECEPTION, // Wait until its my turn
         WALKING_TO_RECEPTION, // Release the chair, Walk to reception
-        WAIT_IN_RECEPTION, // Wait 15 minutes for atention
+        WAIT_IN_RECEPTION, // Wait until the attention finishes, then request a chair
+        WAITING_CHAIR2, // Wait for the chair assignment
+        WALKING_TO_CHAIR2, // Walk to chair, if arrived, request triage
+        WAIT_FOR_TRIAGE, // Wait until it's my turn
+        WALKING_TO_TRIAGE, // Walk to triage
+        WAIT_IN_TRIAGE, // Wait until the triage finishes
         WALKING_TO_EXIT, // Walk to exit
         DULL,
     };
@@ -155,7 +164,9 @@ private:
         ar& _stage;
         ar& _chair_assigned;
         ar& _reception_assigned;
+        ar& _triage_assigned;
         ar& _reception_time;
+        ar& _triage_time;
         ar& _path;
     }
 
@@ -165,8 +176,10 @@ private:
 
     STAGES                           _stage              = STAGES::START;
     coordinates<int>                 _chair_assigned     = { -1, -1 };
-    coordinates<int>                 _reception_assigned = { -1, -1 };
+    coordinates<double>              _reception_assigned = { -1, -1 };
+    coordinates<double>              _triage_assigned    = { -1, -1 };
     datetime                         _reception_time {};
+    datetime                         _triage_time {};
     std::vector<coordinates<double>> _path {};
 }; // patient_agent
 

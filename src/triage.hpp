@@ -1,5 +1,5 @@
-/// @file reception.hpp
-/// @brief Implements the reception
+/// @file triage.hpp
+/// @brief Implements the triage queue
 #pragma once
 
 #include <boost/mpi/communicator.hpp>
@@ -25,32 +25,32 @@ class hospital_plan;
 
 namespace sti {
 
-class reception {
+class triage {
 
 public:
     using agent_id         = repast::AgentId;
     using properties_type  = repast::Properties;
     using communicator_ptr = boost::mpi::communicator*;
 
-    /// @brief Construct a reception
+    /// @brief Construct a triage
     /// @param props Simulation properties
     /// @param comm MPI Communicator
     /// @param plan Hospital plan
-    reception(const properties_type& props,
+    triage(const properties_type& props,
               communicator_ptr       comm,
               const hospital_plan&   plan);
 
-    /// @brief Enqueue an agent into the reception queue
+    /// @brief Enqueue an agent into the triage queue
     /// @param id The agent id
     void enqueue(const agent_id& id);
 
-    /// @brief Remove an agent into the reception queue
+    /// @brief Remove an agent into the triage queue
     /// @param id The agent id
     void dequeue(const agent_id& id);
 
-    /// @brief Check if an agent has a reception assigned
+    /// @brief Check if an agent has a triage assigned
     /// @param id The id of the agent to check
-    /// @return If the agent has a reception assigned, the reception location
+    /// @return If the agent has a triage assigned, the triage location
     boost::optional<sti::coordinates<double>> is_my_turn(const agent_id& id);
 
     /// @brief Synchronize the queues between the process
@@ -59,6 +59,6 @@ public:
 private:
     std::unique_ptr<sti::queue_manager> _queue_manager;
 
-}; // class reception
+}; // class triage
 
 } // namespace sti

@@ -1,5 +1,5 @@
 /// @file queue_manager/real_queue_manager.hpp
-/// @brief The real queue containing
+/// @brief The real queue containing the data
 #pragma once
 
 #include <boost/mpi/communicator.hpp>
@@ -20,7 +20,7 @@ public:
     /// @param comm The MPI Communicator
     /// @param tag The MPI tag for the communication
     /// @param positions The "boxes"/fronts of the queue
-    real_queue_manager(communicator_ptr comm, int tag, const std::vector<sti::tiles::receptionist>& boxes);
+    real_queue_manager(communicator_ptr comm, int tag, const std::vector<coordinates<double>>& boxes);
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -37,16 +37,16 @@ public:
     /// @brief Check if the given agent is next in the attention
     /// @param id The agent id
     /// @return If the agent is in the front of the queue, the coordinates
-    boost::optional<coordinates<int>> is_my_turn(const agent_id& id) override;
+    boost::optional<coordinates<double>> is_my_turn(const agent_id& id) override;
 
     /// @brief Synchronize the real queue and the remote queues
     void sync() override;
 
 private:
-    communicator_ptr              _communicator;
-    int                           _tag;
-    std::list<agent_id>           _queue;
-    std::vector<coordinates<int>> _boxes;
+    communicator_ptr                 _communicator;
+    int                              _tag;
+    std::list<agent_id>              _queue;
+    std::vector<coordinates<double>> _boxes;
 };
 
 } // namespace sti

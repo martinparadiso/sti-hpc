@@ -40,7 +40,7 @@ void sti::proxy_queue_manager::dequeue(const agent_id& id)
 /// @brief Check if the given agent is next in the attention
 /// @param id The agent id
 /// @return If the agent is in the front of the queue, the coordinates
-boost::optional<sti::coordinates<int>> sti::proxy_queue_manager::is_my_turn(const agent_id& id)
+boost::optional<sti::coordinates<double>> sti::proxy_queue_manager::is_my_turn(const agent_id& id)
 {
     const auto it = std::find_if(_front.begin(), _front.end(),
                                  [&](const auto& pair) {
@@ -52,7 +52,7 @@ boost::optional<sti::coordinates<int>> sti::proxy_queue_manager::is_my_turn(cons
 }
 
 /// @brief Synchronize the real queue and the remote queues
-void sti::proxy_queue_manager::sync() 
+void sti::proxy_queue_manager::sync()
 {
     auto mpi_tag = _tag;
     _communicator->send(_real_rank, mpi_tag++, _to_enqueue);

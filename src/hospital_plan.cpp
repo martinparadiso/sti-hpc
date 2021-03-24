@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // HOSPITAL TILES
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,9 +75,18 @@ sti::tiles::exit sti::tiles::exit::load(const boost::json::object& hospital, sti
     return load_one<exit, ENUMS::EXIT>(hospital, "exit", map);
 }
 
-sti::tiles::triage sti::tiles::triage::load(const boost::json::object& hospital, sti::tiles::grid& map)
+std::vector<sti::tiles::triage> sti::tiles::triage::load(const boost::json::object& hospital, sti::tiles::grid& map)
 {
-    return load_one<triage, ENUMS::TRIAGE>(hospital, "triage", map);
+    auto vector = std::vector<triage> {};
+
+    for (const auto& element : boost::json::value_to<std::vector<boost::json::value>>(hospital.at("building").at("triages"))) {
+        const auto location = boost::json::value_to<sti::coordinates<int>>(element.at("location"));
+        map.at(static_cast<std::size_t>(location.x))
+            .at(static_cast<std::size_t>(location.y))
+            = ENUMS::TRIAGE;
+        vector.push_back(triage { location });
+    }
+    return vector;
 }
 
 sti::tiles::icu sti::tiles::icu::load(const boost::json::object& hospital, sti::tiles::grid& map)
@@ -142,7 +150,7 @@ sti::hospital_plan::hospital_plan(const boost::json::object& json)
     , _chairs { tiles::chair::load(json, _grid) }
     , _entry { tiles::entry::load(json, _grid) }
     , _exit { tiles::exit::load(json, _grid) }
-    , _triage { tiles::triage::load(json, _grid) }
+    , _triages { tiles::triage::load(json, _grid) }
     , _icu { tiles::icu::load(json, _grid) }
     , _receptionists { tiles::receptionist::load(json, _grid) }
     , _doctors { tiles::doctor::load(json, _grid) }
@@ -198,9 +206,9 @@ sti::tiles::exit sti::hospital_plan::exit() const
 }
 
 /// @brief Get triage
-sti::tiles::triage sti::hospital_plan::triage() const
+const std::vector<sti::tiles::triage>& sti::hospital_plan::triages() const
 {
-    return _triage;
+    return _triages;
 }
 
 /// @brief Get the icu

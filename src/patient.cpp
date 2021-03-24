@@ -1,9 +1,9 @@
 #include "patient.hpp"
 
+#include "coordinates.hpp"
 #include "json_serialization.hpp"
 
 #include <repast_hpc/Point.h>
-
 
 ////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
@@ -74,11 +74,11 @@ boost::json::object sti::patient_agent::kill_and_collect()
         }
     }();
     output["final_stage"] = stage_str;
-    output["exit_time"] = boost::json::value_from(_flyweight->clk->now());
+    output["exit_time"]   = boost::json::value_from(_flyweight->clk->now());
 
-    output["chair_assigned"]     = boost::json::value_from(_chair_assigned);
+    output["chair_assigned"]       = boost::json::value_from(_chair_assigned);
     output["reception_leave_time"] = boost::json::value_from(_reception_time);
-    output["reception_box"] = boost::json::value_from(_reception_assigned);
+    output["reception_box"]        = boost::json::value_from(_reception_assigned);
 
     // Remove from simulation
     _flyweight->space->remove_agent(this);
@@ -108,13 +108,7 @@ void sti::patient_agent::act()
     // The patient 0 must request a chair, and walk to it
     if (getId().id() != 0) {
 
-        const auto get_my_loc = [&]() {
-            const auto repast_coord = _flyweight->space->get_discrete_location(getId());
-            return coordinates {
-                repast_coord.getX(),
-                repast_coord.getY()
-            };
-        };
+        const auto my_location = coordinates<double> { _flyweight->space->get_continuous_location(getId()) };
 
         if (_stage == STAGES::START) {
             // Request a chair
@@ -141,7 +135,7 @@ void sti::patient_agent::act()
 
         if (_stage == STAGES::WALKING_TO_CHAIR) {
 
-            if (get_my_loc() == _chair_assigned) {
+            if (my_location == _chair_assigned.continuous()) {
                 _flyweight->reception->enqueue(getId());
                 _stage = STAGES::WAIT_FOR_RECEPTION;
             } else {
@@ -166,8 +160,8 @@ void sti::patient_agent::act()
 
         if (_stage == STAGES::WALKING_TO_RECEPTION) {
 
-            if (get_my_loc() == _reception_assigned) {
-                _reception_time = _flyweight->clk->now() + timedelta { 0, 0, 15, 0 };
+            if (my_location == _reception_assigned) {
+                _reception_time = _flyweight->clk->now() + _flyweight->reception_time;
                 _stage          = STAGES::WAIT_IN_RECEPTION;
             } else {
                 const auto final_pos = _flyweight->space->move_towards(getId(),
@@ -180,8 +174,71 @@ void sti::patient_agent::act()
         };
 
         if (_stage == STAGES::WAIT_IN_RECEPTION) {
-            if ( _reception_time < _flyweight->clk->now()) {
+            if (_reception_time < _flyweight->clk->now()) {
                 _flyweight->reception->dequeue(getId());
+                _flyweight->chairs->request_chair(getId());
+                _stage = STAGES::WAITING_CHAIR2;
+            }
+        }
+
+        if (_stage == STAGES::WAITING_CHAIR2) {
+
+            // Check if the request has been satisfied
+            const auto response = _flyweight->chairs->get_response(getId());
+            if (response) {
+                if (response->chair_location) {
+                    _chair_assigned = response->chair_location.get();
+                    _stage          = STAGES::WALKING_TO_CHAIR2;
+                } else {
+                    _stage = STAGES::WALKING_TO_EXIT;
+                }
+            }
+            return;
+        }
+
+        if (_stage == STAGES::WALKING_TO_CHAIR2) {
+
+            if (my_location == _chair_assigned.continuous()) {
+                _flyweight->triage->enqueue(getId());
+                _stage = STAGES::WAIT_FOR_TRIAGE;
+            } else {
+                const auto final_pos = _flyweight->space->move_towards(getId(),
+                                                                       _chair_assigned,
+                                                                       _flyweight->walk_speed);
+                _path.push_back(final_pos);
+            }
+
+            return;
+        }
+
+        if (_stage == STAGES::WAIT_FOR_TRIAGE) {
+            // Wait a couple of ticks
+            if (_flyweight->triage->is_my_turn(getId())) {
+                _flyweight->chairs->release_chair(_chair_assigned);
+                _triage_assigned = _flyweight->triage->is_my_turn(getId()).get();
+                _stage           = STAGES::WALKING_TO_TRIAGE;
+            }
+            return;
+        }
+
+        if (_stage == STAGES::WALKING_TO_TRIAGE) {
+
+            if (my_location == _triage_assigned) {
+                _triage_time = _flyweight->clk->now() + _flyweight->triage_duration;
+                _stage       = STAGES::WAIT_IN_TRIAGE;
+            } else {
+                const auto final_pos = _flyweight->space->move_towards(getId(),
+                                                                       _triage_assigned,
+                                                                       _flyweight->walk_speed);
+                _path.push_back(final_pos);
+            }
+
+            return;
+        };
+
+        if (_stage == STAGES::WAIT_IN_TRIAGE) {
+            if (_triage_time < _flyweight->clk->now()) {
+                _flyweight->triage->dequeue(getId());
                 _stage = STAGES::WALKING_TO_EXIT;
             }
         }

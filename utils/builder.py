@@ -54,8 +54,17 @@ class Exit(Tile):
 
 class Triage(Tile):
 
+    key = 'triages'
+
     def store(self, out: dict):
-        out['triage'] = self.location.__dict__
+        data = {
+            'location': self.location.__dict__
+        }
+
+        try:
+            out[self.key].append(data)
+        except:
+            out[self.key] = [data]
 
 
 class ICU(Tile):
@@ -74,7 +83,6 @@ class Receptionist(Tile):
         self.patient_location = None
 
     def store(self, out: dict):
-        # TODO
         data = {
             'location': self.location.__dict__,
             'patient_chair': self.patient_location.location.__dict__
@@ -205,6 +213,14 @@ class SimulationParameters(object):
         },
 
         'reception': {
+            'attention_time': {
+                'days': int,
+                'hours': int,
+                'minutes': int,
+                'seconds': int
+            }
+        },
+        'triage': {
             'attention_time': {
                 'days': int,
                 'hours': int,
@@ -396,7 +412,7 @@ hospital[5, 7] = DoctorChair(hospital[5, 8])
 
 hospital[8, 2] = Receptionist()
 hospital[8, 3] = ReceptionistChair(hospital[8, 2])
-hospital[1, 3] = Triage()
+hospital[5, 1] = Triage()
 hospital[8, 8] = ICU()
 
 for i in range(1, 4, 1):
@@ -429,10 +445,18 @@ hospital.parameters['object'] = {
     }
 }
 hospital.parameters['patient'] = {
-    'walk_speed': 1.0,
+    'walk_speed': 0.5,
     'infected_chance': 0.5
 }
 hospital.parameters['reception'] = {
+    'attention_time': {
+        'days': 0,
+        'hours': 0,
+        'minutes': 15,
+        'seconds': 0
+    }
+}
+hospital.parameters['triage'] = {
     'attention_time': {
         'days': 0,
         'hours': 0,
