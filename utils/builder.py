@@ -472,10 +472,14 @@ hospital.parameters['doctors']['general_practitioner'] = {
     'chance': 0.2
 }
 
-# Add the patient admission rate
-hospital.patient_influx.new_day([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-for day in range(1, 14):
-    hospital.patient_influx.new_day([0 for x in range(12)])
+# Only one patient
+# hospital.patient_influx.new_day([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+# for day in range(1, 14):
+#     hospital.patient_influx.new_day([0 for x in range(12)])
+
+# Random patients
+for day in range(365):
+    hospital.patient_influx.new_day([randrange(2, 6) for x in range(12)])
 
 d = hospital.dictionary()
 with open('./data/hospital.json', 'w') as f:

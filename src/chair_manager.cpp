@@ -30,6 +30,25 @@ void sti::proxy_chair_manager::release_chair(const coordinates& chair_loc)
     _release_buffer.push_back(msg);
 }
 
+/// @brief Check if there is a response without removing from the queue
+/// @param id The id of the agent requesting the chair
+/// @return An optional containing the response, if the manager already processed the request
+boost::optional<sti::chair_response_msg> sti::proxy_chair_manager::peek_response(const repast::AgentId& id)
+{
+    // Search the vector of pending responses for the messages with that id
+    const auto it = std::find_if(_pending_responses.begin(),
+                                 _pending_responses.end(),
+                                 [&](const auto& r) {
+                                     return r.agent_id == id;
+                                 });
+
+    // The number of messages for that id that are pending
+    if (it == _pending_responses.end())
+        return {};
+
+    return *it;
+}
+
 /// @brief Get the response of a chair request
 /// @param id The id of the agent requesting the chair
 /// @return An optional containing the response, if the manager already processed the request
@@ -84,7 +103,7 @@ namespace {
 /// @param chair_pool The chairs
 /// @param location The location of the chair to release
 void release(std::vector<sti::real_chair_manager::chair>& chair_pool,
-             sti::coordinates<int>                        location)
+             sti::coordinates<double>                     location)
 {
     const auto it = std::find_if(chair_pool.begin(), chair_pool.end(), [&](const auto& chair) {
         return chair.location == location;
@@ -128,7 +147,7 @@ sti::real_chair_manager::real_chair_manager(communicator* comm, const hospital_p
 {
 
     for (const auto& chair : building.chairs()) {
-        _chair_pool.push_back({ chair.location, false });
+        _chair_pool.push_back({ chair.location.continuous(), false });
     }
 }
 
@@ -143,10 +162,30 @@ void sti::real_chair_manager::request_chair(const repast::AgentId& id)
 
 /// @brief Release a chair
 /// @param chair_loc The coordinates of the chair being released
-void sti::real_chair_manager::release_chair(const sti::coordinates<int>& chair_loc)
+void sti::real_chair_manager::release_chair(const sti::coordinates<double>& chair_loc)
 {
     release(_chair_pool, chair_loc);
 } // void release_chair(...)
+
+/// @brief Check if there is a response without removing from the queue
+/// @param id The id of the agent requesting the chair
+/// @return An optional containing the response, if the manager already processed the request
+boost::optional<sti::chair_response_msg> sti::real_chair_manager::peek_response(const repast::AgentId& id)
+{
+    // Search the vector of pending responses for the messages with that id
+    const auto it = std::find_if(_pending_responses.begin(),
+                                 _pending_responses.end(),
+                                 [&](const auto& r) {
+                                     return r.agent_id == id;
+                                 });
+
+    // The number of messages for that id that are pending
+    if (it == _pending_responses.end()) {
+        return {};
+    }
+
+    return *it;
+}
 
 /// @brief Get the response of a chair request
 /// @param id The id of the agent requesting the chair

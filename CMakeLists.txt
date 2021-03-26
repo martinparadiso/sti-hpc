@@ -61,6 +61,7 @@ add_executable(sti-demo
                         "src/model.cpp"
                         "src/object.cpp"
                         "src/patient.cpp"
+                        "src/patient_fsm.cpp"
                         "src/person.cpp"
                         "src/queue_manager/proxy_queue_manager.cpp"
                         "src/queue_manager/real_queue_manager.cpp"

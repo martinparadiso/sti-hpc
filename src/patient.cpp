@@ -21,6 +21,7 @@ sti::patient_agent::patient_agent(const id_t&                  id,
     , _flyweight { fw }
     , _entry_time { entry_time }
     , _infection_logic { hic }
+    , _fsm{_flyweight, this}
 {
 }
 
@@ -33,6 +34,7 @@ sti::patient_agent::patient_agent(const id_t& id, flyweight_ptr fw)
     , _flyweight { fw }
     , _entry_time {}
     , _infection_logic { fw->inf_factory->make_human_cycle() }
+    , _fsm{_flyweight, this}
 {
 }
 
@@ -76,9 +78,10 @@ boost::json::object sti::patient_agent::kill_and_collect()
     output["final_stage"] = stage_str;
     output["exit_time"]   = boost::json::value_from(_flyweight->clk->now());
 
-    output["chair_assigned"]       = boost::json::value_from(_chair_assigned);
-    output["reception_leave_time"] = boost::json::value_from(_reception_time);
-    output["reception_box"]        = boost::json::value_from(_reception_assigned);
+    // output["chair_assigned"]       = boost::json::value_from(_chair_assigned);
+    // output["reception_leave_time"] = boost::json::value_from(_reception_time);
+    // output["reception_box"]        = boost::json::value_from(_reception_assigned);
+    output["final_state"] = _fsm._last_state;
 
     // Remove from simulation
     _flyweight->space->remove_agent(this);
@@ -101,156 +104,9 @@ const sti::infection_cycle* sti::patient_agent::get_infection_logic() const
     return &_infection_logic;
 }
 
+/// @brief Execute the patient logic, both infection and behaviour
 void sti::patient_agent::act()
 {
     _infection_logic.tick();
-
-    // The patient 0 must request a chair, and walk to it
-    if (getId().id() != 0) {
-
-        const auto my_location = coordinates<double> { _flyweight->space->get_continuous_location(getId()) };
-
-        if (_stage == STAGES::START) {
-            // Request a chair
-            _flyweight->chairs->request_chair(getId());
-            _stage = STAGES::WAITING_CHAIR;
-            return;
-        }
-
-        if (_stage == STAGES::WAITING_CHAIR) {
-
-            // Check if the request has been satisfied
-            const auto response = _flyweight->chairs->get_response(getId());
-            if (response) {
-                if (response->chair_location) {
-
-                    _chair_assigned = response->chair_location.get();
-                    _stage          = STAGES::WALKING_TO_CHAIR;
-                } else {
-                    _stage = STAGES::WALKING_TO_EXIT;
-                }
-            }
-            return;
-        }
-
-        if (_stage == STAGES::WALKING_TO_CHAIR) {
-
-            if (my_location == _chair_assigned.continuous()) {
-                _flyweight->reception->enqueue(getId());
-                _stage = STAGES::WAIT_FOR_RECEPTION;
-            } else {
-                const auto final_pos = _flyweight->space->move_towards(getId(),
-                                                                       _chair_assigned,
-                                                                       _flyweight->walk_speed);
-                _path.push_back(final_pos);
-            }
-
-            return;
-        }
-
-        if (_stage == STAGES::WAIT_FOR_RECEPTION) {
-            // Wait a couple of ticks
-            if (_flyweight->reception->is_my_turn(getId())) {
-                _flyweight->chairs->release_chair(_chair_assigned);
-                _reception_assigned = _flyweight->reception->is_my_turn(getId()).get();
-                _stage              = STAGES::WALKING_TO_RECEPTION;
-            }
-            return;
-        }
-
-        if (_stage == STAGES::WALKING_TO_RECEPTION) {
-
-            if (my_location == _reception_assigned) {
-                _reception_time = _flyweight->clk->now() + _flyweight->reception_time;
-                _stage          = STAGES::WAIT_IN_RECEPTION;
-            } else {
-                const auto final_pos = _flyweight->space->move_towards(getId(),
-                                                                       _reception_assigned,
-                                                                       _flyweight->walk_speed);
-                _path.push_back(final_pos);
-            }
-
-            return;
-        };
-
-        if (_stage == STAGES::WAIT_IN_RECEPTION) {
-            if (_reception_time < _flyweight->clk->now()) {
-                _flyweight->reception->dequeue(getId());
-                _flyweight->chairs->request_chair(getId());
-                _stage = STAGES::WAITING_CHAIR2;
-            }
-        }
-
-        if (_stage == STAGES::WAITING_CHAIR2) {
-
-            // Check if the request has been satisfied
-            const auto response = _flyweight->chairs->get_response(getId());
-            if (response) {
-                if (response->chair_location) {
-                    _chair_assigned = response->chair_location.get();
-                    _stage          = STAGES::WALKING_TO_CHAIR2;
-                } else {
-                    _stage = STAGES::WALKING_TO_EXIT;
-                }
-            }
-            return;
-        }
-
-        if (_stage == STAGES::WALKING_TO_CHAIR2) {
-
-            if (my_location == _chair_assigned.continuous()) {
-                _flyweight->triage->enqueue(getId());
-                _stage = STAGES::WAIT_FOR_TRIAGE;
-            } else {
-                const auto final_pos = _flyweight->space->move_towards(getId(),
-                                                                       _chair_assigned,
-                                                                       _flyweight->walk_speed);
-                _path.push_back(final_pos);
-            }
-
-            return;
-        }
-
-        if (_stage == STAGES::WAIT_FOR_TRIAGE) {
-            // Wait a couple of ticks
-            if (_flyweight->triage->is_my_turn(getId())) {
-                _flyweight->chairs->release_chair(_chair_assigned);
-                _triage_assigned = _flyweight->triage->is_my_turn(getId()).get();
-                _stage           = STAGES::WALKING_TO_TRIAGE;
-            }
-            return;
-        }
-
-        if (_stage == STAGES::WALKING_TO_TRIAGE) {
-
-            if (my_location == _triage_assigned) {
-                _triage_time = _flyweight->clk->now() + _flyweight->triage_duration;
-                _stage       = STAGES::WAIT_IN_TRIAGE;
-            } else {
-                const auto final_pos = _flyweight->space->move_towards(getId(),
-                                                                       _triage_assigned,
-                                                                       _flyweight->walk_speed);
-                _path.push_back(final_pos);
-            }
-
-            return;
-        };
-
-        if (_stage == STAGES::WAIT_IN_TRIAGE) {
-            if (_triage_time < _flyweight->clk->now()) {
-                _flyweight->triage->dequeue(getId());
-                _stage = STAGES::WALKING_TO_EXIT;
-            }
-        }
-
-        if (_stage == STAGES::WALKING_TO_EXIT) {
-            const auto& exit_loc = _flyweight->hospital->exit().location;
-
-            const auto final_pos = _flyweight->space->move_towards(getId(),
-                                                                   exit_loc,
-                                                                   _flyweight->walk_speed);
-            _path.push_back(final_pos);
-            return;
-        };
-    }
+    _fsm.tick();
 }

@@ -3,16 +3,15 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
-#include <boost/serialization/unique_ptr.hpp>
-#include <array>
 #include <cstdint>
 #include <math.h>
 #include <memory>
 #include <repast_hpc/Grid.h>
-#include <repast_hpc/SharedContext.h>
 #include <repast_hpc/Point.h>
+#include <repast_hpc/SharedContext.h>
 #include <sstream>
 #include <vector>
 
@@ -23,11 +22,26 @@
 #include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
+#include "patient_fsm.hpp"
 #include "reception.hpp"
 #include "space_wrapper.hpp"
 #include "triage.hpp"
 
 namespace sti {
+
+struct patient_flyweight {
+    const sti::infection_factory*            inf_factory;
+    repast::SharedContext<contagious_agent>* context;
+    sti::space_wrapper*                      space;
+    sti::clock*                              clk;
+    sti::hospital_plan*                      hospital;
+    sti::chair_manager*                      chairs;
+    sti::reception*                          reception;
+    sti::triage*                             triage;
+    const double                             walk_speed;
+    sti::timedelta                           reception_time;
+    sti::timedelta                           triage_duration;
+};
 
 /// @brief An agent representing a patient
 class patient_agent final : public contagious_agent {
@@ -36,22 +50,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // FLYWEIGHT
     ////////////////////////////////////////////////////////////////////////////
-
-    /// @brief Patient common properties
-    struct flyweight {
-        const sti::infection_factory*            inf_factory;
-        repast::SharedContext<contagious_agent>* context;
-        sti::space_wrapper*                      space;
-        sti::clock*                              clk;
-        sti::hospital_plan*                      hospital;
-        sti::chair_manager*                      chairs;
-        sti::reception*                          reception;
-        sti::triage*                             triage;
-        const double                             walk_speed;
-        sti::timedelta                           reception_time;
-        sti::timedelta                           triage_duration;
-    };
-
+    using flyweight     = patient_flyweight;
     using flyweight_ptr = flyweight*;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -133,26 +132,11 @@ public:
     /// @return A pointer to the infection logic
     const infection_cycle* get_infection_logic() const final;
 
+    /// @brief Execute the patient logic, both infection and behaviour
     void act() final;
 
-    // TODO: Remove this, temp
-    enum class STAGES {
-        START, // Request a chair
-        WAITING_CHAIR, // Wait for the chair assignment
-        WALKING_TO_CHAIR, // Walk to the chair, if arrived, request reception
-        WAIT_FOR_RECEPTION, // Wait until its my turn
-        WALKING_TO_RECEPTION, // Release the chair, Walk to reception
-        WAIT_IN_RECEPTION, // Wait until the attention finishes, then request a chair
-        WAITING_CHAIR2, // Wait for the chair assignment
-        WALKING_TO_CHAIR2, // Walk to chair, if arrived, request triage
-        WAIT_FOR_TRIAGE, // Wait until it's my turn
-        WALKING_TO_TRIAGE, // Walk to triage
-        WAIT_IN_TRIAGE, // Wait until the triage finishes
-        WALKING_TO_EXIT, // Walk to exit
-        DULL,
-    };
-
 private:
+    friend struct patient_fsm;
     friend class boost::serialization::access;
 
     // Private serialization, for security
@@ -161,39 +145,15 @@ private:
     {
         ar& _entry_time;
         ar& _infection_logic;
-        ar& _stage;
-        ar& _chair_assigned;
-        ar& _reception_assigned;
-        ar& _triage_assigned;
-        ar& _reception_time;
-        ar& _triage_time;
+        ar& _fsm;
         ar& _path;
-    }
+    } // serialize(...)
 
-    flyweight_ptr         _flyweight;
-    datetime              _entry_time;
-    human_infection_cycle _infection_logic;
-
-    STAGES                           _stage              = STAGES::START;
-    coordinates<int>                 _chair_assigned     = { -1, -1 };
-    coordinates<double>              _reception_assigned = { -1, -1 };
-    coordinates<double>              _triage_assigned    = { -1, -1 };
-    datetime                         _reception_time {};
-    datetime                         _triage_time {};
+    flyweight_ptr                    _flyweight;
+    datetime                         _entry_time;
+    human_infection_cycle            _infection_logic;
+    patient_fsm                      _fsm;
     std::vector<coordinates<double>> _path {};
 }; // patient_agent
 
 } // namespace sti
-
-// Enum serialization
-namespace boost {
-namespace serialization {
-
-    template <class Archive>
-    void serialize(Archive& ar, sti::patient_agent::STAGES& s, const unsigned int /*unused*/)
-    {
-        ar& s;
-    } // void serialize(...)
-
-} // namespace serialization
-} // namespaces boost

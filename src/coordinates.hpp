@@ -35,7 +35,8 @@ struct coordinates {
     }
 
     /// @brief Cast a discrete coordinates to double
-    coordinates<double> continuous() const {
+    coordinates<double> continuous() const
+    {
         static_assert(std::is_same_v<int, T>, "Can't convert from double to double");
         return {
             static_cast<double>(x) + 0.5,
@@ -58,6 +59,12 @@ template <typename T>
 bool operator==(const sti::coordinates<T>& lo, const sti::coordinates<T>& ro)
 {
     return lo.x == ro.x && lo.y == ro.y;
+}
+
+template <typename T>
+bool operator!=(const sti::coordinates<T>& lo, const sti::coordinates<T>& ro)
+{
+    return !(lo == ro);
 }
 
 template <typename T>

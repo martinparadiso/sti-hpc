@@ -29,7 +29,7 @@ struct chair_request_msg {
 
 /// @brief A indication that a chair has been released
 struct chair_release_msg {
-    sti::coordinates<int> chair_location;
+    sti::coordinates<double> chair_location;
 
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int /*unused*/)
@@ -42,8 +42,8 @@ struct chair_release_msg {
 struct chair_response_msg {
     // If a chair was available, the response has the coordinates, if there was no
     // chair available, no coordinates are sent
-    repast::AgentId                        agent_id;
-    boost::optional<sti::coordinates<int>> chair_location;
+    repast::AgentId                           agent_id;
+    boost::optional<sti::coordinates<double>> chair_location;
 
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int /*unused*/)
@@ -57,7 +57,7 @@ struct chair_response_msg {
 class chair_manager {
 
 public:
-    using coordinates  = sti::coordinates<int>;
+    using coordinates  = sti::coordinates<double>;
     using communicator = boost::mpi::communicator;
     template <typename T>
     using optional = boost::optional<T>;
@@ -85,6 +85,11 @@ public:
     /// @brief Release a chair
     /// @param chair_loc The coordinates of the chair being released
     virtual void release_chair(const coordinates& chair_loc) = 0;
+
+    /// @brief Check if there is a response without removing from the queue
+    /// @param id The id of the agent requesting the chair
+    /// @return An optional containing the response, if the manager already processed the request
+    virtual optional<chair_response_msg> peek_response(const repast::AgentId& id) = 0;
 
     /// @brief Get the response of a chair request
     /// @param id The id of the agent requesting the chair
@@ -117,6 +122,11 @@ public:
     /// @param chair_loc The coordinates of the chair being released
     void release_chair(const coordinates& chair_loc) final;
 
+    /// @brief Check if there is a response without removing from the queue
+    /// @param id The id of the agent requesting the chair
+    /// @return An optional containing the response, if the manager already processed the request
+    optional<chair_response_msg> peek_response(const repast::AgentId& id) final;
+
     /// @brief Get the response of a chair request
     /// @param id The id of the agent requesting the chair
     /// @return An optional containing the response, if the manager already processed the request
@@ -139,8 +149,8 @@ class real_chair_manager final : public chair_manager {
 
 public:
     struct chair {
-        sti::coordinates<int> location;
-        bool                  in_use;
+        sti::coordinates<double> location;
+        bool                     in_use;
     };
 
     /// @brief Construct a chair manager
@@ -155,6 +165,11 @@ public:
     /// @brief Release a chair
     /// @param chair_loc The coordinates of the chair being released
     void release_chair(const coordinates& chair_loc) final;
+
+    /// @brief Check if there is a response without removing from the queue
+    /// @param id The id of the agent requesting the chair
+    /// @return An optional containing the response, if the manager already processed the request
+    optional<chair_response_msg> peek_response(const repast::AgentId& id) final;
 
     /// @brief Get the response of a chair request
     /// @param id The id of the agent requesting the chair
