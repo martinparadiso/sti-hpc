@@ -1,12 +1,24 @@
+#include <boost/json/parse.hpp>
 #include <boost/json/serialize.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/mpi/communicator.hpp>
+#include <chrono>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <memory>
-
+#include <repast_hpc/AgentId.h>
+#include <repast_hpc/GridComponents.h>
+#include <repast_hpc/GridDimensions.h>
+#include <repast_hpc/initialize_random.h>
+#include <repast_hpc/Point.h>
+#include <repast_hpc/Properties.h>
 #include <repast_hpc/RepastProcess.h>
 #include <repast_hpc/Schedule.h>
+#include <repast_hpc/SharedContext.h>
+#include <repast_hpc/SharedContinuousSpace.h>
+#include <repast_hpc/SharedDiscreteSpace.h>
+#include <repast_hpc/Utilities.h>
 #include <sstream>
 #include <string>
 
@@ -22,9 +34,66 @@
 #include "infection_logic/infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "infection_logic/object_infection_cycle.hpp"
+#include "json_loader.hpp"
+#include "json_serialization.hpp"
 #include "model.hpp"
 #include "patient.hpp"
 #include "reception.hpp"
+
+namespace {
+auto now_in_ns()
+{
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()).time_since_epoch()).count();
+}
+}
+
+/// @brief Save the metrics to a file as a csv
+/// @param path The folder to save the metrics to
+void sti::process_metrics::save(const std::string& folder, int process)
+{
+    auto filepath = std::ostringstream {};
+    filepath << folder << "/process_" << process << ".csv";
+    auto file = std::ofstream { filepath.str() };
+
+    file << "tick,"
+         << "agents,"
+         << "mpi_sync_ns,"
+         << "rhpc_sync_ns,"
+         << "logic_ns,"
+         << "tick_start_time\n";
+
+    auto i = 0U;
+    for (const auto& metric: values) {
+        file << i++ << ","
+             << metric.current_agents << ","
+             << metric.mpi_sync_ns << ","
+             << metric.rhpc_sync_ns << ","
+             << metric.logic_ns << ","
+             << metric.tick_start_time
+             << "\n";
+    }
+}
+
+sti::model::model(const std::string& props_file, int argc, char** argv, boost::mpi::communicator* comm)
+    : _communicator { comm }
+    , _props { new repast::Properties(props_file, argc, argv, comm) }
+    , _context(comm)
+    , _rank { repast::RepastProcess::instance()->rank() }
+    , _stop_at { 0 }
+    , _hospital_props { load_json(_props->getProperty("hospital.file")) }
+    , _hospital { _hospital_props }
+    , _spaces { _hospital, *_props, _context, comm }
+    , _clock { std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
+    , _pmetrics {
+        now_in_ns(),
+        {}
+    }
+{
+    // Initialize the random generation
+    repast::initializeRandom(*_props, comm);
+}
+
+sti::model::~model() = default;
 
 /// @brief Initialize the model
 /// @details Loads the map
@@ -41,10 +110,10 @@ void sti::model::init()
     }
 
     // Create the reception
-    _reception.reset(new reception{*_props, _communicator, _hospital});
+    _reception.reset(new reception { *_props, _communicator, _hospital });
 
     // Create the triage
-    _triage.reset(new triage{*_props, _communicator, _hospital});
+    _triage.reset(new triage { *_props, _communicator, _hospital });
 
     // Create the agent factory
     _agent_factory.reset(new agent_factory { &_context,
@@ -101,7 +170,6 @@ void sti::model::init()
         }
     }
 
-
     // Create medical personnel
     const auto& doctors      = _hospital.doctors();
     const auto& receptionits = _hospital.receptionists();
@@ -117,9 +185,10 @@ void sti::model::init()
             // TODO: Issue #51
             _agent_factory->insert_new_person(receptionist.location, human_infection_cycle::STAGE::HEALTHY);
         }
-
     }
 
+    // Preallocate the metrics vector
+    _pmetrics.values.reserve(static_cast<decltype(_pmetrics.values)::size_type>(_stop_at));
 } // sti::model::init()
 
 /// @brief Initialize the scheduler
@@ -134,22 +203,30 @@ void sti::model::init_schedule(repast::ScheduleRunner& runner)
 /// @brief Periodic funcion
 void sti::model::tick()
 {
+    auto& new_metric           = _pmetrics.values.emplace_back(process_metrics::metrics {});
+    new_metric.tick_start_time = now_in_ns() - _pmetrics.simulation_epoch;
+
     // Sync the clock with the simulation tick
     _clock->sync();
-    
+
     ////////////////////////////////////////////////////////////////////////////
     // INTER-PROCESS SYNCHRONIZATION
     ////////////////////////////////////////////////////////////////////////////
 
+    const auto pre_mpi_time = now_in_ns();
     _chair_manager->sync();
     _reception->sync();
     _triage->sync();
+    new_metric.mpi_sync_ns = now_in_ns() - pre_mpi_time;
 
+    const auto pre_rhpc_time = now_in_ns();
     _spaces.balance(); // Move the agents accross processes
     repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
     repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
     repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
+    new_metric.rhpc_sync_ns = now_in_ns() - pre_rhpc_time;
 
+    const auto pre_logic_time = now_in_ns();
     // Check if agents are pending creation
     if (_entry) {
         _entry->generate_patients();
@@ -164,7 +241,10 @@ void sti::model::tick()
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
         (*it)->act();
     }
+    new_metric.logic_ns = now_in_ns() - pre_logic_time;
 
+    // Rest of the metrics
+    new_metric.current_agents = _context.size();
 }
 
 /// @brief Final function for data collection and such
@@ -190,4 +270,7 @@ void sti::model::finish()
         auto        entry_file = std::ofstream { "../output/entry.json" };
         entry_file << data;
     }
+
+    // Write the process metrics
+    _pmetrics.save("../output", _communicator->rank());
 }

@@ -50,6 +50,7 @@ set(MPIEXEC_BIN "${PROJECT_SOURCE_DIR}/lib/mpich/bin/mpiexec")
 
 # Demo ========================================================================
 add_executable(sti-demo 
+                        "src/agent_factory.cpp"
                         "src/chair_manager.cpp"
                         "src/clock.cpp"
                         "src/entry.cpp"

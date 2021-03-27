@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "clock.hpp"
+#include "model.hpp"
 #include "hospital_plan.hpp"
 
 namespace sti {
@@ -41,6 +42,17 @@ inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::valu
         { "hour", human.hours },
         { "minute", human.minutes },
         { "second", human.seconds }
+    };
+}
+
+inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const process_metrics::metrics& pm)
+{
+    jv = {
+        { "current_agents", pm.current_agents },
+        { "mpi_sync_ns", pm.mpi_sync_ns },
+        { "rhpc_sync_ns", pm.rhpc_sync_ns },
+        { "logic_ns", pm.logic_ns },
+        { "tick_start_time", pm.tick_start_time }
     };
 }
 

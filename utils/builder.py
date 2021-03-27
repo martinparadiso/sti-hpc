@@ -479,7 +479,7 @@ hospital.parameters['doctors']['general_practitioner'] = {
 
 # Random patients
 for day in range(365):
-    hospital.patient_influx.new_day([randrange(2, 6) for x in range(12)])
+    hospital.patient_influx.new_day([randrange(20, 60) for x in range(12)])
 
 d = hospital.dictionary()
 with open('./data/hospital.json', 'w') as f:
