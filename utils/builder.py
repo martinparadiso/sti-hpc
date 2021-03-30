@@ -12,6 +12,42 @@ class Point(object):
         self.y = y
 
 
+class TimePeriod(object):
+
+    def __init__(self, days, hours, minutes, seconds):
+        self.days = days
+        self.hours = hours
+        self.minutes = minutes
+        self.seconds = seconds
+
+        # Value validation
+        for attr in self.__dict__:
+            if not isinstance(self.__dict__[attr], int):
+                raise Exception(f"{__class__.__name__}: {attr} must be an int")
+
+        valid_values = (
+            ('days', 0, 364),
+            ('hours', 0, 23),
+            ('minutes', 0, 59),
+            ('seconds', 0, 59)
+        )
+
+        for key, lower, upper in valid_values:
+            if self.__dict__[key] < lower:
+                raise Exception(f"{__class__.__name__}: {key} < {lower}")
+            if self.__dict__[key] > upper:
+                raise Exception(f"{__class__.__name__}: {key} > {upper}")
+
+# Custom JSON serializer
+
+
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, TimePeriod) or isinstance(obj, Point):
+            return obj.__dict__
+        return json.JSONEncoder.default(self, obj)
+
+
 class Tile(object):
 
     def __init__(self):
@@ -160,7 +196,7 @@ def char_art(tile: Tile, hospital_dims: tuple) -> str:
     if tile.__class__ in lut:
         return lut[tile.__class__]
 
-    if tile.__class__ is Entry:
+    if isinstance(tile, Entry):
         if tile.location.x == 0:
             return '→'
         if tile.location.x == hospital_dims[0]:
@@ -170,7 +206,7 @@ def char_art(tile: Tile, hospital_dims: tuple) -> str:
         if tile.location.y == hospital_dims[1]:
             return '↓'
 
-    if tile.__class__ is Exit:
+    if isinstance(tile, Exit):
         if tile.location.x == 0:
             return '←'
         if tile.location.x == hospital_dims[0]:
@@ -179,6 +215,8 @@ def char_art(tile: Tile, hospital_dims: tuple) -> str:
             return '↓'
         if tile.location.y == hospital_dims[1]:
             return '↑'
+
+    raise Exception(f"Unsupported type {tile.__class__}")
 
 
 class SimulationParameters(object):
@@ -191,12 +229,7 @@ class SimulationParameters(object):
                 'distance': float,
             },
             'incubation': {
-                'time': {
-                    'days': int,
-                    'hours': int,
-                    'minutes': int,
-                    'seconds': int
-                }
+                'time': TimePeriod
             }
         },
 
@@ -213,21 +246,15 @@ class SimulationParameters(object):
         },
 
         'reception': {
-            'attention_time': {
-                'days': int,
-                'hours': int,
-                'minutes': int,
-                'seconds': int
-            }
+            'attention_time': TimePeriod
         },
         'triage': {
-            'attention_time': {
-                'days': int,
-                'hours': int,
-                'minutes': int,
-                'seconds': int
+            'attention_time': TimePeriod,
+            'icu': {
+                'chance': float
             }
-        }
+        },
+
     }
 
     def __init__(self):
@@ -242,10 +269,43 @@ class SimulationParameters(object):
         self.parameters[key] = value
 
     def add_doctor(self, specialty):
+
+        # Add the required parameters: attention time and probability
         if not 'doctors' in self.required_parameters:
             self.required_parameters['doctors'] = {}
         self.required_parameters['doctors'][specialty] = {
+            'attention_duration': TimePeriod
+        }
+        if not 'doctors_probabilities' in self.required_parameters['triage']:
+            self.required_parameters['triage']['doctors_probabilities'] = {}
+        self.required_parameters['triage']['doctors_probabilities'][specialty] = {
             'chance': float
+        }
+
+    def add_triage_level(self, level, probability, wait_time):
+        """Set the triage levels and the probabilities of each"""
+        if not isinstance(level, int):
+            raise Exception('Triage level must be an int')
+
+        # Validate the data
+        if not isinstance(probability, float):
+            raise Exception('Triage level probability must be a float')
+
+        if probability < 0.0 or probability > 1.0:
+            raise Exception(f"Wrong probability {probability}")
+
+        if not isinstance(wait_time, TimePeriod):
+            raise Exception('wait_time must be of type TimePeriod')
+
+        if not 'triage' in self.parameters:
+            self.parameters['triage'] = {}
+
+        if not 'levels' in self.parameters['triage']:
+            self.parameters['triage']['levels'] = {}
+
+        self.parameters['triage']['levels'][str(level)] = {
+            'chance': probability,
+            'wait_time': wait_time
         }
 
     def validate_probabilities(self):
@@ -259,19 +319,24 @@ class SimulationParameters(object):
                 elif key == 'chance' and d['chance'] < 0.0:
                     raise Exception('Probability under 0')
                 else:
-                    if d[key].__class__ is dict:
+                    if isinstance(d[key], dict):
                         validate_chances(d[key])
 
         validate_chances(self.parameters)
 
-        # Check if doctors probabilities sum 1
-        acc = 0.0
-        for doctor_specialty in self.parameters['doctors']:
-            acc += self.parameters['doctors'][doctor_specialty]['chance']
-        if acc > 1.0:
-            raise Exception(f"Doctor probability over 1: {acc}")
-        if acc < 1.0:
-            raise Exception(f"Doctor probability under 1: {acc}")
+        # Check if probabilities sum 1
+        doctriage_acc = self.parameters['triage']['icu']['chance']
+        for specialty in self.parameters['triage']['doctors_probabilities']:
+            doctriage_acc += self.parameters['triage']['doctors_probabilities'][specialty]['chance']
+        if doctriage_acc < 0.0 or doctriage_acc > 1.0:
+            raise Exception(f"Doctor/ICU probabilities sum {doctriage_acc}")
+
+        triage_level_acc = 0.0
+        for triage_level in self.parameters['triage']['levels']:
+            triage_level_acc += self.parameters['triage']['levels'][triage_level]['chance']
+        if triage_level_acc < 0.0 or triage_level_acc > 1.0:
+            raise Exception(
+                f"Triage probabilities don't add 1: {doctriage_acc}")
 
     def validate(self):
         """Check if all necessary values are present and the probabilities make sense"""
@@ -280,11 +345,11 @@ class SimulationParameters(object):
 
             for key in param_tree:
                 try:
-                    if param_tree[key].__class__ is dict:
+                    if isinstance(param_tree[key], dict):
                         recurse(data_tree[key], param_tree[key],
                                 current_path=current_path + [key])
                     else:
-                        if not data_tree[key].__class__ is param_tree[key]:
+                        if isinstance(not data_tree[key], param_tree[key]):
                             error_msg = ('Invalid type for simulation parameter '
                                          f"""['{"']['".join(current_path + [key])}']. """
                                          f"Expected {param_tree[key].__name__} "
@@ -310,12 +375,12 @@ class PatientInflux(object):
         return self.histogram[key[0]][key[1]]
 
     def __setitem__(self, key, value):
-        if not value.__class__ is int:
+        if isinstance(not value, int):
             raise Exception('Value be an int')
         self.histogram[key[0]][key[1]] = value
 
     def new_day(self, data):
-        if not data.__class__ is list:
+        if isinstance(not data, list):
             raise Exception('Data must be a list')
 
         self.histogram.append(data)
@@ -338,7 +403,7 @@ class Hospital(object):
             raise Exception('Unsupported type')
 
         # If the tile is a doctor, add it to the parameters
-        if value.__class__ is Doctor:
+        if isinstance(value, Doctor):
             self.parameters.add_doctor(value.specialty)
         self.data[key[0]][key[1]] = value
         point = Point(key[0], key[1])
@@ -351,15 +416,15 @@ class Hospital(object):
     def border_walls(self):
         """Add walls to the borders"""
         for x in range(len(self.data)):
-            if self[x, 0].__class__ is Floor:
+            if isinstance(self[x, 0], Floor):
                 self[x, 0] = Wall()
-            if self[x, -1].__class__ is Floor:
+            if isinstance(self[x, -1], Floor):
                 self[x, -1] = Wall()
 
         for y in range(len(self.data[0])):
-            if self[0, y].__class__ is Floor:
+            if isinstance(self[0, y], Floor):
                 self[0, y] = Wall()
-            if self[-1, y].__class__ is Floor:
+            if isinstance(self[-1, y], Floor):
                 self[-1, y] = Wall()
 
     def validate(self):
@@ -422,7 +487,6 @@ hospital[0, 5] = Entry()
 hospital[9, 5] = Exit()
 
 # Set the parameters
-
 hospital.parameters['human'] = {
     'infection': {
         'chance': 0.2,
@@ -430,12 +494,7 @@ hospital.parameters['human'] = {
     },
 
     'incubation': {
-        'time': {
-            'days': 0,
-            'hours': 0,
-            'minutes': 15,
-            'seconds': 0
-        }
+        'time': TimePeriod(0, 2, 0, 0)
     }
 }
 hospital.parameters['object'] = {
@@ -449,28 +508,34 @@ hospital.parameters['patient'] = {
     'infected_chance': 0.5
 }
 hospital.parameters['reception'] = {
-    'attention_time': {
-        'days': 0,
-        'hours': 0,
-        'minutes': 15,
-        'seconds': 0
-    }
+    'attention_time': TimePeriod(0, 0, 15, 0)
 }
 hospital.parameters['triage'] = {
-    'attention_time': {
-        'days': 0,
-        'hours': 0,
-        'minutes': 15,
-        'seconds': 0
+    'attention_time': TimePeriod(0, 0, 15, 0),
+    'icu': {
+        'chance': 0.1
+    },
+    'doctors_probabilities': {
+        'radiologist': {
+            'chance': 0.2
+        },
+        'general_practitioner': {
+            'chance': 0.7
+        }
     }
 }
 hospital.parameters['doctors'] = {}
 hospital.parameters['doctors']['radiologist'] = {
-    'chance': 0.8
+    'attention_duration': TimePeriod(0, 0, 30, 0)
 }
 hospital.parameters['doctors']['general_practitioner'] = {
-    'chance': 0.2
+    'attention_duration': TimePeriod(0, 0, 30, 0)
 }
+hospital.parameters.add_triage_level(1, 0.2, TimePeriod(0, 0, 0, 0))
+hospital.parameters.add_triage_level(2, 0.2, TimePeriod(0, 0, 10, 0))
+hospital.parameters.add_triage_level(3, 0.2, TimePeriod(0, 1, 0, 0))
+hospital.parameters.add_triage_level(4, 0.2, TimePeriod(0, 2, 0, 0))
+hospital.parameters.add_triage_level(5, 0.2, TimePeriod(0, 4, 0, 0))
 
 # Only one patient
 # hospital.patient_influx.new_day([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
@@ -478,11 +543,11 @@ hospital.parameters['doctors']['general_practitioner'] = {
 #     hospital.patient_influx.new_day([0 for x in range(12)])
 
 # Random patients
-for day in range(365):
-    hospital.patient_influx.new_day([randrange(20, 60) for x in range(12)])
+for day in range(60):
+    hospital.patient_influx.new_day([randrange(5, 10) for x in range(12)])
 
 d = hospital.dictionary()
 with open('./data/hospital.json', 'w') as f:
-    json.dump(d, f, indent=4)
+    json.dump(d, f, indent=4, cls=CustomEncoder)
 
 print(hospital.char_art())

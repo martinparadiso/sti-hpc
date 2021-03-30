@@ -28,6 +28,7 @@ class ScheduleRunner;
 namespace sti {
 class agent_factory;
 class triage;
+class doctors;
 } // namespace sti
 
 namespace sti {
@@ -50,7 +51,7 @@ struct process_metrics {
     /// @brief Save the metrics to a file as a csv
     /// @param path The folder to save the metrics to
     /// @param process The process number
-    void save(const std::string& folder, int process);
+    void save(const std::string& folder, int process) const;
 };
 
 /// @brief The Repast HPC simulation
@@ -112,6 +113,7 @@ private:
     std::unique_ptr<chair_manager> _chair_manager {}; // Properly initalized in init()
     std::unique_ptr<reception>     _reception {}; // Propertly initialized in init()
     std::unique_ptr<triage>        _triage {}; // Propertly initialized in init()
+    std::unique_ptr<doctors>       _doctors {}; // Propertly initialized in init()
 
     std::unique_ptr<hospital_entry> _entry {}; // Properly initalized in init()
     std::unique_ptr<hospital_exit>  _exit {}; // Properly initalized in init()

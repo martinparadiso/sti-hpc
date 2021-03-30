@@ -15,17 +15,23 @@
 #include <sstream>
 #include <vector>
 
-#include "chair_manager.hpp"
-#include "clock.hpp"
 #include "contagious_agent.hpp"
 #include "coordinates.hpp"
-#include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "patient_fsm.hpp"
-#include "reception.hpp"
-#include "space_wrapper.hpp"
-#include "triage.hpp"
+
+// Fw. declarations
+namespace sti {
+class space_wrapper;
+class reception;
+class chair_manager;
+class triage;
+class doctors;
+class hospital_plan;
+class infection_factory;
+class clock;
+} // namespace sti
 
 namespace sti {
 
@@ -38,6 +44,7 @@ struct patient_flyweight {
     sti::chair_manager*                      chairs;
     sti::reception*                          reception;
     sti::triage*                             triage;
+    sti::doctors*                      doctors;
     const double                             walk_speed;
     sti::timedelta                           reception_time;
     sti::timedelta                           triage_duration;

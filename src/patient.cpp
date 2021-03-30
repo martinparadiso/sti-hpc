@@ -1,9 +1,14 @@
 #include "patient.hpp"
-
-#include "coordinates.hpp"
-#include "json_serialization.hpp"
-
 #include <repast_hpc/Point.h>
+
+#include "chair_manager.hpp"
+#include "clock.hpp"
+#include "hospital_plan.hpp"
+#include "json_serialization.hpp"
+#include "reception.hpp"
+#include "space_wrapper.hpp"
+#include "triage.hpp"
+
 
 ////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION

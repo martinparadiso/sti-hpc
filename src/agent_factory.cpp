@@ -16,6 +16,8 @@
 #include "infection_logic/object_infection_cycle.hpp"
 #include "reception.hpp"
 #include "space_wrapper.hpp"
+#include "doctors.hpp"
+#include "triage.hpp"
 
 /// @brief Create a new patient factory
 /// @param context A pointer to the repast context, to insert the agent
@@ -25,6 +27,7 @@
 /// @param chair A pointer to the chair manager
 /// @param reception A pointer to the reception
 /// @param triage A pointer to the triage
+/// @param doctors A pointer to the doctors queue
 /// @param props The JSON object containing the simulation properties
 sti::agent_factory::agent_factory(context_ptr                context,
                                   space_ptr                  space,
@@ -33,6 +36,7 @@ sti::agent_factory::agent_factory(context_ptr                context,
                                   sti::chair_manager*        chairs,
                                   sti::reception*            reception,
                                   sti::triage*               triage,
+                                  sti::doctors*              doctors,
                                   const boost::json::object& props)
     : _context { context }
     , _space { space }
@@ -59,6 +63,7 @@ sti::agent_factory::agent_factory(context_ptr                context,
             chairs,
             reception,
             triage,
+            doctors,
             boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed")),
             boost::json::value_to<timedelta>(props.at("parameters").at("reception").at("attention_time")),
             boost::json::value_to<timedelta>(props.at("parameters").at("triage").at("attention_time"))

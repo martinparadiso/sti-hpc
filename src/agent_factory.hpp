@@ -49,6 +49,7 @@ public:
     /// @param chair A pointer to the chair manager
     /// @param reception A pointer to the reception
     /// @param triage A pointer to the triage
+    /// @param doctors A pointer to the doctors manager
     /// @param props The JSON object containing the simulation properties
     agent_factory(context_ptr                context,
                   space_ptr                  space,
@@ -57,6 +58,7 @@ public:
                   sti::chair_manager*        chairs,
                   sti::reception*            reception,
                   sti::triage*               triage,
+                  sti::doctors*              doctors,
                   const boost::json::object& props);
 
     ////////////////////////////////////////////////////////////////////////////

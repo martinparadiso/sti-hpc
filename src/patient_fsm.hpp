@@ -2,13 +2,16 @@
 /// @brief Implement the patient circulation logic with a state machine
 #pragma once
 
-#include "clock.hpp"
-#include "coordinates.hpp"
 #include <boost/serialization/access.hpp>
 #include <functional>
 #include <map>
 #include <memory>
 #include <utility>
+
+#include "clock.hpp"
+#include "coordinates.hpp"
+#include "doctors.hpp"
+#include "triage.hpp"
 
 // Fw. declarations
 namespace sti {
@@ -37,14 +40,17 @@ struct patient_fsm {
         WAIT_TRIAGE_TURN,
         WALK_TO_TRIAGE,
         WAIT_IN_TRIAGE,
+        DISPATCH,
         WAIT_CHAIR_3,
         WALK_TO_CHAIR_3,
         WAIT_FOR_DOCTOR,
         WALK_TO_DOCTOR,
         WAIT_IN_DOCTOR,
+        NO_ATTENTION,
         WAIT_IN_ICU,
         WALK_TO_ICU,
         SLEEP,
+        MORGUE,
         WALK_TO_EXIT,
         AWAITING_DELETION,
     };
@@ -96,6 +102,7 @@ struct patient_fsm {
         ar& _destination;
         ar& _attention_end;
         ar& _last_state;
+        ar& _diagnosis;
     } // void serialize()
 
     patient_flyweight* _flyweight;
@@ -105,10 +112,11 @@ struct patient_fsm {
     exit_list          _exits;
 
     // Internal serializable state
-    STATE               _current_state;
-    coordinates<double> _destination;
-    datetime            _attention_end;
-    std::string         _last_state;
+    STATE                    _current_state;
+    coordinates<double>      _destination;
+    datetime                 _attention_end;
+    std::string              _last_state;
+    triage::triage_diagnosis _diagnosis;
 }; // class patient_fsm
 
 } // namespace sti

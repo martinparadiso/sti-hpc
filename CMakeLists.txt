@@ -53,6 +53,10 @@ add_executable(sti-demo
                         "src/agent_factory.cpp"
                         "src/chair_manager.cpp"
                         "src/clock.cpp"
+                        "src/doctors/doctors.cpp"
+                        "src/doctors/doctors_queue.cpp"
+                        "src/doctors/proxy_doctors.cpp"
+                        "src/doctors/real_doctors.cpp"
                         "src/entry.cpp"
                         "src/exit.cpp"
                         "src/hospital_plan.cpp"
@@ -61,8 +65,8 @@ add_executable(sti-demo
                         "src/main.cpp"
                         "src/model.cpp"
                         "src/object.cpp"
-                        "src/patient.cpp"
                         "src/patient_fsm.cpp"
+                        "src/patient.cpp"
                         "src/person.cpp"
                         "src/queue_manager/proxy_queue_manager.cpp"
                         "src/queue_manager/real_queue_manager.cpp"
@@ -71,7 +75,7 @@ add_executable(sti-demo
                         "src/triage.cpp"
               )
 target_include_directories(sti-demo PUBLIC include/)
-target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
+target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic -Wshadow)
 optional_lto(sti-demo)
 tidy(sti-demo)
 

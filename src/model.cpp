@@ -27,6 +27,8 @@
 #include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
+#include "doctors.hpp"
+#include "doctors_queue.hpp"
 #include "entry.hpp"
 #include "exit.hpp"
 #include "hospital_plan.hpp"
@@ -37,6 +39,7 @@
 #include "json_loader.hpp"
 #include "json_serialization.hpp"
 #include "model.hpp"
+#include "triage.hpp"
 #include "patient.hpp"
 #include "reception.hpp"
 
@@ -49,7 +52,7 @@ auto now_in_ns()
 
 /// @brief Save the metrics to a file as a csv
 /// @param path The folder to save the metrics to
-void sti::process_metrics::save(const std::string& folder, int process)
+void sti::process_metrics::save(const std::string& folder, int process) const
 {
     auto filepath = std::ostringstream {};
     filepath << folder << "/process_" << process << ".csv";
@@ -63,7 +66,7 @@ void sti::process_metrics::save(const std::string& folder, int process)
          << "tick_start_time\n";
 
     auto i = 0U;
-    for (const auto& metric: values) {
+    for (const auto& metric : values) {
         file << i++ << ","
              << metric.current_agents << ","
              << metric.mpi_sync_ns << ","
@@ -109,11 +112,10 @@ void sti::model::init()
         _chair_manager.reset(new proxy_chair_manager { _communicator, chair_mgr_rank });
     }
 
-    // Create the reception
+    // Create the reception, triage and doctors
     _reception.reset(new reception { *_props, _communicator, _hospital });
-
-    // Create the triage
-    _triage.reset(new triage { *_props, _communicator, _hospital });
+    _triage.reset(new triage { *_props, _hospital_props, _communicator, _clock.get(), _hospital });
+    _doctors = std::make_unique<doctors>(*_props, _hospital_props, _communicator, _hospital);
 
     // Create the agent factory
     _agent_factory.reset(new agent_factory { &_context,
@@ -123,6 +125,7 @@ void sti::model::init()
                                              _chair_manager.get(),
                                              _reception.get(),
                                              _triage.get(),
+                                             _doctors.get(),
                                              _hospital_props });
 
     // Create the package provider and receiver
@@ -217,6 +220,7 @@ void sti::model::tick()
     _chair_manager->sync();
     _reception->sync();
     _triage->sync();
+    _doctors->queues()->sync();
     new_metric.mpi_sync_ns = now_in_ns() - pre_mpi_time;
 
     const auto pre_rhpc_time = now_in_ns();
@@ -271,6 +275,9 @@ void sti::model::finish()
         entry_file << data;
     }
 
-    // Write the process metrics
+    // Save the triage statistics
+    _triage->save("../output");
+
+    // Save the process metrics
     _pmetrics.save("../output", _communicator->rank());
 }

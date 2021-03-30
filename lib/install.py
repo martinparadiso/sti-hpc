@@ -283,9 +283,10 @@ class Repast(Library):
             git_output = subprocess.run(['git',
                                          'clone', 'https://github.com/martinparadiso/repast.hpc.git',
                                          repo_folder.absolute()])
-            git_switch = subprocess.run(['git',
-                                         'switch', 'development'],
-                                         cwd=repo_folder.absolute())
+        
+        git_switch = subprocess.run(['git',
+                                        'switch', 'development'],
+                                        cwd=repo_folder.absolute())
 
         check_run(git_output, 'Error cloning repast repository')
         check_run(git_switch, 'Error switching to development branch')
@@ -297,10 +298,14 @@ class Repast(Library):
         except:
             pass
 
-        # TODO: Temporary solution for the makefile
-        cp_output = subprocess.run(
-            ['cp', f"{self.download_folder}/../Makefile.repast", './Makefile'], cwd=workdir)
-
+        # Depending of the compilation type, copy the debug or release makefile
+        if self.debug:
+            cp_output = subprocess.run(
+                ['cp', f"{self.download_folder}/../Makefile.debug.repast", './Makefile'], cwd=workdir)
+        else: 
+            cp_output = subprocess.run(
+                            ['cp', f"{self.download_folder}/../Makefile.release.repast", './Makefile'], cwd=workdir)
+                            
         check_run(cp_output, 'Error copying repast Makefile')
 
         env_vars = {

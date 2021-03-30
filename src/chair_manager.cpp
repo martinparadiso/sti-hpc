@@ -55,25 +55,19 @@ boost::optional<sti::chair_response_msg> sti::proxy_chair_manager::peek_response
 boost::optional<sti::chair_response_msg> sti::proxy_chair_manager::get_response(const repast::AgentId& id)
 {
     // Search the vector of pending responses for the messages with that id
-    const auto it = std::remove_if(_pending_responses.begin(),
-                                   _pending_responses.end(),
-                                   [&](const auto& r) {
-                                       return r.agent_id == id;
-                                   });
+    const auto it = std::find_if(_pending_responses.begin(),
+                                 _pending_responses.end(),
+                                 [&](const auto& r) {
+                                     return r.agent_id == id;
+                                 });
 
-    // The number of messages for that id that are pending
-    const auto msg_count = _pending_responses.end() - it;
-
-    if (msg_count == 0) return {};
-
-    if (msg_count == 1) {
-        const auto response = *it;
-        _pending_responses.pop_back();
-        return response;
+    if (it == _pending_responses.end()) {
+        return boost::none;
     }
 
-    // If we are here, the same id requested more than one chair
-    throw std::exception {};
+    const auto response = *it;
+    _pending_responses.erase(it);
+    return response;
 }
 
 /// @brief Send the requests and retrieve the pending responses
@@ -181,7 +175,7 @@ boost::optional<sti::chair_response_msg> sti::real_chair_manager::peek_response(
 
     // The number of messages for that id that are pending
     if (it == _pending_responses.end()) {
-        return {};
+        return boost::none;
     }
 
     return *it;
@@ -193,25 +187,20 @@ boost::optional<sti::chair_response_msg> sti::real_chair_manager::peek_response(
 boost::optional<sti::chair_response_msg> sti::real_chair_manager::get_response(const repast::AgentId& id)
 {
     // Search the vector of pending responses for the messages with that id
-    const auto it = std::remove_if(_pending_responses.begin(),
-                                   _pending_responses.end(),
-                                   [&](const auto& r) {
-                                       return r.agent_id == id;
-                                   });
+    const auto it = std::find_if(_pending_responses.begin(),
+                                 _pending_responses.end(),
+                                 [&](const auto& r) {
+                                     return r.agent_id == id;
+                                 });
 
-    // The number of messages for that id that are pending
-    const auto msg_count = _pending_responses.end() - it;
-
-    if (msg_count == 0) return {};
-
-    if (msg_count == 1) {
-        const auto response = *it;
-        _pending_responses.pop_back();
-        return response;
+    if (it == _pending_responses.end()) {
+        return boost::none;
     }
 
-    // If we are here, the same id requested more than one chair
-    throw std::exception {};
+    const auto response = *it;
+    _pending_responses.erase(it);
+    return response;
+
 } // boost::optional<sti::chair_response_msg> get_response()
 
 /// @brief Receive all requests, process, and respond
