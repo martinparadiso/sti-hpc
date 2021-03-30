@@ -21,7 +21,6 @@
 
 #include "clock.hpp"
 #include "hospital_plan.hpp"
-#include "metric.hpp"
 
 // Fw. declarations
 namespace boost {
@@ -143,11 +142,11 @@ public:
     boost::json::array statistics() const;
 
 private:
-    coordinates<int>                          _location;
-    const sti::clock*                         _clock;
-    std::unique_ptr<patient_distribution>     _patient_distribution;
-    sti::metric<patient_distribution::hist_t> _generated_patients;
-    const std::uint32_t                       _interval_length;
+    coordinates<int>                      _location;
+    const sti::clock*                     _clock;
+    std::unique_ptr<patient_distribution> _patient_distribution;
+    patient_distribution::hist_t          _generated_patients;
+    const std::uint32_t                   _interval_length;
 
     sti::agent_factory* _agent_factory;
     double              _infected_chance;
