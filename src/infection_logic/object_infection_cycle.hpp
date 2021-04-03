@@ -2,12 +2,24 @@
 /// @brief The object infection logic
 #pragma once
 
-#include <exception>
+#include <repast_hpc/AgentId.h>
+#include <utility>
+#include <vector>
 
-#include <repast_hpc/RepastProcess.h>
-
+#include "../clock.hpp"
 #include "../space_wrapper.hpp"
 #include "infection_cycle.hpp"
+
+// Fw. declarations
+namespace boost {
+namespace json {
+    class value;
+} // namespace json
+} // namespace boost
+
+namespace sti {
+class human_infection_cycle;
+}; // namespace sti
 
 namespace sti {
 
@@ -15,26 +27,28 @@ namespace sti {
 class object_infection_cycle final : public infection_cycle {
 
 public:
+    using object_type = std::string;
     ////////////////////////////////////////////////////////////////////////////
     // FLYWEIGHT
     ////////////////////////////////////////////////////////////////////////////
     /// @brief Struct containing the shared attributes of all infection in humans
     struct flyweight {
-        sti::space_wrapper* space;
-        precission          infect_chance;
+        const sti::space_wrapper* space;
+        const sti::clock*         clock;
 
-        double infect_distance;
+        precission infect_chance;
+        precission object_radius;
     };
 
-    using flyweight_ptr = const flyweight*;
+    using flyweights_ptr = const std::map<object_type, flyweight>*;
 
     ////////////////////////////////////////////////////////////////////////////
     // STAGE
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Stages/states of the object infection
-    enum STAGE { CLEAN,
-                 INFECTED };
+    enum class STAGE { CLEAN,
+                       CONTAMINATED };
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
@@ -42,71 +56,48 @@ public:
 
     /// @brief Construct an empty object, flyweight is still needed
     /// @param fw The flyweight containing shared data
-    object_infection_cycle(flyweight_ptr fw)
-        : _id {}
-        , _flyweight { fw }
-        , _stage {}
-    {
-    }
+    object_infection_cycle(flyweights_ptr fw);
 
     /// @brief Construct an object infection logic
-    /// @param id The id of the agent associated with this cycle
     /// @param fw The object flyweight
+    /// @param id The id of the agent associated with this cycle
+    /// @param type The object type, i.e. chair, bed
     /// @param is The initial stage of the object
-    object_infection_cycle(const agent_id& id, flyweight_ptr fw, STAGE is)
-        : _id { id }
-        , _flyweight { fw }
-        , _stage { is }
-    {
-    }
+    object_infection_cycle(flyweights_ptr     fw,
+                           const agent_id&    id,
+                           const object_type& type,
+                           STAGE              is);
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Get the probability of infecting others
-    /// @param position The position of the other agent
-    /// @return A value between 0 and 1
-    precission get_probability(const position_t& position) const override
-    {
-        // Get the position of this object
-        const auto location = [&]() {
-            return _flyweight->space->get_continuous_location(_id);
-        }();
+    /// @brief Get the AgentId associated with this cycle
+    /// @return A reference to the agent id
+    repast::AgentId& id() override;
 
-        const auto distance = sti::sq_distance(location, position);
+    /// @brief Get the AgentId associated with this cycle
+    /// @return A reference to the agent id
+    const repast::AgentId& id() const override;
 
-        if (_stage == STAGE::CLEAN) return 0.0;
-        // Note: equality comparison of floating point values is unreliable, use
-        // inequality comparison with near-zero values.
-        // A person can only be infected by an object if it's in contact, in
-        // this case "in contact" means less than 0.2 meters.
-        if (distance >= 0.2 || distance < 0.0) return 0.0;
-        return _flyweight->infect_chance;
-    }
+    /// @brief Clean the object, removing contamination and resetting the state
+    void clean();
 
-    /// @brief Get the stage of the object infection
-    /// @return An enum, with value CLEAN or INFECTED
-    STAGE get_stage() const
-    {
-        return _stage;
-    }
+    /// @brief Get the probability of infecting humans
+    /// @param position The requesting agent position, to determine the probability
+    /// @return A value in the range [0, 1)
+    precission get_infect_probability(coordinates<double> position) const override;
 
-    /// @brief Clean the object, removing contamination
-    void clean()
-    {
-        _stage = STAGE::CLEAN;
-    }
+    /// @brief Make the object interact with a person, this can contaminate it
+    /// @param human A reference to the human infection cycle interacting with this object
+    void interact_with(const human_infection_cycle* human);
 
-    /// @brief Run the infection algorithm, polling nearby agents trying to get infected
-    void tick() final;
+    /// @brief Try to get infected with nearby/overlaping patients
+    void contaminate_with_nearby();
 
-    /// @brief Set the id
-    /// @param id The new id
-    void set_id(const agent_id& id)
-    {
-        _id = id;
-    }
+    /// @brief Get statistics about the infection
+    /// @return A Boost.JSON value containing relevant statistics
+    boost::json::value stats() const;
 
 private:
     friend class boost::serialization::access;
@@ -116,12 +107,16 @@ private:
     void serialize(Archive& ar, const unsigned int /*unused*/)
     {
         ar& _id;
+        ar& _object_type;
         ar& _stage;
+        ar& _infected_by;
     }
 
-    agent_id      _id;
-    flyweight_ptr _flyweight;
-    STAGE         _stage;
+    flyweights_ptr                                    _flyweights;
+    repast::AgentId                                   _id;
+    object_type                                       _object_type;
+    STAGE                                             _stage;
+    std::vector<std::pair<repast::AgentId, datetime>> _infected_by;
 }; // class object_infection_cycle
 
 } // namespace sti

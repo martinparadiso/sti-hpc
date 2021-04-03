@@ -4,15 +4,25 @@
 
 #include <cassert>
 #include <cstdint>
-#include <exception>
-#include <optional>
-#include <tuple>
-
-#include <repast_hpc/RepastProcess.h>
+#include <repast_hpc/AgentId.h>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/utility.hpp>
 
 #include "../clock.hpp"
-#include "../space_wrapper.hpp"
 #include "infection_cycle.hpp"
+
+// Fw. declarations
+namespace boost {
+namespace json {
+    class value;
+} // namespace json
+} // namespace boost
+
+namespace sti {
+class clock;
+class infection_environment;
+class space_wrapper;
+} // namespace sti
 
 namespace sti {
 
@@ -26,15 +36,17 @@ public:
 
     /// @brief Struct containing the shared attributes of all infection in humans
     struct flyweight {
-        sti::space_wrapper* space;
-        sti::clock*         clk;
+        const sti::space_wrapper* space {};
+        const sti::clock*         clk {};
 
-        precission infect_chance;
-        double     infect_distance;
+        precission infect_probability {};
+        precission infect_distance {};
+        precission contamination_probability {};
         timedelta  incubation_time;
     };
 
-    using flyweight_ptr = const flyweight*;
+    using flyweight_ptr   = const flyweight*;
+    using environment_ptr = const infection_environment*;
 
     ////////////////////////////////////////////////////////////////////////////
     // STAGE
@@ -49,103 +61,62 @@ public:
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Construct a human cycle with no internal state
-    human_infection_cycle(flyweight_ptr fw)
-        : _id {}
-        , _flyweight { fw }
-        , _stage {}
-        , _infection_time {}
-    {
-    }
+    /// @brief Construct an empty human cycle with no internal state
+    human_infection_cycle(flyweight_ptr fw, environment_ptr env = nullptr);
 
     /// @brief Construct a cycle starting in a given state, specifing the time of infection
+    /// @param id The id of the agent associated with this patient
     /// @param fw The flyweight containing the shared attributes
-    /// @param id The repast agent id
     /// @param stage The initial stage
-    /// @param t The time the human became infected
-    human_infection_cycle(const agent_id& id,
-                          flyweight_ptr   fw,
-                          STAGE           stage)
-        : _id { id }
-        , _flyweight { fw }
-        , _stage { stage }
-        , _infection_time {}
-    {
-    }
-
-    /// @brief Construct a cycle starting in a given state, specifing the time of infection
-    /// @param fw The flyweight containing the shared attributes
-    /// @param id The repast agent id
-    /// @param stage The initial stage
-    /// @param t The time the human became infected
-    human_infection_cycle(const agent_id& id,
-                          flyweight_ptr   fw,
-                          STAGE           stage,
-                          datetime        t)
-        : _id { id }
-        , _flyweight { fw }
-        , _stage { stage }
-        , _infection_time { t }
-    {
-        // The infection time is only applicable when the stage is not healthy
-        assert(stage != STAGE::HEALTHY);
-    }
+    /// @param infection_time The time of infection
+    /// @param env The infection environment this human resides in
+    human_infection_cycle(flyweight_ptr          fw,
+                          const repast::AgentId& id,
+                          STAGE                  stage,
+                          datetime               infection_time,
+                          environment_ptr        env = nullptr);
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Check if the current state of the infection is contagious
-    /// @return True if the person is incubating or sick
-    bool is_contagious() const
-    {
-        return _stage != STAGE::HEALTHY;
-    };
+    /// @brief Get the AgentId associated with this cycle
+    /// @return A reference to the agent id
+    repast::AgentId& id() override;
 
-    /// @brief Get the probability of infecting others
-    /// @param position The position of the other agent
-    /// @return A value between 0 and 1
-    precission get_probability(const position_t& position) const final
-    {
+    /// @brief Get the AgentId associated with this cycle
+    /// @return A reference to the agent id
+    const repast::AgentId& id() const override;
 
-        // Get the position of this object
-        const auto location = [&]() {
-            return _flyweight->space->get_continuous_location(_id);
-        }();
+    /// @brief Set the infection environment this human resides
+    /// @param env_ptr A pointer to the environment
+    void set_environment(const infection_environment* env_ptr);
 
-        const auto distance = sti::sq_distance(location, position);
+    /// @brief Get the probability of contaminating an object
+    /// @return A value in the range [0, 1)
+    precission get_contamination_probability() const;
 
-        if (_stage == STAGE::HEALTHY) return 0.0;
-        if (distance > static_cast<double>(_flyweight->infect_distance)) return 0.0;
-        return _flyweight->infect_chance;
-    }
+    /// @brief Get the probability of infecting humans
+    /// @param position The requesting agent position, to determine the distance
+    /// @return A value in the range [0, 1)
+    precission get_infect_probability(coordinates<double> position) const override;
 
-    /// @brief Get the stage of the cycle
-    /// @return An enum of type HEALTHY, INCUBATING or SICK
-    STAGE get_stage() const
-    {
-        return _stage;
-    }
+    /// @brief Try to get infected via the environment
+    void infect_with_environment();
 
-    /// @brief Get the time of infection
-    /// @return If the person was infected, the time of infection
-    std::optional<sti::datetime> get_infection_time() const
-    {
-        if (_infection_time.epoch() != 0) {
-            return _infection_time;
-        }
-        return {};
-    }
+    /// @brief Try go get infected with nearby agents
+    void infect_with_nearby();
 
-    /// @brief Run the infection algorithm, polling nearby agents trying to get infected
-    void tick() final;
+    /// @brief The infection has time-based stages, this method performs the changes
+    void tick();
 
-    /// @brief Set the id
-    /// @param id The new id
-    void set_id(const agent_id& id)
-    {
-        _id = id;
-    }
+    ////////////////////////////////////////////////////////////////////////////
+    // DATA COLLECTION
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Get statistics about the infection
+    /// @return A Boost.JSON value containing relevant statistics
+    boost::json::value stats() const;
 
 private:
     friend class boost::serialization::access;
@@ -157,12 +128,16 @@ private:
         ar& _id;
         ar& _stage;
         ar& _infection_time;
+        ar& _infected_by;
     }
 
-    agent_id      _id;
-    flyweight_ptr _flyweight;
-    STAGE         _stage;
-    datetime      _infection_time;
+    flyweight_ptr   _flyweight;
+    environment_ptr _environment;
+
+    repast::AgentId _id;
+    STAGE           _stage;
+    datetime        _infection_time;
+    std::string     _infected_by;
 }; // class human_infection_cycle
 
 } // namespace sti

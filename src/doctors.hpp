@@ -38,11 +38,11 @@ public:
 
     /// @brief Construct a doctors manager
     /// @param execution_props Execution properties stored in repast::Properties
-    /// @param simulation_props Simulation properties, from the hospital.json
+    /// @param hospital_props Hospital properties, form the JSON file
     /// @param communicator The MPI communicator
     /// @param hospital_plan The hospital plan
     doctors(repast::Properties&        execution_props,
-            const boost::json::object& simulation_props,
+            const boost::json::object& hospital_props,
             communicator_ptr           communicator,
             const hospital_plan&       hospital_plan);
 

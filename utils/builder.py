@@ -224,19 +224,26 @@ class SimulationParameters(object):
 
     required_parameters = {
         'human': {
-            'infection': {
-                'chance': float,
-                'distance': float,
-            },
-            'incubation': {
-                'time': TimePeriod
+            'infect_probability': float,
+            'infect_distance': float,
+            'contamination_probability': float,
+            'incubation_time': TimePeriod
+        },
+
+        'objects': {
+            'chair': {
+                'infect_chance': float,
+                'radius': float,
+                'cleaning_interval': TimePeriod
             }
         },
 
-        'object': {
-            'infection': {
-                'chance': float,
-                'distance': float,
+        'doctors': {},
+
+        'icu': {
+            'beds': int,
+            'environment': {
+                'infection_chance': float
             }
         },
 
@@ -252,6 +259,9 @@ class SimulationParameters(object):
             'attention_time': TimePeriod,
             'icu': {
                 'chance': float
+            },
+            'doctors_probabilities': {
+
             }
         },
 
@@ -271,13 +281,9 @@ class SimulationParameters(object):
     def add_doctor(self, specialty):
 
         # Add the required parameters: attention time and probability
-        if not 'doctors' in self.required_parameters:
-            self.required_parameters['doctors'] = {}
         self.required_parameters['doctors'][specialty] = {
             'attention_duration': TimePeriod
         }
-        if not 'doctors_probabilities' in self.required_parameters['triage']:
-            self.required_parameters['triage']['doctors_probabilities'] = {}
         self.required_parameters['triage']['doctors_probabilities'][specialty] = {
             'chance': float
         }
@@ -349,7 +355,7 @@ class SimulationParameters(object):
                         recurse(data_tree[key], param_tree[key],
                                 current_path=current_path + [key])
                     else:
-                        if isinstance(not data_tree[key], param_tree[key]):
+                        if not isinstance(data_tree[key], param_tree[key]):
                             error_msg = ('Invalid type for simulation parameter '
                                          f"""['{"']['".join(current_path + [key])}']. """
                                          f"Expected {param_tree[key].__name__} "
@@ -375,12 +381,12 @@ class PatientInflux(object):
         return self.histogram[key[0]][key[1]]
 
     def __setitem__(self, key, value):
-        if isinstance(not value, int):
+        if not isinstance(value, int):
             raise Exception('Value be an int')
         self.histogram[key[0]][key[1]] = value
 
     def new_day(self, data):
-        if isinstance(not data, list):
+        if not isinstance(data, list):
             raise Exception('Data must be a list')
 
         self.histogram.append(data)
@@ -405,6 +411,7 @@ class Hospital(object):
         # If the tile is a doctor, add it to the parameters
         if isinstance(value, Doctor):
             self.parameters.add_doctor(value.specialty)
+
         self.data[key[0]][key[1]] = value
         point = Point(key[0], key[1])
         if point.x > len(self.data) or point.y > len(self.data[0]):
@@ -488,28 +495,35 @@ hospital[9, 5] = Exit()
 
 # Set the parameters
 hospital.parameters['human'] = {
-    'infection': {
-        'chance': 0.2,
-        'distance': 2.0
+    'infect_probability': 0.8,
+    'infect_distance': 2.0,
+    'contamination_probability': 0.1,
+    'incubation_time': TimePeriod(0, 2, 0, 0)
+}
+
+hospital.parameters['objects'] = {
+    'chair': {
+        'infect_chance': 0.1,
+        'radius': 0.2,
+        'cleaning_interval': TimePeriod(0, 2, 0, 0)
     },
 
-    'incubation': {
-        'time': TimePeriod(0, 2, 0, 0)
+    'bed': {
+        'infect_chance': 0.1,
+        'radius': 0.5,
+        'cleaning_interval': TimePeriod(0, 2, 0, 0)
     }
 }
-hospital.parameters['object'] = {
-    'infection': {
-        'chance': 0.1,
-        'distance': 0.2
-    }
-}
+
 hospital.parameters['patient'] = {
     'walk_speed': 0.5,
     'infected_chance': 0.5
 }
+
 hospital.parameters['reception'] = {
     'attention_time': TimePeriod(0, 0, 15, 0)
 }
+
 hospital.parameters['triage'] = {
     'attention_time': TimePeriod(0, 0, 15, 0),
     'icu': {
@@ -524,6 +538,14 @@ hospital.parameters['triage'] = {
         }
     }
 }
+
+hospital.parameters['icu'] = {
+    'beds': 5,
+    'environment': {
+        'infection_chance': 0.01
+    }
+}
+
 hospital.parameters['doctors'] = {}
 hospital.parameters['doctors']['radiologist'] = {
     'attention_duration': TimePeriod(0, 0, 30, 0)

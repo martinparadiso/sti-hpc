@@ -7,6 +7,7 @@
 #include <repast_hpc/SharedContinuousSpace.h>
 #include <repast_hpc/GridComponents.h>
 #include <repast_hpc/SharedDiscreteSpace.h>
+#include <boost/json/object.hpp>
 
 #include "agent_package.hpp"
 #include "contagious_agent.hpp"
@@ -29,6 +30,7 @@ namespace sti {
 class agent_factory;
 class triage;
 class doctors;
+class icu;
 } // namespace sti
 
 namespace sti {
@@ -90,6 +92,11 @@ public:
     /// @brief Final function for data collection and such
     void finish();
 
+    /// @brief Remove all the agents that are still in the simulation
+    /// @details Remove all the agents in the simulation and collect their
+    /// metrics into a file
+    void remove_remnants();
+
 private:
     boost::mpi::communicator*    _communicator;
     repast::Properties*          _props;
@@ -114,6 +121,7 @@ private:
     std::unique_ptr<reception>     _reception {}; // Propertly initialized in init()
     std::unique_ptr<triage>        _triage {}; // Propertly initialized in init()
     std::unique_ptr<doctors>       _doctors {}; // Propertly initialized in init()
+    std::unique_ptr<icu> _icu{};
 
     std::unique_ptr<hospital_entry> _entry {}; // Properly initalized in init()
     std::unique_ptr<hospital_exit>  _exit {}; // Properly initalized in init()

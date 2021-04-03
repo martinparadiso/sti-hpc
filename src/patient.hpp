@@ -31,21 +31,23 @@ class doctors;
 class hospital_plan;
 class infection_factory;
 class clock;
+class icu;
 } // namespace sti
 
 namespace sti {
 
 struct patient_flyweight {
-    const sti::infection_factory*            inf_factory;
-    repast::SharedContext<contagious_agent>* context;
-    sti::space_wrapper*                      space;
-    sti::clock*                              clk;
-    sti::hospital_plan*                      hospital;
-    sti::chair_manager*                      chairs;
-    sti::reception*                          reception;
-    sti::triage*                             triage;
-    sti::doctors*                      doctors;
-    const double                             walk_speed;
+    const sti::infection_factory*            inf_factory {};
+    repast::SharedContext<contagious_agent>* context {};
+    sti::space_wrapper*                      space {};
+    sti::clock*                              clk {};
+    sti::hospital_plan*                      hospital {};
+    sti::chair_manager*                      chairs {};
+    sti::reception*                          reception {};
+    sti::triage*                             triage {};
+    sti::doctors*                            doctors {};
+    sti::icu*                                icu {};
+    const double                             walk_speed {};
     sti::timedelta                           reception_time;
     sti::timedelta                           triage_duration;
 };
@@ -128,8 +130,9 @@ public:
     /// @returns Patient
     type get_type() const final;
 
-    // TODO: Implement properly
-    boost::json::object kill_and_collect() final;
+    /// @brief Return the agent statistics as a json object
+    /// @return A Boost.JSON object containing relevant statistics
+    boost::json::object stats() const override;
 
     /// @brief Get the time the patient was admitted at the hospital
     /// @return The date (with a precission of seconds) the patient was admitted

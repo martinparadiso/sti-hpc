@@ -185,6 +185,13 @@ private:
 // OPERATORS
 ////////////////////////////////////////////////////////////////////////////////
 
+/// @brief Compare two time peridos
+/// @return True if right time is longer, false otherwise
+constexpr bool operator<(const timedelta& lho, const timedelta& rho)
+{
+    return lho.length() < rho.length();
+}
+
 /// @brief Add two timedeltas
 constexpr timedelta operator+(const timedelta& lho, const timedelta& rho)
 {

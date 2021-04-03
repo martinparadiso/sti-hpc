@@ -2,10 +2,16 @@
 /// @brief Base class for infection logics
 #pragma once
 
-#include <queue>
-#include <boost/variant.hpp>
-#include <repast_hpc/AgentId.h>
-#include <repast_hpc/Point.h>
+// Fw. declarations
+namespace repast {
+class AgentId;
+} // namespace repast
+
+namespace sti {
+template <typename T>
+struct coordinates;
+
+} // namespace sti
 
 namespace sti {
 class contagious_agent;
@@ -14,10 +20,10 @@ class contagious_agent;
 class infection_cycle {
 
 public:
-    using precission = float;
-    using distance_t = float;
+    using precission = double;
+    using distance_t = double;
     using agent_id   = repast::AgentId;
-    using position_t = repast::Point<double>;
+    using position_t = sti::coordinates<double>;
 
     infection_cycle()                       = default;
     infection_cycle(const infection_cycle&) = default;
@@ -28,13 +34,18 @@ public:
 
     virtual ~infection_cycle() = default;
 
-    /// @brief Get the probability of infecting others
-    /// @param distance The distance to the other agent, in meters
-    /// @return A value between 0 and 1
-    [[nodiscard]] virtual precission get_probability(const position_t& position) const = 0;
+    /// @brief Get the probability of infecting humans
+    /// @param position The requesting agent position, to determine the distance
+    /// @return A value in the range [0, 1)
+    [[nodiscard]] virtual precission get_infect_probability(coordinates<double> position) const = 0;
 
-    /// @brief Run the infection algorithm, polling nearby agents trying to get infected
-    virtual void tick() = 0;
+    /// @brief Get the AgentId associated with this cycle
+    /// @return A reference to the agent id
+    virtual repast::AgentId& id() = 0;
+
+    /// @brief Get the AgentId associated with this cycle
+    /// @return A reference to the agent id
+    virtual const repast::AgentId& id() const = 0;
 
 }; // class infection_cycle
 

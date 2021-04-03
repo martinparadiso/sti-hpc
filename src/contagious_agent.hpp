@@ -1,7 +1,6 @@
 /// @brief Agent capable of infecting others
 #pragma once
 
-#include <boost/json/object.hpp>
 #include <boost/variant.hpp>
 #include <cstdint>
 #include <queue>
@@ -28,15 +27,9 @@ using serial_data = std::string;
 class contagious_agent {
 
 public:
-    contagious_agent(const contagious_agent&) = default;
-    contagious_agent(contagious_agent&&)      = default;
-    contagious_agent& operator=(const contagious_agent&) = default;
-    contagious_agent& operator=(contagious_agent&&) = default;
-    virtual ~contagious_agent()                     = default;
 
     /// @brief The different type of contagious agents
     enum class type {
-        CHAIR,
         FIXED_PERSON,
         OBJECT,
         PATIENT,
@@ -52,6 +45,12 @@ public:
         : _id { id }
     {
     }
+
+    contagious_agent(const contagious_agent&) = default;
+    contagious_agent(contagious_agent&&)      = default;
+    contagious_agent& operator=(const contagious_agent&) = default;
+    contagious_agent& operator=(contagious_agent&&) = default;
+    virtual ~contagious_agent()                     = default;
 
     ////////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
@@ -113,9 +112,9 @@ public:
     /// @return A pointer to the infection logic
     virtual const infection_cycle* get_infection_logic() const = 0;
 
-    /// @brief Remove the agent from the simulation and collect the relevant data
-    /// @return A list of key-value pairs, representing output relevant data
-    virtual boost::json::object kill_and_collect() = 0;
+    /// @brief Return the agent statistics as a json object
+    /// @return A Boost.JSON object containing relevant statistics
+    virtual boost::json::object stats() const = 0;
 
 private:
     id_t _id;
@@ -138,7 +137,6 @@ struct unknown_agent_type : public std::exception {
 ///          avoid using an int as a type identifier, an enum is used and casted
 ///          to/from int when interfacing with repast.
 inline const auto agent_type_lut = std::vector {
-    contagious_agent::type::CHAIR,
     contagious_agent::type::FIXED_PERSON,
     contagious_agent::type::OBJECT,
     contagious_agent::type::PATIENT
@@ -166,6 +164,21 @@ inline contagious_agent::type to_agent_enum(int i)
     }
 
     throw unknown_agent_type {};
+}
+
+/// @brief Convert an agent enum to string
+inline std::string to_string(contagious_agent::type type)
+{
+    using E = contagious_agent::type;
+
+    switch (type) {
+    case E::FIXED_PERSON:
+        return "fixed_person";
+    case E::OBJECT:
+        return "object";
+    case E::PATIENT:
+        return "patient";
+    }
 }
 
 } // namespace sti

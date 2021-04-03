@@ -61,9 +61,14 @@ public:
     /// @brief Perform all the exit actions, must be called once by tick
     void tick();
 
-    /// @brief Perform all the finishing actions, returning the metrics
-    /// @return A string containing the serialized data and metrics
-    [[nodiscard]] boost::json::object finish();
+    ////////////////////////////////////////////////////////////////////////////
+    // SAVE STATISTICS
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Save the stadistics/metrics to a file
+    /// @param filepath The path to the folder where
+    /// @param rank The rank of the process
+    void save(const std::string& folderpath, int rank) const;
 
 private:
     repast_context_ptr    _context;

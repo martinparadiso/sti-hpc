@@ -1,6 +1,9 @@
 /// @brief Agent creation
 #pragma once
 
+#include <cstdint>
+
+#include "infection_logic/infection_factory.hpp"
 #include "object.hpp"
 #include "patient.hpp"
 #include "person.hpp"
@@ -25,21 +28,29 @@ namespace sti {
 
 /// @brief Help with the construction of agents
 /// @details Agents have a complex initialization, private and shared
-///          properties, to solve this problem a factory is used. The factory is
-///          created once with the shared properties, and every time a new agent
-///          is created the private attributes/properties must be supplied.
+/// properties, to solve this problem a factory is used. The factory is created
+/// once with the shared properties, and every time a new agent is created the
+/// private attributes/properties must be supplied.
 class agent_factory {
 
 public:
-    using agent     = contagious_agent;
-    using agent_ptr = agent*;
+    using agent       = contagious_agent;
+    using agent_ptr   = agent*;
+    using object_ptr  = object_agent*;
+    using person_ptr  = person_agent*;
+    using patient_ptr = patient_agent*;
 
     using patient_flyweight = patient_agent::flyweight;
     using person_flyweight  = person_agent::flyweight;
     using object_flyweight  = object_agent::flyweight;
 
+    using object_type = object_agent::object_type;
+
     using context_ptr = repast::SharedContext<agent>*;
-    using space_ptr   = sti::space_wrapper*;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // CONSTRUCTION
+    ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Create a new patient factory
     /// @param context A pointer to the repast context, to insert the agent
@@ -50,16 +61,18 @@ public:
     /// @param reception A pointer to the reception
     /// @param triage A pointer to the triage
     /// @param doctors A pointer to the doctors manager
-    /// @param props The JSON object containing the simulation properties
+    /// @param icu A pointer to the ICU 
+    /// @param hospital_props The JSON object containing the simulation properties
     agent_factory(context_ptr                context,
-                  space_ptr                  space,
+                  sti::space_wrapper*        space,
                   sti::clock*                clock,
                   sti::hospital_plan*        hospital_plan,
                   sti::chair_manager*        chairs,
                   sti::reception*            reception,
                   sti::triage*               triage,
                   sti::doctors*              doctors,
-                  const boost::json::object& props);
+                  sti::icu*                  icu,
+                  const boost::json::object& hospital_props);
 
     ////////////////////////////////////////////////////////////////////////////
     // PATIENT CREATION
@@ -69,15 +82,15 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_patient(coordinates<int>             pos,
-                                 human_infection_cycle::STAGE st);
+    patient_ptr insert_new_patient(const coordinates<double>&   pos,
+                                   human_infection_cycle::STAGE st);
 
     /// @brief Recreate a serialized patient, with an existing id
     /// @param id The agent id
     /// @param data The serialized data
     /// @return A pointer to the newly created object
-    agent_ptr recreate_patient(const repast::AgentId& id,
-                               serial_data&           data);
+    patient_ptr recreate_patient(const repast::AgentId& id,
+                                 serial_data&           data);
 
     ////////////////////////////////////////////////////////////////////////////
     // PERSON CREATION
@@ -87,39 +100,48 @@ public:
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_person(coordinates<int>             pos,
-                                human_infection_cycle::STAGE st);
+    person_ptr insert_new_person(const coordinates<double>&   pos,
+                                 human_infection_cycle::STAGE st);
 
     /// @brief Recreate a serialized patient, with an existing id
     /// @param id The agent id
     /// @param data The serialized data
     /// @return A pointer to the newly created object
-    agent_ptr recreate_person(const repast::AgentId& id,
-                              serial_data&           data) const;
+    person_ptr recreate_person(const repast::AgentId& id,
+                               serial_data&           data) const;
 
     ////////////////////////////////////////////////////////////////////////////
     // OBJECT CREATION
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Create a brand new patient, with a new id, insert it into the context
+    /// @brief Create a new object agent, with a new id, insert it into the context
+    /// @param type The object type, i.e. 'chair', 'bed'
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
     /// @return A raw pointer to the contagious agent created
-    agent_ptr insert_new_object(coordinates<int>              pos,
-                                object_infection_cycle::STAGE st);
+    object_ptr insert_new_object(const object_type&            type,
+                                 coordinates<double>           pos,
+                                 object_infection_cycle::STAGE st);
+
+    /// @brief Create a new object, with a new id, but no space representation
+    /// @param type The object type, i.e. 'chair', 'bed'
+    /// @param st The stage of the patient infection
+    /// @return A raw pointer to the contagious agent created
+    object_ptr insert_new_object(const object_type&            type,
+                                 object_infection_cycle::STAGE st);
 
     /// @brief Recreate a serialized patient, with an existing id
     /// @param id The agent id
     /// @param data The serialized data
     /// @return A pointer to the newly created object
-    agent_ptr recreate_object(const repast::AgentId& id,
-                              serial_data&           data) const;
+    object_ptr recreate_object(const repast::AgentId& id,
+                               serial_data&           data) const;
 
 private:
-    context_ptr _context;
-    space_ptr   _space;
-    clock*      _clock; // To indicate the patient creation time
-    unsigned    _agents_created;
+    context_ptr    _context;
+    space_wrapper* _space;
+    clock*         _clock;
+    std::uint32_t  _agents_created;
 
     // Infection factory
     infection_factory _infection_factory;

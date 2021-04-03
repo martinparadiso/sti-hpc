@@ -7,16 +7,18 @@
 #include <repast_hpc/SharedContinuousSpace.h>
 
 #include "chair_manager.hpp"
+#include "clock.hpp"
 #include "contagious_agent.hpp"
+#include "doctors.hpp"
 #include "hospital_plan.hpp"
-#include "json_serialization.hpp"
+#include "icu.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
 #include "infection_logic/object_infection_cycle.hpp"
+#include "json_serialization.hpp"
 #include "reception.hpp"
 #include "space_wrapper.hpp"
-#include "doctors.hpp"
 #include "triage.hpp"
 
 /// @brief Create a new patient factory
@@ -30,29 +32,23 @@
 /// @param doctors A pointer to the doctors queue
 /// @param props The JSON object containing the simulation properties
 sti::agent_factory::agent_factory(context_ptr                context,
-                                  space_ptr                  space,
+                                  space_wrapper*             space,
                                   sti::clock*                clock,
                                   sti::hospital_plan*        hospital_plan,
                                   sti::chair_manager*        chairs,
                                   sti::reception*            reception,
                                   sti::triage*               triage,
                                   sti::doctors*              doctors,
-                                  const boost::json::object& props)
+                                  sti::icu*                  icu,
+                                  const boost::json::object& hospital_props)
     : _context { context }
     , _space { space }
     , _clock { clock }
     , _agents_created { 0 }
     , _infection_factory {
-        human_infection_cycle::flyweight {
-            space,
-            _clock,
-            boost::json::value_to<sti::human_infection_cycle::precission>(props.at("parameters").at("human").at("infection").at("chance")),
-            boost::json::value_to<double>(props.at("parameters").at("human").at("infection").at("distance")),
-            timedelta { boost::json::value_to<timedelta>(props.at("parameters").at("human").at("incubation").at("time")) } },
-        object_infection_cycle::flyweight {
-            space,
-            boost::json::value_to<sti::infection_cycle::precission>(props.at("parameters").at("object").at("infection").at("chance")),
-            boost::json::value_to<double>(props.at("parameters").at("object").at("infection").at("distance")) }
+        hospital_props,
+        space,
+        clock
     }
     , _patient_flyweight { // clang-format off
             &_infection_factory,
@@ -64,9 +60,10 @@ sti::agent_factory::agent_factory(context_ptr                context,
             reception,
             triage,
             doctors,
-            boost::json::value_to<double>(props.at("parameters").at("patient").at("walk_speed")),
-            boost::json::value_to<timedelta>(props.at("parameters").at("reception").at("attention_time")),
-            boost::json::value_to<timedelta>(props.at("parameters").at("triage").at("attention_time"))
+            icu,
+            boost::json::value_to<double>(hospital_props.at("parameters").at("patient").at("walk_speed")),
+            boost::json::value_to<timedelta>(hospital_props.at("parameters").at("reception").at("attention_time")),
+            boost::json::value_to<timedelta>(hospital_props.at("parameters").at("triage").at("attention_time"))
         } // clang-format on
     , _person_flyweight { &_infection_factory }
     , _object_flyweight { &_infection_factory }
@@ -81,15 +78,21 @@ sti::agent_factory::agent_factory(context_ptr                context,
 /// @param pos The position where to insert the patients
 /// @param st The stage of the patient infection
 /// @return A raw pointer to the contagious agent created
-sti::agent_factory::agent_ptr sti::agent_factory::insert_new_patient(coordinates<int>             pos,
-                                                                     human_infection_cycle::STAGE st)
+sti::agent_factory::patient_ptr sti::agent_factory::insert_new_patient(
+    const coordinates<double>&   pos,
+    human_infection_cycle::STAGE st)
 {
     const auto rank = repast::RepastProcess::instance()->rank();
     const auto type = to_int(contagious_agent::type::PATIENT);
     const auto i    = static_cast<int>(_agents_created++);
     const auto id   = repast::AgentId(i, rank, type, rank);
 
-    const auto hic     = _infection_factory.make_human_cycle(id, st);
+    const auto infection_time = [&]() {
+        if (st == human_infection_cycle::STAGE::HEALTHY) return datetime {};
+        return _clock->now();
+    }();
+
+    const auto hic     = _infection_factory.make_human_cycle(id, st, infection_time);
     auto*      patient = new patient_agent { id, &_patient_flyweight, _clock->now(), hic };
 
     // Move the agent into position, add it to the repast contexts
@@ -99,12 +102,13 @@ sti::agent_factory::agent_ptr sti::agent_factory::insert_new_patient(coordinates
 
     return patient;
 }
+
 /// @brief Recreate a serialized patient, with an existing id
 /// @param id The agent id
 /// @param data The serialized data
 /// @return A pointer to the newly created object
-sti::agent_factory::agent_ptr sti::agent_factory::recreate_patient(const repast::AgentId& id,
-                                                                   serial_data&           data)
+sti::agent_factory::patient_ptr sti::agent_factory::recreate_patient(const repast::AgentId& id,
+                                                                     serial_data&           data)
 {
     auto* patient = new patient_agent { id,
                                         &_patient_flyweight };
@@ -120,21 +124,25 @@ sti::agent_factory::agent_ptr sti::agent_factory::recreate_patient(const repast:
 /// @param pos The position where to insert the patients
 /// @param st The stage of the patient infection
 /// @return A raw pointer to the contagious agent created
-sti::agent_factory::agent_ptr sti::agent_factory::insert_new_person(coordinates<int>             pos,
-                                                                    human_infection_cycle::STAGE st)
+sti::agent_factory::person_ptr sti::agent_factory::insert_new_person(const coordinates<double>&   pos,
+                                                                     human_infection_cycle::STAGE st)
 {
     const auto rank = repast::RepastProcess::instance()->rank();
     const auto type = to_int(contagious_agent::type::FIXED_PERSON);
     const auto i    = static_cast<int>(_agents_created++);
     const auto id   = repast::AgentId(i, rank, type, rank);
 
-    const auto hic    = _infection_factory.make_human_cycle(id, st);
+    const auto infection_time = [&]() {
+        if (st == human_infection_cycle::STAGE::HEALTHY) return datetime {};
+        return _clock->now();
+    }();
+
+    const auto hic    = _infection_factory.make_human_cycle(id, st, infection_time);
     auto*      person = new person_agent { id, &_person_flyweight, hic };
 
     // Move the agent into position, add it to the repast contexts
     _context->addAgent(person);
-    const auto loc = repast::Point<int> { static_cast<int>(pos.x), static_cast<int>(pos.y) };
-    _space->move_to(id, loc);
+    _space->move_to(id, pos);
 
     return person;
 }
@@ -143,8 +151,8 @@ sti::agent_factory::agent_ptr sti::agent_factory::insert_new_person(coordinates<
 /// @param id The agent id
 /// @param data The serialized data
 /// @return A pointer to the newly created object
-sti::agent_factory::agent_ptr sti::agent_factory::recreate_person(const repast::AgentId& id,
-                                                                  serial_data&           data) const
+sti::agent_factory::person_ptr sti::agent_factory::recreate_person(const repast::AgentId& id,
+                                                                   serial_data&           data) const
 {
     auto* person = new person_agent { id,
                                       &_person_flyweight };
@@ -156,25 +164,49 @@ sti::agent_factory::agent_ptr sti::agent_factory::recreate_person(const repast::
 // OBJECT CREATION
 ////////////////////////////////////////////////////////////////////////////
 
-/// @brief Create a brand new patient, with a new id, insert it into the context
+/// @brief Create a new object agent, with a new id, insert it into the context
+/// @param type The object type, i.e. 'chair', 'bed'
 /// @param pos The position where to insert the patients
 /// @param st The stage of the patient infection
 /// @return A raw pointer to the contagious agent created
-sti::agent_factory::agent_ptr sti::agent_factory::insert_new_object(coordinates<int>              pos,
-                                                                    object_infection_cycle::STAGE st)
+sti::agent_factory::object_ptr sti::agent_factory::insert_new_object(
+    const object_type&            type,
+    coordinates<double>           pos,
+    object_infection_cycle::STAGE st)
 {
-    const auto rank = repast::RepastProcess::instance()->rank();
-    const auto type = to_int(contagious_agent::type::OBJECT);
-    const auto i    = static_cast<int>(_agents_created++);
-    const auto id   = repast::AgentId(i, rank, type, rank);
+    const auto rank        = repast::RepastProcess::instance()->rank();
+    const auto repast_type = to_int(contagious_agent::type::OBJECT);
+    const auto i           = static_cast<int>(_agents_created++);
+    const auto id          = repast::AgentId(i, rank, repast_type, rank);
 
-    const auto hic    = _infection_factory.make_object_cycle(id, st);
-    auto*      object = new object_agent { id, &_object_flyweight, hic };
+    const auto hic    = _infection_factory.make_object_cycle(type, id, st);
+    auto*      object = new object_agent { id, type, &_object_flyweight, hic };
 
     // Move the agent into position, add it to the repast contexts
     _context->addAgent(object);
-    const auto loc = repast::Point<int> { static_cast<int>(pos.x), static_cast<int>(pos.y) };
-    _space->move_to(id, loc);
+    _space->move_to(id, pos);
+
+    return object;
+}
+
+/// @brief Create a new object, with a new id, but no space representation
+/// @param type The object type, i.e. 'chair', 'bed'
+/// @param st The stage of the patient infection
+/// @return A raw pointer to the contagious agent created
+sti::agent_factory::object_ptr sti::agent_factory::insert_new_object(
+    const object_type&            type,
+    object_infection_cycle::STAGE st)
+{
+    const auto rank        = repast::RepastProcess::instance()->rank();
+    const auto repast_type = to_int(contagious_agent::type::OBJECT);
+    const auto i           = static_cast<int>(_agents_created++);
+    const auto id          = repast::AgentId(i, rank, repast_type, rank);
+
+    const auto hic    = _infection_factory.make_object_cycle(type, id, st);
+    auto*      object = new object_agent { id, type, &_object_flyweight, hic };
+
+    // Move the agent into position, add it to the repast contexts
+    _context->addAgent(object);
 
     return object;
 }
@@ -183,8 +215,8 @@ sti::agent_factory::agent_ptr sti::agent_factory::insert_new_object(coordinates<
 /// @param id The agent id
 /// @param data The serialized data
 /// @return A pointer to the newly created object
-sti::agent_factory::agent_ptr sti::agent_factory::recreate_object(const repast::AgentId& id,
-                                                                  serial_data&           data) const
+sti::agent_factory::object_ptr sti::agent_factory::recreate_object(const repast::AgentId& id,
+                                                                   serial_data&           data) const
 {
     auto* object = new object_agent { id,
                                       &_object_flyweight };

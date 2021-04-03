@@ -4,15 +4,29 @@
 
 #include <boost/json.hpp>
 #include <repast_hpc/Point.h>
+#include <repast_hpc/AgentId.h>
 #include <sstream>
+#include <string>
 
 #include "clock.hpp"
 #include "model.hpp"
 #include "hospital_plan.hpp"
+#include "contagious_agent.hpp"
 
 namespace sti {
 
-// To JSON
+////////////////////////////////////////////////////////////////////////////////
+// TO STRING
+////////////////////////////////////////////////////////////////////////////////
+
+inline std::string to_string(const repast::AgentId& id)
+{
+    return std::to_string(id.id()) + "." + std::to_string(id.startingRank()) + "." + std::to_string(id.agentType());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// TO JSON
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
 void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const coordinates<T>& c)
@@ -25,23 +39,15 @@ void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, 
 
 inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const timedelta& td)
 {
-    const auto& human = td.human();
-    jv                = {
-        { "days", human.days },
-        { "hours", human.hours },
-        { "minutes", human.minutes },
-        { "seconds", human.seconds }
+    jv = {
+        { "time", td.length() }
     };
 }
 
 inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const datetime& td)
 {
-    const auto& human = td.human();
     jv                = {
-        { "day", human.days },
-        { "hour", human.hours },
-        { "minute", human.minutes },
-        { "second", human.seconds }
+        { "time", td.epoch() }
     };
 }
 
@@ -91,3 +97,15 @@ inline timedelta tag_invoke(const boost::json::value_to_tag<timedelta>& /*unused
 }
 
 } // namespace sti
+
+namespace repast {
+
+inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const AgentId& id)
+{
+    auto os = std::ostringstream {};
+    os << id;
+    jv = {
+        { "id", os.str() }
+    };
+}
+}

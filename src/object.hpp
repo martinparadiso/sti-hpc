@@ -19,6 +19,8 @@ namespace sti {
 class object_agent final : public contagious_agent {
 
 public:
+    using object_type = std::string;
+
     ////////////////////////////////////////////////////////////////////////////
     // FLYWEIGHT
     ////////////////////////////////////////////////////////////////////////////
@@ -36,24 +38,18 @@ public:
 
     /// @brief Create a new object
     /// @param id The repast id associated with this agent
+    /// @param type The object type, i.e.
     /// @param fw Flyweight containing shared information
     /// @param oic The infection logic
-    object_agent(const id_t& id, flyweight_ptr fw, const object_infection_cycle& oic)
-        : contagious_agent { id }
-        , _flyweight { fw }
-        , _infection_logic { oic }
-    {
-    }
+    object_agent(const id_t&                   id,
+                 const object_type&            type,
+                 flyweight_ptr                 fw,
+                 const object_infection_cycle& oic);
 
     /// @brief Create an object with no internal data
     /// @param id The agent id
     /// @param fw Object flyweight
-    object_agent(const id_t& id, flyweight_ptr fw)
-        : contagious_agent { id }
-        , _flyweight { fw }
-        , _infection_logic { fw->inf_factory->make_object_cycle() }
-    {
-    }
+    object_agent(const id_t& id, flyweight_ptr fw);
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
@@ -61,28 +57,11 @@ public:
 
     /// @brief Serialize the agent state into a string using Boost.Serialization
     /// @return A string with the serialized data
-    serial_data serialize() override
-    {
-        auto ss = std::stringstream {};
-        { // Used to make sure the stream is flushed
-            auto oa = boost::archive::text_oarchive { ss };
-            oa << (*this);
-        }
-        return ss.str();
-    }
+    serial_data serialize() override;
 
     /// @brief Reconstruct the agent state from a string using Boost.Serialization
     /// @param data The serialized data
-    void serialize(const id_t& id, const serial_data& data) override
-    {
-        contagious_agent::id(id);
-        auto ss = std::stringstream {};
-        ss << data;
-        { // Used to make sure the stream is flushed
-            auto ia = boost::archive::text_iarchive { ss };
-            ia >> (*this);
-        }
-    }
+    void serialize(const id_t& id, const serial_data& data) override;
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -90,27 +69,23 @@ public:
 
     /// @brief Get the type of this agent
     /// @return The type of the agent
-    type get_type() const override
-    {
-        return type::OBJECT;
-    }
+    type get_type() const override;
 
     /// @brief Perform the actions this agents is suppossed to
-    void act() override
-    {
-        _infection_logic.tick();
-    }
+    void act() override;
+
+    /// @brief Get the infection logic
+    /// @return A const pointer to the infection logic
+    const infection_cycle* get_infection_logic() const override;
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
-    const infection_cycle* get_infection_logic() const override
-    {
-        return &_infection_logic;
-    }
+    object_infection_cycle* get_object_infection_logic();
 
-    // TODO: Implement properly
-    boost::json::object kill_and_collect() final;
-
+    /// @brief Return the agent statistics as a json object
+    /// @return A Boost.JSON object containing relevant statistics
+    boost::json::object stats() const override;
+    
 private:
     friend class boost::serialization::access;
 
@@ -118,10 +93,13 @@ private:
     template <class Archive>
     void serialize(Archive& ar, const unsigned int /*unused*/)
     {
+        ar& _object_type;
         ar& _infection_logic;
     }
 
-    flyweight_ptr          _flyweight;
+    flyweight_ptr _flyweight;
+
+    object_type            _object_type;
     object_infection_cycle _infection_logic;
 }; // class object_agent
 

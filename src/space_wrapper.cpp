@@ -7,6 +7,7 @@
 #include <repast_hpc/Properties.h>
 #include <sstream>
 
+#include "coordinates.hpp"
 #include "hospital_plan.hpp"
 #include "contagious_agent.hpp"
 
@@ -83,10 +84,8 @@ sti::space_wrapper::continuous_point sti::space_wrapper::get_continuous_location
 std::vector<sti::space_wrapper::agent*> sti::space_wrapper::agents_around(continuous_point p,
                                                                           double           r) const
 {
-    const auto cell = repast::Point<int> {
-        static_cast<int>(p.getX()),
-        static_cast<int>(p.getY())
-    };
+
+    const auto cell  = p.discrete();
     const auto range = static_cast<int>(std::ceil(r));
 
     // Coarse search
@@ -127,10 +126,7 @@ std::vector<sti::space_wrapper::agent*> sti::space_wrapper::agents_in_cell(const
 sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repast::AgentId& id, const discrete_point& cell, space_unit d)
 {
 
-    auto target_point = repast::Point<double> {
-        static_cast<double>(cell.getX() + 0.5),
-        static_cast<double>(cell.getY() + 0.5)
-    };
+    auto target_point = cell.continuous();
 
     return move_towards(id, target_point, d);
 }
@@ -145,15 +141,15 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repa
     const auto agent_pt = [&]() {
         auto buf = std::vector<double> {};
         _continuous_space->getLocation(id, buf);
-        return repast::Point<double> {
+        return coordinates<double> {
             buf.at(0),
             buf.at(1)
         };
     }();
 
     // Calculate the distance in each axis
-    auto x = point.getX() - agent_pt.getX();
-    auto y = point.getY() - agent_pt.getY();
+    const auto diff_vector = point - agent_pt;
+    auto [x, y]            = diff_vector;
 
     // Calculate the length of the vector
     const auto length = std::sqrt(x * x + y * y);
@@ -169,10 +165,8 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repa
     x *= d / length;
     y *= d / length;
 
-    const auto new_point = repast::Point<double> {
-        agent_pt.getX() + x,
-        agent_pt.getY() + y
-    };
+    const auto aux       = sti::coordinates<double> { x, y };
+    const auto new_point = agent_pt + aux;
 
     return move_to(id, new_point);
 }
@@ -184,10 +178,7 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_towards(const repa
 sti::space_wrapper::continuous_point sti::space_wrapper::move_to(const repast::AgentId& id, const continuous_point& point)
 {
 
-    const auto cell = repast::Point<int> {
-        static_cast<int>(point.getX()),
-        static_cast<int>(point.getY())
-    };
+    const auto cell = point.discrete();
 
     _discrete_space->moveTo(id, cell);
     _continuous_space->moveTo(id, point);
@@ -203,10 +194,7 @@ sti::space_wrapper::continuous_point sti::space_wrapper::move_to(const repast::A
 /// @return The agent new effective location
 sti::space_wrapper::continuous_point sti::space_wrapper::move_to(const repast::AgentId& id, const discrete_point& cell)
 {
-    auto point = repast::Point<double> {
-        static_cast<double>(cell.getX()) + 0.5,
-        static_cast<double>(cell.getY()) + 0.5
-    };
+    auto point = cell.continuous();
 
     _discrete_space->moveTo(id, cell);
     _continuous_space->moveTo(id, point);
@@ -232,9 +220,6 @@ void sti::space_wrapper::balance()
 /// @return The distance between the points
 double sti::sq_distance(const space_wrapper::continuous_point& lho, const space_wrapper::continuous_point& rho)
 {
-    const auto diff = repast::Point<double> {
-        lho.getX() - rho.getX(),
-        lho.getY() - rho.getY()
-    };
-    return sqrt(diff.getX() * diff.getX() + diff.getY() * diff.getY());
+    const auto diff = lho - rho;
+    return sqrt(diff.x * diff.x + diff.y * diff.y);
 }

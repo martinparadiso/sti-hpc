@@ -1,4 +1,5 @@
 #include "patient.hpp"
+
 #include <repast_hpc/Point.h>
 
 #include "chair_manager.hpp"
@@ -8,7 +9,6 @@
 #include "reception.hpp"
 #include "space_wrapper.hpp"
 #include "triage.hpp"
-
 
 ////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
@@ -26,7 +26,7 @@ sti::patient_agent::patient_agent(const id_t&                  id,
     , _flyweight { fw }
     , _entry_time { entry_time }
     , _infection_logic { hic }
-    , _fsm{_flyweight, this}
+    , _fsm { _flyweight, this }
 {
 }
 
@@ -39,7 +39,7 @@ sti::patient_agent::patient_agent(const id_t& id, flyweight_ptr fw)
     , _flyweight { fw }
     , _entry_time {}
     , _infection_logic { fw->inf_factory->make_human_cycle() }
-    , _fsm{_flyweight, this}
+    , _fsm { _flyweight, this }
 {
 }
 
@@ -56,43 +56,20 @@ sti::patient_agent::type sti::patient_agent::get_type() const
     return contagious_agent::type::PATIENT;
 }
 
-// TODO: Implement properly
-boost::json::object sti::patient_agent::kill_and_collect()
+/// @brief Return the agent statistics as a json object
+/// @return A Boost.JSON object containing relevant statistics
+boost::json::object sti::patient_agent::stats() const
 {
-    auto output = boost::json::object {};
 
-    output = {
+    return {
+        { "id", to_string(getId()) },
         { "type", "patient" },
-        { "entry_time", boost::json::value_from(_entry_time) },
-        { "path", boost::json::value_from(_path) },
-        { "infection_time", boost::json::value_from((*_infection_logic.get_infection_time())) }
+        { "entry_time", _entry_time.epoch() },
+        { "path", _path },
+        { "infection", _infection_logic.stats() },
+        { "exit_time", _flyweight->clk->now().epoch() },
+        { "last_state", _fsm._last_state }
     };
-
-    const auto& stage_str = [&]() {
-        const auto& stage = _infection_logic.get_stage();
-
-        switch (stage) {
-        case human_infection_cycle::STAGE::HEALTHY:
-            return "healthy";
-        case human_infection_cycle::STAGE::INCUBATING:
-            return "incubating";
-        case human_infection_cycle::STAGE::SICK:
-            return "sick";
-        }
-    }();
-    output["final_stage"] = stage_str;
-    output["exit_time"]   = boost::json::value_from(_flyweight->clk->now());
-
-    // output["chair_assigned"]       = boost::json::value_from(_chair_assigned);
-    // output["reception_leave_time"] = boost::json::value_from(_reception_time);
-    // output["reception_box"]        = boost::json::value_from(_reception_assigned);
-    output["final_state"] = _fsm._last_state;
-
-    // Remove from simulation
-    _flyweight->space->remove_agent(this);
-    _flyweight->context->removeAgent(this);
-
-    return output;
 }
 
 /// @brief Get the time the patient was admitted at the hospital
@@ -112,6 +89,8 @@ const sti::infection_cycle* sti::patient_agent::get_infection_logic() const
 /// @brief Execute the patient logic, both infection and behaviour
 void sti::patient_agent::act()
 {
+    _infection_logic.infect_with_environment();
+    _infection_logic.infect_with_nearby();
     _infection_logic.tick();
     _fsm.tick();
 }

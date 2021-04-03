@@ -44,6 +44,16 @@ struct coordinates {
         };
     }
 
+    /// @brief Cast a discrete coordinates to double
+    coordinates<int> discrete() const
+    {
+        static_assert(std::is_same_v<double, T>, "Can't convert from int to int");
+        return {
+            static_cast<int>(x),
+            static_cast<int>(y)
+        };
+    }
+
     // Serialization
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int /*unused*/)
@@ -53,22 +63,33 @@ struct coordinates {
     }
 };
 
-} // namespace sti
 
 template <typename T>
-bool operator==(const sti::coordinates<T>& lo, const sti::coordinates<T>& ro)
+coordinates<T> operator+(const coordinates<T>& lo, const coordinates<T>& ro)
+{
+    return { lo.x + ro.x, lo.y + ro.y };
+}
+
+template <typename T>
+coordinates<T> operator-(const coordinates<T>& lo, const coordinates<T>& ro)
+{
+    return { lo.x - ro.x, lo.y - ro.y };
+}
+
+template <typename T>
+bool operator==(const coordinates<T>& lo, const coordinates<T>& ro)
 {
     return lo.x == ro.x && lo.y == ro.y;
 }
 
 template <typename T>
-bool operator!=(const sti::coordinates<T>& lo, const sti::coordinates<T>& ro)
+bool operator!=(const coordinates<T>& lo, const coordinates<T>& ro)
 {
     return !(lo == ro);
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const sti::coordinates<T>& c)
+std::ostream& operator<<(std::ostream& os, const coordinates<T>& c)
 {
     os << "["
        << c.x
@@ -77,3 +98,5 @@ std::ostream& operator<<(std::ostream& os, const sti::coordinates<T>& c)
        << "]";
     return os;
 }
+
+} // namespace sti

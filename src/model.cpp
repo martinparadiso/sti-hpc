@@ -1,3 +1,4 @@
+#include <boost/json/array.hpp>
 #include <boost/json/parse.hpp>
 #include <boost/json/serialize.hpp>
 #include <boost/lexical_cast.hpp>
@@ -21,6 +22,7 @@
 #include <repast_hpc/Utilities.h>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "agent_factory.hpp"
 #include "agent_package.hpp"
@@ -42,6 +44,7 @@
 #include "triage.hpp"
 #include "patient.hpp"
 #include "reception.hpp"
+#include "icu.hpp"
 
 namespace {
 auto now_in_ns()
@@ -76,6 +79,10 @@ void sti::process_metrics::save(const std::string& folder, int process) const
              << "\n";
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// CONSTRUCTION
+////////////////////////////////////////////////////////////////////////////////
 
 sti::model::model(const std::string& props_file, int argc, char** argv, boost::mpi::communicator* comm)
     : _communicator { comm }
@@ -116,6 +123,7 @@ void sti::model::init()
     _reception.reset(new reception { *_props, _communicator, _hospital });
     _triage.reset(new triage { *_props, _hospital_props, _communicator, _clock.get(), _hospital });
     _doctors = std::make_unique<doctors>(*_props, _hospital_props, _communicator, _hospital);
+    _icu.reset(make_icu(_communicator, *_props, _hospital_props, _hospital, &_spaces, _clock.get()));
 
     // Create the agent factory
     _agent_factory.reset(new agent_factory { &_context,
@@ -126,6 +134,7 @@ void sti::model::init()
                                              _reception.get(),
                                              _triage.get(),
                                              _doctors.get(),
+                                             _icu.get(),
                                              _hospital_props });
 
     // Create the package provider and receiver
@@ -164,12 +173,9 @@ void sti::model::init()
     }
 
     // Create chairs (if the chair is in the local space)
-    const auto& chairs = _hospital.chairs();
-    for (const auto& chair : chairs) {
-        const auto& [x, y]   = chair.location;
-        const auto chair_loc = repast::Point<int>(static_cast<int>(x), static_cast<int>(y));
-        if (_spaces.local_dimensions().contains(chair_loc)) {
-            _agent_factory->insert_new_object({ x, y }, object_infection_cycle::STAGE::CLEAN);
+    for (const auto& chair : _hospital.chairs()) {
+        if (_spaces.local_dimensions().contains(chair.location)) {
+            _agent_factory->insert_new_object("chair", chair.location.continuous(), object_infection_cycle::STAGE::CLEAN);
         }
     }
 
@@ -179,16 +185,17 @@ void sti::model::init()
 
     for (const auto& doctor : doctors) {
         if (_spaces.local_dimensions().contains(doctor.location)) {
-            // TODO: Issue #51
-            _agent_factory->insert_new_person(doctor.location, human_infection_cycle::STAGE::HEALTHY);
+            _agent_factory->insert_new_person(doctor.location.continuous(), human_infection_cycle::STAGE::HEALTHY);
         }
     }
     for (const auto& receptionist : receptionits) {
         if (_spaces.local_dimensions().contains(receptionist.location)) {
-            // TODO: Issue #51
-            _agent_factory->insert_new_person(receptionist.location, human_infection_cycle::STAGE::HEALTHY);
+            _agent_factory->insert_new_person(receptionist.location.continuous(), human_infection_cycle::STAGE::HEALTHY);
         }
     }
+
+    // Create the beds
+    _icu->create_beds(*_agent_factory);
 
     // Preallocate the metrics vector
     _pmetrics.values.reserve(static_cast<decltype(_pmetrics.values)::size_type>(_stop_at));
@@ -221,6 +228,7 @@ void sti::model::tick()
     _reception->sync();
     _triage->sync();
     _doctors->queues()->sync();
+    _icu->sync();
     new_metric.mpi_sync_ns = now_in_ns() - pre_mpi_time;
 
     const auto pre_rhpc_time = now_in_ns();
@@ -231,15 +239,9 @@ void sti::model::tick()
     new_metric.rhpc_sync_ns = now_in_ns() - pre_rhpc_time;
 
     const auto pre_logic_time = now_in_ns();
-    // Check if agents are pending creation
-    if (_entry) {
-        _entry->generate_patients();
-    }
-
-    // Check if agents are pending exit
-    if (_exit) {
-        _exit->tick();
-    }
+    if (_entry) _entry->generate_patients();
+    if (_exit) _exit->tick();
+    _icu->tick();
 
     // Iterate over all the agents to perform their actions
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
@@ -262,10 +264,7 @@ void sti::model::finish()
         _props->writeToSVFile("./output/results.csv", key_oder);
     }
     if (_exit) {
-        const auto& data      = _exit->finish();
-        auto        exit_file = std::ofstream { "../output/exit.json" };
-        exit_file << data;
-        exit_file.close();
+        _exit->save("../output", _rank);
     }
 
     // Transmit the entry information
@@ -275,9 +274,39 @@ void sti::model::finish()
         entry_file << data;
     }
 
-    // Save the triage statistics
     _triage->save("../output");
-
-    // Save the process metrics
+    _icu->save("../output");
     _pmetrics.save("../output", _communicator->rank());
+
+    // Remove the remaining agents
+    // Iterate over all the agents to perform their actions
+    remove_remnants();
+}
+
+/// @brief Remove all the agents that are still in the simulation
+/// @details Remove all the agents in the simulation and collect their
+/// metrics into a file
+void sti::model::remove_remnants()
+{
+    auto to_remove = std::vector<repast::AgentId> {};
+
+    auto output = boost::json::array {};
+    for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
+        output.push_back((**it).stats());
+        to_remove.push_back((**it).getId());
+    }
+
+    for (const auto& id : to_remove) {
+        _context.removeAgent(id);
+    }
+
+    auto os = std::ostringstream {};
+    os << "../output"
+       << "/agents_in_process_"
+       << _communicator->rank()
+       << ".json";
+
+    auto file = std::ofstream { os.str() };
+
+    file << output;
 }

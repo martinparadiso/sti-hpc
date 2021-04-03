@@ -8,6 +8,7 @@ chair.manager.rank = 0
 reception.manager.rank = 0
 triage.manager.rank = 0
 doctors.manager.rank = 0
+icu.manager.rank = 0
 
 # Simulation
 seconds.per.tick = 60

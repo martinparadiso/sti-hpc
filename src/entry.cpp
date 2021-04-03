@@ -24,14 +24,14 @@ sti::hospital_entry::hospital_entry(sti::coordinates<int>                 locati
     , _clock { clock }
     , _patient_distribution(std::move(patient_admissions))
     , _generated_patients { boost::histogram::make_histogram(
-          patient_distribution::axis_t(0, _patient_distribution->days(), "day"),
+          patient_distribution::axis_t(0, static_cast<unsigned>(_patient_distribution->days()), "day"),
           patient_distribution::axis_t(0, _patient_distribution->intervals(), "interval")) }
     // The length of the interval is the number of seconds in a day divided
     // by the number of intervals
     , _interval_length { (24 * 60 * 60) / _patient_distribution->intervals() }
     , _agent_factory { factory }
     , _infected_chance {
-        boost::json::value_to<decltype(human_infection_cycle::flyweight::infect_chance)>(props.at("parameters").at("patient").at("infected_chance"))
+        props.at("parameters").at("patient").at("infected_chance").as_double()
     }
 {
 }
@@ -66,7 +66,7 @@ std::uint64_t sti::hospital_entry::patients_waiting()
         return 1 + bin_offset / rate;
     }();
 
-    const auto agents_waiting = expected - static_cast<std::uint64_t>(_generated_patients.at(day, bin));
+    const auto agents_waiting = expected - static_cast<std::uint64_t>(_generated_patients.at(static_cast<int>(day), bin));
 
     // Increase the number of agents created and return the value
     _generated_patients(day, bin, boost::histogram::weight(agents_waiting));
@@ -102,7 +102,7 @@ void sti::hospital_entry::generate_patients()
 
         const auto random = repast::Random::instance()->nextDouble();
         const auto stage  = _infected_chance > random ? STAGES::SICK : STAGES::HEALTHY;
-        _agent_factory->insert_new_patient(_location, stage);
+        _agent_factory->insert_new_patient(_location.continuous(), stage);
     }
 }
 

@@ -36,21 +36,11 @@ public:
     /// @brief Construct a new person
     /// @param fw The flyweight containing the shared attributes
     /// @param hic The infection logic
-    person_agent(const id_t& id, const flyweight* fw, const human_infection_cycle& hic)
-        : contagious_agent { id }
-        , _flyweight { fw }
-        , _infection_logic { hic }
-    {
-    }
+    person_agent(const id_t& id, const flyweight* fw, const human_infection_cycle& hic);
 
     /// @brief Create an empty person
     /// @param fw The agent flyweight
-    person_agent(const id_t& id, const flyweight* fw)
-        : contagious_agent {id  }
-        , _flyweight { fw }
-        , _infection_logic { fw->inf_factory->make_human_cycle() }
-    {
-    }
+    person_agent(const id_t& id, const flyweight* fw);
 
     ////////////////////////////////////////////////////////////////////////////
     // SERIALIZATION
@@ -58,28 +48,11 @@ public:
 
     /// @brief Serialize the agent state into a string using Boost.Serialization
     /// @return A string with the serialized data
-    serial_data serialize() override
-    {
-        auto ss = std::stringstream {};
-        { // Used to make sure the stream is flushed
-            auto oa = boost::archive::text_oarchive { ss };
-            oa << (*this);
-        }
-        return ss.str();
-    }
+    serial_data serialize() override;
 
     /// @brief Reconstruct the agent state from a string using Boost.Serialization
     /// @param data The serialized data
-    void serialize(const id_t& id, const serial_data& data) override
-    {
-        contagious_agent::id(id);
-        auto ss = std::stringstream {};
-        ss << data;
-        { // Used to make sure the stream is flushed
-            auto ia = boost::archive::text_iarchive { ss };
-            ia >> (*this);
-        }
-    }
+    void serialize(const id_t& id, const serial_data& data) override;
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -87,26 +60,18 @@ public:
 
     /// @brief Get the type of this agent
     /// @return The type of the agent
-    type get_type() const final
-    {
-        return type::FIXED_PERSON;
-    }
+    type get_type() const override;
 
     /// @brief Perform the actions this agent is supposed to
-    void act() final
-    {
-        _infection_logic.tick();
-    }
+    void act() final;
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
-    const infection_cycle* get_infection_logic() const final
-    {
-        return &_infection_logic;
-    }
+    const infection_cycle* get_infection_logic() const override;
 
-    // TODO: Implement properly
-    boost::json::object kill_and_collect() override;
+    /// @brief Return the agent statistics as a json object
+    /// @return A Boost.JSON object containing relevant statistics
+    boost::json::object stats() const override;
 
 private:
     friend class boost::serialization::access;

@@ -9,18 +9,13 @@
 #include <repast_hpc/SharedDiscreteSpace.h>
 #include <vector>
 
-// #include "contagious_agent.hpp"
+#include "coordinates.hpp"
 
 // Forward declarations of repast classes
 namespace repast {
 
 class Properties;
-
-template <typename T>
-class Point;
-
 class AgentId;
-
 class GridDimensions;
 }
 
@@ -43,8 +38,8 @@ public:
 
     using space_unit = double;
     /// @brief Pair of values representing a point in space
-    using continuous_point = repast::Point<double>;
-    using discrete_point   = repast::Point<int>;
+    using continuous_point = sti::coordinates<double>;
+    using discrete_point   = sti::coordinates<int>;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION

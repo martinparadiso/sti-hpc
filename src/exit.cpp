@@ -1,6 +1,7 @@
 #include "exit.hpp"
 
 #include <boost/json.hpp>
+#include <fstream>
 #include <repast_hpc/AgentId.h>
 #include <ostream>
 #include <sstream>
@@ -13,7 +14,7 @@
 
 /// @brief Pointer to implementation struct
 struct sti::hospital_exit::impl {
-    boost::json::object agent_output_data;
+    boost::json::array agent_output_data;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -52,16 +53,29 @@ void sti::hospital_exit::tick()
 
     // Remove all the agents in the exit position
     for (const auto& agent : agents) {
-        const auto& id   = agent->getId();
-        const auto& data = agent->kill_and_collect();
-        auto        os   = std::ostringstream {};
-        os << id;
-        _pimpl->agent_output_data[os.str()] = data;
+        const auto& data = agent->stats();
+        _pimpl->agent_output_data.push_back(data);
+        _space->remove_agent(agent);
+        _context->removeAgent(agent);
     }
 }
 
-/// @brief Perform all the finishing actions, saving data and such
-boost::json::object sti::hospital_exit::finish()
+////////////////////////////////////////////////////////////////////////////
+// SAVE STATISTICS
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Save the stadistics/metrics to a file
+/// @param filepath The path to the folder where
+    /// @param rank The rank of the process
+void sti::hospital_exit::save(const std::string& folderpath, int rank) const
 {
-    return _pimpl->agent_output_data;
+    auto os = std::ostringstream{};
+    os << folderpath
+       << "/exit_in_process_"
+       << rank
+       << ".json";
+
+    auto file = std::ofstream{os.str()};
+
+    file << _pimpl->agent_output_data;
 }

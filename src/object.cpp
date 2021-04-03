@@ -1,23 +1,109 @@
 #include "object.hpp"
 
-// TODO: Implement properly
-boost::json::object sti::object_agent::kill_and_collect()
+#include <boost/json/object.hpp>
+
+#include "infection_logic/object_infection_cycle.hpp"
+#include "json_serialization.hpp"
+
+////////////////////////////////////////////////////////////////////////////
+// CONSTRUCTION
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Create a new object
+/// @param id The repast id associated with this agent
+/// @param type The object type, i.e.
+/// @param fw Flyweight containing shared information
+/// @param oic The infection logic
+sti::object_agent::object_agent(const id_t&                   id,
+                                const object_type&            type,
+                                flyweight_ptr                 fw,
+                                const object_infection_cycle& oic)
+    : contagious_agent { id }
+    , _flyweight { fw }
+    , _object_type { type }
+    , _infection_logic { oic }
 {
-    auto output = boost::json::object {};
-    output["type"] = "object";
+}
 
-    const auto& stage_str = [&]() {
-        const auto& stage = _infection_logic.get_stage();
+/// @brief Create an object with no internal data
+/// @param id The agent id
+/// @param type The object type, i.e.
+/// @param fw Object flyweight
+sti::object_agent::object_agent(const id_t& id, flyweight_ptr fw)
+    : contagious_agent { id }
+    , _flyweight { fw }
+    , _object_type {}
+    , _infection_logic { fw->inf_factory->make_object_cycle() }
+{
+}
 
-        switch (stage) {
-        case object_infection_cycle::STAGE::CLEAN:
-            return "clean";
-        case object_infection_cycle::STAGE::INFECTED:
-            return "infected";
-        }
-    }();
+////////////////////////////////////////////////////////////////////////////
+// SERIALIZATION
+////////////////////////////////////////////////////////////////////////////
 
-    output["stage"] = stage_str;
+/// @brief Serialize the agent state into a string using Boost.Serialization
+/// @return A string with the serialized data
+sti::serial_data sti::object_agent::serialize()
+{
+    auto ss = std::stringstream {};
+    { // Used to make sure the stream is flushed
+        auto oa = boost::archive::text_oarchive { ss };
+        oa << (*this);
+    }
+    return ss.str();
+}
 
-    return output;
+/// @brief Reconstruct the agent state from a string using Boost.Serialization
+/// @param data The serialized data
+void sti::object_agent::serialize(const id_t& id, const serial_data& data)
+{
+    contagious_agent::id(id);
+    auto ss = std::stringstream {};
+    ss << data;
+    { // Used to make sure the stream is flushed
+        auto ia = boost::archive::text_iarchive { ss };
+        ia >> (*this);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////
+// BEHAVIOUR
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Get the type of this agent
+/// @return The type of the agent
+sti::object_agent::type sti::object_agent::get_type() const
+{
+    return type::OBJECT;
+}
+
+/// @brief Perform the actions this agents is suppossed to
+void sti::object_agent::act()
+{
+    _infection_logic.contaminate_with_nearby();
+}
+
+/// @brief Get the infection logic
+/// @return A pointer to the infection logic
+const sti::infection_cycle* sti::object_agent::get_infection_logic() const
+{
+    return &_infection_logic;
+}
+
+/// @brief Get the infection logic
+/// @return A pointer to the infection logic
+sti::object_infection_cycle* sti::object_agent::get_object_infection_logic()
+{
+    return &_infection_logic;
+}
+
+/// @brief Return the agent statistics as a json object
+/// @return A Boost.JSON object containing relevant statistics
+boost::json::object sti::object_agent::stats() const
+{
+    return {
+        { "id", to_string(getId()) },
+        { "type", _object_type },
+        { "infection", _infection_logic.stats() }
+    };
 }

@@ -107,7 +107,8 @@ namespace tiles {
 
     /// @brief ICU tile, storing the icu location
     struct icu {
-        coordinates<int> location;
+        coordinates<int> entry_location;
+        coordinates<int> exit_location;
 
         /// @brief Load the ICU from a hospital, store the enums in the map and return the list
         /// @param hospital The JSON containing the hospital information
