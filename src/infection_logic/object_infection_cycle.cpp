@@ -22,7 +22,7 @@
 sti::object_infection_cycle::object_infection_cycle(flyweights_ptr fw)
     : _flyweights { fw }
     , _id {}
-    , _object_type {  }
+    , _object_type {}
     , _stage { STAGE::CLEAN }
     , _infected_by {}
 {
@@ -40,7 +40,7 @@ sti::object_infection_cycle::object_infection_cycle(
     STAGE              is)
     : _flyweights { fw }
     , _id { id }
-    , _object_type{type}
+    , _object_type { type }
     , _stage { is }
     , _infected_by {}
 {
@@ -50,24 +50,25 @@ sti::object_infection_cycle::object_infection_cycle(
 // BEHAVIOUR
 ////////////////////////////////////////////////////////////////////////////
 
-/// @brief Get the AgentId associated with this cycle
-/// @return A reference to the agent id
-repast::AgentId& sti::object_infection_cycle::id()
+/// @brief Get an ID/string to identify the object in post-processing
+/// @return A string identifying the object
+std::string sti::object_infection_cycle::get_id() const
 {
-    return _id;
-}
-
-/// @brief Get the AgentId associated with this cycle
-/// @return A reference to the agent id
-const repast::AgentId& sti::object_infection_cycle::id() const
-{
-    return _id;
+    return to_string(_id);
 }
 
 /// @brief Clean the object, removing contamination and resetting the state
 void sti::object_infection_cycle::clean()
 {
     _stage = STAGE::CLEAN;
+}
+
+/// @brief Get the probability of contaminating an object
+/// @return A value in the range [0, 1)
+sti::infection_cycle::precission sti::object_infection_cycle::get_contamination_probability() const
+{
+    // An object can't contaminate other objects
+    return 0.0;
 }
 
 /// @brief Get the probability of infecting humans
@@ -96,7 +97,7 @@ void sti::object_infection_cycle::interact_with(const human_infection_cycle* hum
     if (random_number < human->get_contamination_probability()) {
         // The object got contaminated, change state and record the source
         _stage = STAGE::CONTAMINATED;
-        _infected_by.push_back({ human->id(),
+        _infected_by.push_back({ human->get_id(),
                                  _flyweights->at(_object_type).clock->now() });
     }
 }
@@ -120,7 +121,7 @@ void sti::object_infection_cycle::contaminate_with_nearby()
         if (random_number < infect_probability) {
             // Got infected
             _stage = STAGE::CONTAMINATED;
-            _infected_by.push_back({ agent->get_infection_logic()->id(),
+            _infected_by.push_back({ agent->get_infection_logic()->get_id(),
                                      _flyweights->at(_object_type).clock->now() });
 
             // No need to keep iterating over the remaining agents

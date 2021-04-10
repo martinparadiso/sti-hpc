@@ -29,7 +29,7 @@ class Properties;
 } // namespace repast
 
 namespace sti {
-class agent_factory;
+class infection_factory;
 class contagious_agent;
 class object_agent;
 class hospital_plan;
@@ -72,8 +72,8 @@ public:
     virtual ~icu();
 
     /// @brief Due to dependencies, beds cannot be created durning construction
-    /// @param af Agent factory, to construct the beds
-    virtual void create_beds(agent_factory& af) = 0;
+    /// @param infection_factory Infection factory, to construct the beds
+    virtual void create_beds(infection_factory& infection_factory) = 0;
 
     ////////////////////////////////////////////////////////////////////////////
     // ADMISSION MANAGEMENT

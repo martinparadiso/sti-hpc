@@ -67,6 +67,7 @@ add_executable(sti-demo
                         "src/infection_logic/infection_factory.cpp"
                         "src/infection_logic/icu_environment.cpp"
                         "src/infection_logic/object_infection_cycle.cpp"
+                        "src/infection_logic/ghost_object_cycle.cpp"
                         "src/main.cpp"
                         "src/model.cpp"
                         "src/object.cpp"

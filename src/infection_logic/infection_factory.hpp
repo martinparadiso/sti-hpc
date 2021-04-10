@@ -6,6 +6,7 @@
 
 #include "human_infection_cycle.hpp"
 #include "object_infection_cycle.hpp"
+#include "ghost_object_cycle.hpp"
 
 // Fw. declarations
 namespace boost {
@@ -56,10 +57,12 @@ public:
     /// @brief Get a new human infection cycle
     /// @param id The agent id associated with this cycle
     /// @param is Initial stage of the cycle
-    /// @param t The time of infection
+    /// @param mode The "mode" of the cycle
+    /// @param infection_time The time of infection
     /// @return A human infection cycle object
     human_infection_cycle make_human_cycle(const agent_id&              id,
                                            human_infection_cycle::STAGE is,
+                                           human_infection_cycle::MODE  mode,
                                            datetime                     infection_time) const;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -84,9 +87,26 @@ public:
                                              const agent_id&               id,
                                              object_infection_cycle::STAGE is) const;
 
+    ////////////////////////////////////////////////////////////////////////////
+    // GHOST INFECTION CYCLE CREATION
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Construct an empty object infection
+    /// @return A default constructed object infection cycle
+    ghost_object_cycle make_ghost_object_cycle();
+
+    /// @brief Construct an object infection cycle with no repast relationship
+    /// @param type The object type, normally 'chair' or 'bed'
+    /// @param is Initial stage of the cycle
+    /// @return An object infection cycle object
+    ghost_object_cycle make_ghost_object_cycle(const object_type&        type,
+                                               ghost_object_cycle::STAGE is);
+
 private:
     human_flyweight                         _human_flyweight;
     std::map<object_type, object_flyweight> _object_flyweights;
+
+    unsigned _ghost_objects;
 };
 
 } // namespace sti

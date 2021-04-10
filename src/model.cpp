@@ -185,17 +185,17 @@ void sti::model::init()
 
     for (const auto& doctor : doctors) {
         if (_spaces.local_dimensions().contains(doctor.location)) {
-            _agent_factory->insert_new_person(doctor.location.continuous(), human_infection_cycle::STAGE::HEALTHY);
+            _agent_factory->insert_new_person(doctor.location.continuous(), human_infection_cycle::STAGE::HEALTHY, false);
         }
     }
     for (const auto& receptionist : receptionits) {
         if (_spaces.local_dimensions().contains(receptionist.location)) {
-            _agent_factory->insert_new_person(receptionist.location.continuous(), human_infection_cycle::STAGE::HEALTHY);
+            _agent_factory->insert_new_person(receptionist.location.continuous(), human_infection_cycle::STAGE::HEALTHY, false);
         }
     }
 
     // Create the beds
-    _icu->create_beds(*_agent_factory);
+    _icu->create_beds(*(_agent_factory->get_infection_factory()));
 
     // Preallocate the metrics vector
     _pmetrics.values.reserve(static_cast<decltype(_pmetrics.values)::size_type>(_stop_at));

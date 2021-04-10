@@ -58,6 +58,20 @@ public:
                  SICK };
 
     ////////////////////////////////////////////////////////////////////////////
+    // "MODE"
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @details The human infection logic has diverse "modes". Depending on the
+    /// situation, that behave differently
+    enum class MODE { // clang-format off
+        NORMAL, // Normal human infection cycle, gets infected and contaminates
+        IMMUNE, // Immune mode, cannot get infected
+        COMA,   // The patient has no physical location, cannot infect nearby
+                // agents. Only interacts with the assigned bed and the
+                // environment
+    }; // clang-format on
+
+    ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
@@ -68,11 +82,13 @@ public:
     /// @param id The id of the agent associated with this patient
     /// @param fw The flyweight containing the shared attributes
     /// @param stage The initial stage
+    /// @param mode The "mode"
     /// @param infection_time The time of infection
     /// @param env The infection environment this human resides in
     human_infection_cycle(flyweight_ptr          fw,
                           const repast::AgentId& id,
                           STAGE                  stage,
+                          MODE                   mode,
                           datetime               infection_time,
                           environment_ptr        env = nullptr);
 
@@ -80,13 +96,13 @@ public:
     // BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Get the AgentId associated with this cycle
-    /// @return A reference to the agent id
-    repast::AgentId& id() override;
+    /// @brief Change the infection mode
+    /// @param new_mode The new mode to use in this infection
+    void mode(MODE new_mode);
 
-    /// @brief Get the AgentId associated with this cycle
-    /// @return A reference to the agent id
-    const repast::AgentId& id() const override;
+    /// @brief Get an ID/string to identify the object in post-processing
+    /// @return A string identifying the object
+    std::string get_id() const override;
 
     /// @brief Set the infection environment this human resides
     /// @param env_ptr A pointer to the environment
@@ -94,7 +110,7 @@ public:
 
     /// @brief Get the probability of contaminating an object
     /// @return A value in the range [0, 1)
-    precission get_contamination_probability() const;
+    precission get_contamination_probability() const override;
 
     /// @brief Get the probability of infecting humans
     /// @param position The requesting agent position, to determine the distance
@@ -129,6 +145,7 @@ private:
         ar& _stage;
         ar& _infection_time;
         ar& _infected_by;
+        ar& _mode;
     }
 
     flyweight_ptr   _flyweight;
@@ -136,6 +153,7 @@ private:
 
     repast::AgentId _id;
     STAGE           _stage;
+    MODE            _mode;
     datetime        _infection_time;
     std::string     _infected_by;
 }; // class human_infection_cycle
@@ -150,6 +168,12 @@ namespace serialization {
     void serialize(Archive& ar, sti::human_infection_cycle::STAGE& s, const unsigned int /*unused*/)
     {
         ar& s;
+    } // void serialize(...)
+
+    template <class Archive>
+    void serialize(Archive& ar, sti::human_infection_cycle::MODE& m, const unsigned int /*unused*/)
+    {
+        ar& m;
     } // void serialize(...)
 
 } // namespace serialization

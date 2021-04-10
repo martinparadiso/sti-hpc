@@ -103,11 +103,15 @@ class Triage(Tile):
             out[self.key] = [data]
 
 
-class ICU(Tile):
+class ICUEntry(Tile):
 
     def store(self, out: dict):
-        out['ICU'] = self.location.__dict__
+        out['icu_entry'] = self.location.__dict__
 
+class ICUExit(Tile):
+
+    def store(self, out: dict):
+        out['icu_exit'] = self.location.__dict__
 
 class Receptionist(Tile):
 
@@ -186,7 +190,8 @@ def char_art(tile: Tile, hospital_dims: tuple) -> str:
         Wall: '#',
         Chair: 'h',
         Triage: 'T',
-        ICU: 'I',
+        ICUEntry: 'I',
+        ICUExit: 'I',
         Receptionist: 'R',
         ReceptionistChair: 'h',
         Doctor: 'D',
@@ -244,7 +249,14 @@ class SimulationParameters(object):
             'beds': int,
             'environment': {
                 'infection_chance': float
-            }
+            },
+            'death_probability': float,
+            'sleep_time': [
+                {
+                    'time': TimePeriod,
+                    'probability': float
+                }
+            ]
         },
 
         'patient': {
@@ -355,7 +367,7 @@ class SimulationParameters(object):
                         recurse(data_tree[key], param_tree[key],
                                 current_path=current_path + [key])
                     else:
-                        if not isinstance(data_tree[key], param_tree[key]):
+                        if not isinstance(data_tree[key], list) and not isinstance(data_tree[key], param_tree[key]):
                             error_msg = ('Invalid type for simulation parameter '
                                          f"""['{"']['".join(current_path + [key])}']. """
                                          f"Expected {param_tree[key].__name__} "
@@ -485,7 +497,8 @@ hospital[5, 7] = DoctorChair(hospital[5, 8])
 hospital[8, 2] = Receptionist()
 hospital[8, 3] = ReceptionistChair(hospital[8, 2])
 hospital[5, 1] = Triage()
-hospital[8, 8] = ICU()
+hospital[8, 8] = ICUEntry()
+hospital[8, 9] = ICUExit()
 
 for i in range(1, 4, 1):
     hospital[i, 2] = Chair()
@@ -543,7 +556,30 @@ hospital.parameters['icu'] = {
     'beds': 5,
     'environment': {
         'infection_chance': 0.01
-    }
+    },
+    'death_probability': 0.1,
+    'sleep_time': [
+        {
+            'time': TimePeriod(1, 0, 0, 0),
+            'probability': 0.2,
+        },
+        {
+            'time': TimePeriod(2, 0, 0, 0),
+            'probability': 0.2,
+        },
+        {
+            'time': TimePeriod(3, 0, 0, 0),
+            'probability': 0.2,
+        },
+        {
+            'time': TimePeriod(4, 0, 0, 0),
+            'probability': 0.2,
+        },
+        {
+            'time': TimePeriod(5, 0, 0, 0),
+            'probability': 0.2,
+        },
+    ]
 }
 
 hospital.parameters['doctors'] = {}

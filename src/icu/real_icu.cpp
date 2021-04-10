@@ -4,6 +4,7 @@
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/utility.hpp>
 #include <boost/json/object.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <repast_hpc/AgentId.h>
@@ -94,18 +95,18 @@ sti::real_icu::real_icu(communicator_ptr           communicator,
     , _icu_exit { hospital_plan.icu().exit_location }
     , _stats { std::make_unique<statistics>() }
     , _reserved_beds { 0 }
-    , _bed_pool(hospital_props.at("parameters").at("icu").at("beds").as_uint64(), { nullptr, nullptr })
+    , _bed_pool(static_cast<std::size_t>(hospital_props.at("parameters").at("icu").at("beds").as_int64()), { nullptr, nullptr })
 {
 }
 
 sti::real_icu::~real_icu() = default;
 
 /// @brief Due to dependencies, beds cannot be created durning construction
-/// @param af Agent factory, to construct the beds
-void sti::real_icu::create_beds(agent_factory& af)
+/// @param if Infection factory, to construct the beds
+void sti::real_icu::create_beds(infection_factory& infection_factory)
 {
     for (auto& bed : _bed_pool) {
-        bed.first = af.insert_new_object("bed", object_infection_cycle::STAGE::CLEAN);
+        bed.first = infection_factory.make_ghost_object_cycle("bed", ghost_object_cycle::STAGE::CLEAN);
     }
 }
 
@@ -216,7 +217,7 @@ void sti::real_icu::tick()
     // Collect stats, count the number of beds that are actually empty
     const auto beds_in_use = std::count_if(_bed_pool.begin(), _bed_pool.end(),
                                            [&](const auto& pair) {
-                                               return pair.second == nullptr;
+                                               return pair.second != nullptr;
                                            });
 
     _stats->tick_status.push_back({ _clock->now(),
@@ -231,7 +232,7 @@ void sti::real_icu::save(const std::string& folderpath) const
     // Write per-tick stats
     auto tick_status = std::ostringstream {};
     tick_status << folderpath
-                << "icu_status_in_process_"
+                << "/icu_status_in_process_"
                 << _communicator->rank()
                 << ".csv";
 

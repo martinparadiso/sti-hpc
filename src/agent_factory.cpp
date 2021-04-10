@@ -71,6 +71,15 @@ sti::agent_factory::agent_factory(context_ptr                context,
 }
 
 ////////////////////////////////////////////////////////////////////////////
+// GETTERS
+////////////////////////////////////////////////////////////////////////////
+
+sti::infection_factory* sti::agent_factory::get_infection_factory()
+{
+    return &_infection_factory;
+}
+
+////////////////////////////////////////////////////////////////////////////
 // PATIENT CREATION
 ////////////////////////////////////////////////////////////////////////////
 
@@ -91,8 +100,9 @@ sti::agent_factory::patient_ptr sti::agent_factory::insert_new_patient(
         if (st == human_infection_cycle::STAGE::HEALTHY) return datetime {};
         return _clock->now();
     }();
+    const auto mode = human_infection_cycle::MODE::NORMAL;
 
-    const auto hic     = _infection_factory.make_human_cycle(id, st, infection_time);
+    const auto hic     = _infection_factory.make_human_cycle(id, st, mode, infection_time);
     auto*      patient = new patient_agent { id, &_patient_flyweight, _clock->now(), hic };
 
     // Move the agent into position, add it to the repast contexts
@@ -123,9 +133,11 @@ sti::agent_factory::patient_ptr sti::agent_factory::recreate_patient(const repas
 /// @brief Create a brand new patient, with a new id, insert it into the context
 /// @param pos The position where to insert the patients
 /// @param st The stage of the patient infection
+/// @param immune The person immunity, True if is immune
 /// @return A raw pointer to the contagious agent created
 sti::agent_factory::person_ptr sti::agent_factory::insert_new_person(const coordinates<double>&   pos,
-                                                                     human_infection_cycle::STAGE st)
+                                                                     human_infection_cycle::STAGE st,
+                                                                     bool                         immune)
 {
     const auto rank = repast::RepastProcess::instance()->rank();
     const auto type = to_int(contagious_agent::type::FIXED_PERSON);
@@ -136,8 +148,9 @@ sti::agent_factory::person_ptr sti::agent_factory::insert_new_person(const coord
         if (st == human_infection_cycle::STAGE::HEALTHY) return datetime {};
         return _clock->now();
     }();
+    const auto mode = immune ? human_infection_cycle::MODE::IMMUNE : human_infection_cycle::MODE::NORMAL;
 
-    const auto hic    = _infection_factory.make_human_cycle(id, st, infection_time);
+    const auto hic    = _infection_factory.make_human_cycle(id, st, mode, infection_time);
     auto*      person = new person_agent { id, &_person_flyweight, hic };
 
     // Move the agent into position, add it to the repast contexts
@@ -185,28 +198,6 @@ sti::agent_factory::object_ptr sti::agent_factory::insert_new_object(
     // Move the agent into position, add it to the repast contexts
     _context->addAgent(object);
     _space->move_to(id, pos);
-
-    return object;
-}
-
-/// @brief Create a new object, with a new id, but no space representation
-/// @param type The object type, i.e. 'chair', 'bed'
-/// @param st The stage of the patient infection
-/// @return A raw pointer to the contagious agent created
-sti::agent_factory::object_ptr sti::agent_factory::insert_new_object(
-    const object_type&            type,
-    object_infection_cycle::STAGE st)
-{
-    const auto rank        = repast::RepastProcess::instance()->rank();
-    const auto repast_type = to_int(contagious_agent::type::OBJECT);
-    const auto i           = static_cast<int>(_agents_created++);
-    const auto id          = repast::AgentId(i, rank, repast_type, rank);
-
-    const auto hic    = _infection_factory.make_object_cycle(type, id, st);
-    auto*      object = new object_agent { id, type, &_object_flyweight, hic };
-
-    // Move the agent into position, add it to the repast contexts
-    _context->addAgent(object);
 
     return object;
 }

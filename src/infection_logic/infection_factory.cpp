@@ -1,10 +1,13 @@
 #include "infection_factory.hpp"
 
 #include <boost/json/object.hpp>
+#include <repast_hpc/RepastProcess.h>
 
 #include "../json_serialization.hpp"
 #include "../space_wrapper.hpp"
 #include "../clock.hpp"
+#include "ghost_object_cycle.hpp"
+#include "human_infection_cycle.hpp"
 #include "object_infection_cycle.hpp"
 
 ////////////////////////////////////////////////////////////////////////////
@@ -40,6 +43,7 @@ sti::infection_factory::infection_factory(const boost::json::object& hospital_pr
         }
         return map;
     }() }
+    , _ghost_objects {0}
 {
 }
 
@@ -57,14 +61,16 @@ sti::human_infection_cycle sti::infection_factory::make_human_cycle() const
 /// @brief Get a new human infection cycle
 /// @param id The agent id associated with this cycle
 /// @param is Initial stage of the cycle
-/// @param t The time of infection
+/// @param mode The "mode" of the cycle
+/// @param infection_time The time of infection
 /// @return A human infection cycle object
 sti::human_infection_cycle sti::infection_factory::make_human_cycle(
     const agent_id&              id,
     human_infection_cycle::STAGE is,
+    human_infection_cycle::MODE  mode,
     datetime                     infection_time) const
 {
-    return { &_human_flyweight, id, is, infection_time };
+    return { &_human_flyweight, id, is, mode, infection_time };
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -78,14 +84,6 @@ sti::object_infection_cycle sti::infection_factory::make_object_cycle() const
     return { &_object_flyweights };
 }
 
-/// @brief Default construct an object infection
-/// @param type The object type, normally 'chair' or 'bed'
-/// @return A default constructed object infection cycle
-// sti::object_infection_cycle sti::infection_factory::make_object_cycle(const object_type& type) const
-// {
-//     return { &_object_flyweights, type };
-// }
-
 /// @brief Construct an object infection cycle
 /// @param type The object type, normally 'chair' or 'bed'
 /// @param id The agent id associated with this cycle/logic
@@ -97,4 +95,27 @@ sti::object_infection_cycle sti::infection_factory::make_object_cycle(
     object_infection_cycle::STAGE is) const
 {
     return { &_object_flyweights, id, type, is };
+}
+
+////////////////////////////////////////////////////////////////////////////
+// GHOST INFECTION CYCLE CREATION
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Construct an empty object infection
+/// @return A default constructed object infection cycle
+sti::ghost_object_cycle sti::infection_factory::make_ghost_object_cycle()
+{
+    return { &_object_flyweights };
+}
+
+/// @brief Construct an object infection cycle with no repast relationship
+/// @param type The object type, normally 'chair' or 'bed'
+/// @param is Initial stage of the cycle
+/// @return An object infection cycle object
+sti::ghost_object_cycle sti::infection_factory::make_ghost_object_cycle(
+    const object_type&        type,
+    ghost_object_cycle::STAGE is)
+{
+    const auto id = ghost_object_cycle::id_type{repast::RepastProcess::instance()->rank(), _ghost_objects++};
+    return { &_object_flyweights, id, type, is};
 }

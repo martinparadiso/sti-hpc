@@ -31,10 +31,10 @@ sti::proxy_icu::proxy_icu(communicator_ptr           communicator,
 sti::proxy_icu::~proxy_icu() = default;
 
 /// @brief Due to dependencies, beds cannot be created durning construction
-/// @param af Agent factory, to construct the beds
-void sti::proxy_icu::create_beds(agent_factory& /*unused*/)
+/// @param infection_factory The infection factory, to create the beds
+void sti::proxy_icu::create_beds(infection_factory& /*unused*/)
 {
-    // Beds are created in the real ICU
+    // No beds are created, that happens in the real ICU
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -101,7 +101,7 @@ void sti::proxy_icu::save(const std::string& folderpath) const
     const auto* icu_stats  = icu::stats();
     auto        stats_path = std::ostringstream {};
     stats_path << folderpath
-               << "icu_in_process_"
+               << "/icu_in_process_"
                << _communicator->rank()
                << ".csv";
     auto stats_file = std::ofstream { stats_path.str() };

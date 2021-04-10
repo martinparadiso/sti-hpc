@@ -2,6 +2,8 @@
 /// @brief Base class for infection logics
 #pragma once
 
+#include <string>
+
 // Fw. declarations
 namespace repast {
 class AgentId;
@@ -34,18 +36,18 @@ public:
 
     virtual ~infection_cycle() = default;
 
+    /// @brief Get the probability of contaminating an object
+    /// @return A value in the range [0, 1)
+    [[nodiscard]] virtual precission get_contamination_probability() const = 0;
+
     /// @brief Get the probability of infecting humans
     /// @param position The requesting agent position, to determine the distance
     /// @return A value in the range [0, 1)
     [[nodiscard]] virtual precission get_infect_probability(coordinates<double> position) const = 0;
 
-    /// @brief Get the AgentId associated with this cycle
-    /// @return A reference to the agent id
-    virtual repast::AgentId& id() = 0;
-
-    /// @brief Get the AgentId associated with this cycle
-    /// @return A reference to the agent id
-    virtual const repast::AgentId& id() const = 0;
+    /// @brief Get an ID/string to identify the object in post-processing
+    /// @return A string identifying the object
+    virtual std::string get_id() const = 0;
 
 }; // class infection_cycle
 

@@ -21,6 +21,7 @@ sti::human_infection_cycle::human_infection_cycle(flyweight_ptr fw, environment_
     : _flyweight { fw }
     , _environment { env }
     , _stage { STAGE::HEALTHY }
+    , _mode { MODE::NORMAL }
     , _infection_time {}
     , _infected_by {}
 {
@@ -30,17 +31,20 @@ sti::human_infection_cycle::human_infection_cycle(flyweight_ptr fw, environment_
 /// @param id The id of the agent associated with this patient
 /// @param fw The flyweight containing the shared attributes
 /// @param stage The initial stage
+/// @param mode The "mode"
 /// @param infection_time The time of infection
 /// @param env The infection environment this human resides in
 sti::human_infection_cycle::human_infection_cycle(flyweight_ptr          fw,
                                                   const repast::AgentId& id,
                                                   STAGE                  stage,
+                                                  MODE                   mode,
                                                   datetime               infection_time,
                                                   environment_ptr        env)
     : _flyweight { fw }
     , _environment { env }
     , _id { id }
     , _stage { stage }
+    , _mode { mode }
     , _infection_time { infection_time }
     , _infected_by {}
 {
@@ -50,31 +54,27 @@ sti::human_infection_cycle::human_infection_cycle(flyweight_ptr          fw,
 // BEHAVIOUR
 ////////////////////////////////////////////////////////////////////////////
 
-/// @brief Get the AgentId associated with this cycle
-/// @return A reference to the agent id
-repast::AgentId& sti::human_infection_cycle::id()
+/// @brief Change the infection mode
+/// @param new_mode The new mode to use in this infection
+void sti::human_infection_cycle::mode(MODE new_mode)
 {
-    return _id;
+    _mode = new_mode;
 }
 
-/// @brief Get the AgentId associated with this cycle
-/// @return A reference to the agent id
-const repast::AgentId& sti::human_infection_cycle::id() const
+/// @brief Get an ID/string to identify the object in post-processing
+/// @return A string identifying the object
+std::string sti::human_infection_cycle::get_id() const
 {
-    return _id;
-}
-
-/// @brief Set the infection environment this human resides
-/// @param env_ptr A pointer to the environment
-void sti::human_infection_cycle::set_environment(const infection_environment* env_ptr)
-{
-    _environment = env_ptr;
+    return to_string(_id);
 }
 
 /// @brief Get the probability of contaminating an object
 /// @return A value in the range [0, 1)
 sti::infection_cycle::precission sti::human_infection_cycle::get_contamination_probability() const
 {
+    if (_stage == STAGE::HEALTHY) return 0.0;
+    if (_mode == MODE::IMMUNE) return 0.0;
+
     return _flyweight->contamination_probability;
 }
 
@@ -83,10 +83,11 @@ sti::infection_cycle::precission sti::human_infection_cycle::get_contamination_p
 /// @return A value in the range [0, 1)
 sti::infection_cycle::precission sti::human_infection_cycle::get_infect_probability(coordinates<double> position) const
 {
-    // If I'm healthy, the probability is 0
-    if (_stage == STAGE::HEALTHY) return 0.0;
+    if (_stage == STAGE::HEALTHY) return 0.0; // If the human is healthy, can't infect
+    if (_mode == MODE::IMMUNE) return 0.0; // If the human is immune, can't infect
+    if (_mode == MODE::COMA) return 0.0; // If the human is in coma, can't infect
 
-    // Calculate the distance to the other person
+    // Otherwise calculate the distance to the other person
     const auto my_position = _flyweight->space->get_continuous_location(_id);
     const auto distance    = sq_distance(my_position, position);
 
@@ -100,11 +101,9 @@ sti::infection_cycle::precission sti::human_infection_cycle::get_infect_probabil
 /// @brief Try to get infected via the environment
 void sti::human_infection_cycle::infect_with_environment()
 {
-    // If there is no environment, return
-    if (_environment == nullptr) return;
-
-    // If the agent is already infected, return
-    if (_stage != STAGE::HEALTHY) return;
+    if (_environment == nullptr) return; // If there is no environment, return
+    if (_stage != STAGE::HEALTHY) return; // If the agent is already infected, return
+    if (_mode == MODE::IMMUNE) return; // If the agent is immune, return
 
     // Otherwise generate a random number and compare with the environment
     // probability of getting infected
@@ -120,8 +119,9 @@ void sti::human_infection_cycle::infect_with_environment()
 /// @brief Try go get infected with nearby agents
 void sti::human_infection_cycle::infect_with_nearby()
 {
-    // If the human is already infected do nothing
-    if (_stage != STAGE::HEALTHY) return;
+    if (_stage != STAGE::HEALTHY) return; // If the human is already infected do nothing
+    if (_mode == MODE::IMMUNE) return; // If the human is immune, can't infect
+    if (_mode == MODE::COMA) return; // If the human is in coma, can't infect
 
     const auto my_location = _flyweight->space->get_continuous_location(_id);
     const auto near_agents = _flyweight->space->agents_around(my_location, _flyweight->infect_distance);
@@ -137,7 +137,7 @@ void sti::human_infection_cycle::infect_with_nearby()
             // Got infected
             _stage          = STAGE::INCUBATING;
             _infection_time = _flyweight->clk->now();
-            _infected_by = to_string(agent->getId());
+            _infected_by    = to_string(agent->getId());
 
             // No need to keep iterating over the remaining agents
             break;

@@ -63,9 +63,9 @@ public:
     ~proxy_icu();
 
     /// @brief Due to dependencies, beds cannot be created durning construction
-    /// @param af Agent factory, to construct the beds
-    void create_beds(agent_factory& af) override;
-    
+    /// @param infection_factory The infection factory, to create the beds
+    void create_beds(infection_factory &infection_factory) override;
+
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////

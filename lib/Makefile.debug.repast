@@ -96,9 +96,9 @@ TEST_OBJECTS := $(subst .cpp,.o, $(addprefix $(BUILD_DIR)/, $(core_test_src)))
 TEST_DEPS :=  $(subst .o,.d,$(TEST_OBJECTS))
 
 
-CXX_RELEASE_FLAGS = -Wall -O2 -g3 -std=c++11 -MMD -MP
+CXX_RELEASE_FLAGS = -Wall -O2 -g0 -std=c++11 -MMD -MP
 CXX_DEBUG_FLAGS = -Wall -O0 -g3 -std=c++11 -MMD -MP
-CXX_FLAGS = $(CXX_RELEASE_FLAGS) -fopenmp
+CXX_FLAGS = $(CXX_DEBUG_FLAGS) -fopenmp
 
 LIB_CXX_FLAGS = $(CXX_FLAGS)
 

@@ -24,12 +24,12 @@ namespace json {
 } // class boost
 
 namespace sti {
-class agent_factory;
 class contagious_agent;
 class object_agent;
 class hospital_plan;
 class clock;
 class space_wrapper;
+class ghost_object_cycle;
 } // namespace sti
 
 namespace sti {
@@ -71,8 +71,8 @@ public:
     ~real_icu();
 
     /// @brief Due to dependencies, beds cannot be created durning construction
-    /// @param af Agent factory, to construct the beds
-    void create_beds(agent_factory& af) override;
+    /// @param infection_factory Infection factory, to construct the beds
+    void create_beds(infection_factory& infection_factory) override;
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -111,8 +111,8 @@ private:
 
     std::unique_ptr<statistics> _stats;
 
-    bed_counter_type                                         _reserved_beds;
-    std::vector<std::pair<object_agent*, contagious_agent*>> _bed_pool;
+    bed_counter_type                                              _reserved_beds;
+    std::vector<std::pair<ghost_object_cycle, contagious_agent*>> _bed_pool;
 
     std::vector<message> _pending_responses;
 

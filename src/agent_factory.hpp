@@ -61,7 +61,7 @@ public:
     /// @param reception A pointer to the reception
     /// @param triage A pointer to the triage
     /// @param doctors A pointer to the doctors manager
-    /// @param icu A pointer to the ICU 
+    /// @param icu A pointer to the ICU
     /// @param hospital_props The JSON object containing the simulation properties
     agent_factory(context_ptr                context,
                   sti::space_wrapper*        space,
@@ -73,6 +73,12 @@ public:
                   sti::doctors*              doctors,
                   sti::icu*                  icu,
                   const boost::json::object& hospital_props);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // GETTERS
+    ////////////////////////////////////////////////////////////////////////////
+
+    infection_factory* get_infection_factory();
 
     ////////////////////////////////////////////////////////////////////////////
     // PATIENT CREATION
@@ -99,9 +105,11 @@ public:
     /// @brief Create a brand new patient, with a new id, insert it into the context
     /// @param pos The position where to insert the patients
     /// @param st The stage of the patient infection
+    /// @param immune The person immunity, True if is immune
     /// @return A raw pointer to the contagious agent created
     person_ptr insert_new_person(const coordinates<double>&   pos,
-                                 human_infection_cycle::STAGE st);
+                                 human_infection_cycle::STAGE st,
+                                 bool                         immune);
 
     /// @brief Recreate a serialized patient, with an existing id
     /// @param id The agent id
@@ -121,13 +129,6 @@ public:
     /// @return A raw pointer to the contagious agent created
     object_ptr insert_new_object(const object_type&            type,
                                  coordinates<double>           pos,
-                                 object_infection_cycle::STAGE st);
-
-    /// @brief Create a new object, with a new id, but no space representation
-    /// @param type The object type, i.e. 'chair', 'bed'
-    /// @param st The stage of the patient infection
-    /// @return A raw pointer to the contagious agent created
-    object_ptr insert_new_object(const object_type&            type,
                                  object_infection_cycle::STAGE st);
 
     /// @brief Recreate a serialized patient, with an existing id
