@@ -110,6 +110,10 @@ public:
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
+    virtual infection_cycle* get_infection_logic() = 0;
+
+    /// @brief Get the infection logic
+    /// @return A const pointer to the infection logic
     virtual const infection_cycle* get_infection_logic() const = 0;
 
     /// @brief Return the agent statistics as a json object

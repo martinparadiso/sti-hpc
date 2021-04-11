@@ -75,8 +75,12 @@ public:
     void act() override;
 
     /// @brief Get the infection logic
+    /// @return A  pointer to the infection logic
+    object_infection_cycle* get_infection_logic() override;
+
+    /// @brief Get the infection logic
     /// @return A const pointer to the infection logic
-    const infection_cycle* get_infection_logic() const override;
+    const object_infection_cycle* get_infection_logic() const override;
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic

@@ -103,15 +103,10 @@ class Triage(Tile):
             out[self.key] = [data]
 
 
-class ICUEntry(Tile):
+class ICU(Tile):
 
     def store(self, out: dict):
-        out['icu_entry'] = self.location.__dict__
-
-class ICUExit(Tile):
-
-    def store(self, out: dict):
-        out['icu_exit'] = self.location.__dict__
+        out['ICU'] = self.location.__dict__
 
 class Receptionist(Tile):
 
@@ -190,8 +185,7 @@ def char_art(tile: Tile, hospital_dims: tuple) -> str:
         Wall: '#',
         Chair: 'h',
         Triage: 'T',
-        ICUEntry: 'I',
-        ICUExit: 'I',
+        ICU: 'I',
         Receptionist: 'R',
         ReceptionistChair: 'h',
         Doctor: 'D',
@@ -497,8 +491,7 @@ hospital[5, 7] = DoctorChair(hospital[5, 8])
 hospital[8, 2] = Receptionist()
 hospital[8, 3] = ReceptionistChair(hospital[8, 2])
 hospital[5, 1] = Triage()
-hospital[8, 8] = ICUEntry()
-hospital[8, 9] = ICUExit()
+hospital[8, 8] = ICU()
 
 for i in range(1, 4, 1):
     hospital[i, 2] = Chair()

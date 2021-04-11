@@ -140,7 +140,11 @@ public:
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
-    const infection_cycle* get_infection_logic() const final;
+    human_infection_cycle* get_infection_logic() override;
+
+    /// @brief Get the infection logic
+    /// @return A pointer to the infection logic
+    const human_infection_cycle* get_infection_logic() const override;
 
     /// @brief Execute the patient logic, both infection and behaviour
     void act() final;

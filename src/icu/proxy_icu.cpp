@@ -15,27 +15,17 @@
 /// @brief Construct a real ICU keeping track of beds assigned
 /// @param communicator The MPI communicator
 /// @param mpi_tag The MPI tag for the communication
-/// @param hospital_props The hospital properties stored in a JSON object
 /// @param real_rank Real rank
 sti::proxy_icu::proxy_icu(communicator_ptr           communicator,
                           int                        mpi_tag,
-                          int                        real_rank,
-                          const boost::json::object& hospital_props)
-    : icu { hospital_props }
-    , _communicator { communicator }
+                          int                        real_rank)
+    : _communicator { communicator }
     , _mpi_base_tag { mpi_tag }
     , _real_rank { real_rank }
 {
 }
 
 sti::proxy_icu::~proxy_icu() = default;
-
-/// @brief Due to dependencies, beds cannot be created durning construction
-/// @param infection_factory The infection factory, to create the beds
-void sti::proxy_icu::create_beds(infection_factory& /*unused*/)
-{
-    // No beds are created, that happens in the real ICU
-}
 
 ////////////////////////////////////////////////////////////////////////////
 // BEHAVIOUR
@@ -82,34 +72,4 @@ void sti::proxy_icu::sync()
     auto buff = decltype(_pending_responses) {};
     _communicator->recv(_real_rank, mpi_tag++, buff);
     _pending_responses.insert(_pending_responses.end(), buff.begin(), buff.end());
-}
-
-/// @brief Absorb nearby agents into the ICU void
-/// @details The ICU is implemented as an spaceless entity, patients are
-/// absorbed into the ICU dimension and dissapear from space. They can
-/// contract the desease via environment, but not through other patients.
-void sti::proxy_icu::tick()
-{
-    // Do nothing, the work is in the real_icu
-}
-
-/// @brief Save the ICU stats into a file
-/// @param filepath The path to the folder where
-void sti::proxy_icu::save(const std::string& folderpath) const
-{
-    // Write the ICU probabilities/randoms generated
-    const auto* icu_stats  = icu::stats();
-    auto        stats_path = std::ostringstream {};
-    stats_path << folderpath
-               << "/icu_in_process_"
-               << _communicator->rank()
-               << ".csv";
-    auto stats_file = std::ofstream { stats_path.str() };
-
-    stats_file << "sleep_time,assigned\n";
-
-    for (const auto& [sleep_time, assigned] : icu_stats->sleep_times) {
-        stats_file << sleep_time.length() << ","
-                   << assigned << "\n";
-    }
 }

@@ -21,6 +21,8 @@ namespace json {
 namespace sti {
 class clock;
 class infection_environment;
+class object_infection_cycle;
+class ghost_object_cycle;
 class space_wrapper;
 } // namespace sti
 
@@ -117,6 +119,10 @@ public:
     /// @return A value in the range [0, 1)
     precission get_infect_probability(coordinates<double> position) const override;
 
+    /// @brief Make the human interact with another infection logic
+    /// @param other The other infection cycle
+    void interact_with_cycle(const infection_cycle& other);
+
     /// @brief Try to get infected via the environment
     void infect_with_environment();
 
@@ -156,6 +162,7 @@ private:
     MODE            _mode;
     datetime        _infection_time;
     std::string     _infected_by;
+
 }; // class human_infection_cycle
 
 } // namespace sti

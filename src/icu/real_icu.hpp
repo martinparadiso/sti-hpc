@@ -2,7 +2,7 @@
 /// @brief 'Real' part of the proxy pattern applied to the icu
 #pragma once
 
-#include "../icu.hpp"
+#include "icu_admission.hpp"
 
 #include <memory>
 #include <cstdint>
@@ -24,8 +24,7 @@ namespace json {
 } // class boost
 
 namespace sti {
-class contagious_agent;
-class object_agent;
+class patient_agent;
 class hospital_plan;
 class clock;
 class space_wrapper;
@@ -35,7 +34,7 @@ class ghost_object_cycle;
 namespace sti {
 
 /// @brief Real ICU, in charge of the responses
-class real_icu final : public icu {
+class real_icu final : public icu_admission {
 
 public:
     using communicator_ptr = boost::mpi::communicator*;
@@ -72,32 +71,54 @@ public:
 
     /// @brief Due to dependencies, beds cannot be created durning construction
     /// @param infection_factory Infection factory, to construct the beds
-    void create_beds(infection_factory& infection_factory) override;
+    void create_beds(infection_factory& infection_factory);
 
     ////////////////////////////////////////////////////////////////////////////
-    // BEHAVIOUR
+    // ADMISSION MANAGEMENT
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Request a bed in the ICU
     /// @param id The ID of the requesting agent
     void request_bed(const repast::AgentId& id) override;
 
-    /// @brief Check if the request has been processed
-    /// @return If the request was processed by the manager, True if there is a bed, false otherwise
+    /// @brief Check if the request has been processed, if so, return the answer
+    /// @return An optional, containing True if there is a bed, false otherwise
     boost::optional<bool> get_response(const repast::AgentId& id) override;
 
     /// @brief Sync the requests and responses between the processes
     void sync() override;
 
+    ////////////////////////////////////////////////////////////////////////////
+    // PATIENT INSERTION AND REMOVAL
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Insert a patient into the ICU
+    /// @throws no_more_beds If the bed_pool is full
+    /// @param patient_ptr A pointer to the patient to remove
+    void insert(patient_agent* patient_ptr);
+
+    /// @brief Remove a patient from the ICU
+    /// @throws no_patient If the agent to remove is not in the bed pool
+    /// @param patient_ptr A pointer to the patient to remove
+    void remove(const sti::patient_agent* patient_ptr);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // BEHAVIOUR
+    ////////////////////////////////////////////////////////////////////////////
+
     /// @brief Absorb nearby agents into the ICU void
     /// @details The ICU is implemented as an spaceless entity, patients are
     /// absorbed into the ICU dimension and dissapear from space. They can
     /// contract the desease via environment, but not through other patients.
-    void tick() override;
+    void tick();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // STATS
+    ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Save the ICU stats into a file
     /// @param filepath The path to the folder where
-    void save(const std::string& folderpath) const override;
+    void save(const std::string& folderpath) const;
 
 private:
     communicator_ptr _communicator;
@@ -106,29 +127,14 @@ private:
     space_wrapper* _space;
     clock*         _clock;
 
-    coordinates<int> _icu_entry;
-    coordinates<int> _icu_exit;
+    coordinates<int> _icu_location;
 
     std::unique_ptr<statistics> _stats;
 
     bed_counter_type                                              _reserved_beds;
-    std::vector<std::pair<ghost_object_cycle, contagious_agent*>> _bed_pool;
+    std::vector<std::pair<ghost_object_cycle, patient_agent*>> _bed_pool;
 
-    std::vector<message> _pending_responses;
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // HELPER FUNCTIONS
-    ///////////////////////////////////////////////////////////////////////////////
-
-    /// @brief Insert a patient into the ICU
-    /// @throws no_more_beds If the bed_pool is full
-    /// @param patient_ptr A pointer to the patient to remove
-    void insert(contagious_agent* patient_ptr);
-
-    /// @brief Remove a patient from the ICU
-    /// @throws no_patient If the agent to remove is not in the bed pool
-    /// @param patient_ptr A pointer to the patient to remove
-    void remove(const sti::contagious_agent* patient_ptr);
+    std::vector<response_message> _pending_responses;
 };
 
 } // namespace sti

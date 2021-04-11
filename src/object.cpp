@@ -84,8 +84,15 @@ void sti::object_agent::act()
 }
 
 /// @brief Get the infection logic
-/// @return A pointer to the infection logic
-const sti::infection_cycle* sti::object_agent::get_infection_logic() const
+/// @return A const pointer to the infection logic
+sti::object_infection_cycle* sti::object_agent::get_infection_logic()
+{
+    return &_infection_logic;
+}
+
+/// @brief Get the infection logic
+/// @return A const pointer to the infection logic
+const sti::object_infection_cycle* sti::object_agent::get_infection_logic() const
 {
     return &_infection_logic;
 }

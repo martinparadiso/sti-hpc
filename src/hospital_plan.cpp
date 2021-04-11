@@ -17,14 +17,6 @@
 // Helper functions
 namespace {
 
-// sti::coordinates<int> get_location(const boost::json::value& json)
-// {
-//     return {
-//         boost::json::value_to<int>(json.at("x")),
-//         boost::json::value_to<int>(json.at("y"))
-//     };
-// }
-
 /// @brief Generic load for simple types that have only location
 template <typename T, sti::tiles::ENUMS e>
 std::vector<T> load_several(const boost::json::value& json,

@@ -98,6 +98,24 @@ sti::infection_cycle::precission sti::human_infection_cycle::get_infect_probabil
     return _flyweight->infect_probability;
 }
 
+/// @brief Make the human interact with another infection logic
+/// @param other The other infection cycle
+void sti::human_infection_cycle::interact_with_cycle(const infection_cycle& other)
+{
+    // Get the chance of getting infected by that agent
+    const auto my_location        = _flyweight->space->get_continuous_location(_id);
+    const auto infect_probability = other.get_infect_probability(my_location);
+
+    // *Roll the dice*
+    const auto random_number = repast::Random::instance()->nextDouble();
+    if (random_number < infect_probability) {
+        // Got infected
+        _stage          = STAGE::INCUBATING;
+        _infection_time = _flyweight->clk->now();
+        _infected_by    = other.get_id();
+    }
+}
+
 /// @brief Try to get infected via the environment
 void sti::human_infection_cycle::infect_with_environment()
 {
@@ -128,20 +146,9 @@ void sti::human_infection_cycle::infect_with_nearby()
 
     for (const auto& agent : near_agents) {
 
-        // Get the chance of getting infected by that agent
-        const auto infect_probability = agent->get_infection_logic()->get_infect_probability(my_location);
-
-        // *Roll the dice*
-        const auto random_number = repast::Random::instance()->nextDouble();
-        if (random_number < infect_probability) {
-            // Got infected
-            _stage          = STAGE::INCUBATING;
-            _infection_time = _flyweight->clk->now();
-            _infected_by    = to_string(agent->getId());
-
-            // No need to keep iterating over the remaining agents
-            break;
-        }
+        this->interact_with_cycle(*agent->get_infection_logic());
+        // If got infected No need to keep iterating over the remaining agents
+        if (_stage != STAGE::HEALTHY) break;
     }
 }
 

@@ -118,10 +118,10 @@ private:
     std::unique_ptr<agent_factory> _agent_factory {}; // Properly initalized in init()
 
     std::unique_ptr<chair_manager> _chair_manager {}; // Properly initalized in init()
-    std::unique_ptr<reception>     _reception {}; // Propertly initialized in init()
-    std::unique_ptr<triage>        _triage {}; // Propertly initialized in init()
-    std::unique_ptr<doctors>       _doctors {}; // Propertly initialized in init()
-    std::unique_ptr<icu> _icu{};
+    std::unique_ptr<reception>     _reception {}; // Properly initialized in init()
+    std::unique_ptr<triage>        _triage {}; // Properly initialized in init()
+    std::unique_ptr<doctors>       _doctors {}; // Properly initialized in init()
+    std::unique_ptr<icu>           _icu {}; // Properly initialized in init()
 
     std::unique_ptr<hospital_entry> _entry {}; // Properly initalized in init()
     std::unique_ptr<hospital_exit>  _exit {}; // Properly initalized in init()

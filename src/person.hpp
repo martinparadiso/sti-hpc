@@ -67,7 +67,11 @@ public:
 
     /// @brief Get the infection logic
     /// @return A pointer to the infection logic
-    const infection_cycle* get_infection_logic() const override;
+    human_infection_cycle* get_infection_logic() override;
+
+    /// @brief Get the infection logic
+    /// @return A pointer to the infection logic
+    const human_infection_cycle* get_infection_logic() const override;
 
     /// @brief Return the agent statistics as a json object
     /// @return A Boost.JSON object containing relevant statistics

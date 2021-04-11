@@ -45,6 +45,7 @@
 #include "patient.hpp"
 #include "reception.hpp"
 #include "icu.hpp"
+#include "icu/real_icu.hpp"
 
 namespace {
 auto now_in_ns()
@@ -123,7 +124,7 @@ void sti::model::init()
     _reception.reset(new reception { *_props, _communicator, _hospital });
     _triage.reset(new triage { *_props, _hospital_props, _communicator, _clock.get(), _hospital });
     _doctors = std::make_unique<doctors>(*_props, _hospital_props, _communicator, _hospital);
-    _icu.reset(make_icu(_communicator, *_props, _hospital_props, _hospital, &_spaces, _clock.get()));
+    _icu.reset(new icu(_communicator, *_props, _hospital_props, _hospital, &_spaces, _clock.get()));
 
     // Create the agent factory
     _agent_factory.reset(new agent_factory { &_context,
@@ -195,7 +196,9 @@ void sti::model::init()
     }
 
     // Create the beds
-    _icu->create_beds(*(_agent_factory->get_infection_factory()));
+    if (_icu->get_real_icu()) {
+        _icu->get_real_icu()->get().create_beds(*(_agent_factory->get_infection_factory()));
+    }
 
     // Preallocate the metrics vector
     _pmetrics.values.reserve(static_cast<decltype(_pmetrics.values)::size_type>(_stop_at));
@@ -228,7 +231,7 @@ void sti::model::tick()
     _reception->sync();
     _triage->sync();
     _doctors->queues()->sync();
-    _icu->sync();
+    _icu->admission().sync();
     new_metric.mpi_sync_ns = now_in_ns() - pre_mpi_time;
 
     const auto pre_rhpc_time = now_in_ns();
@@ -241,7 +244,7 @@ void sti::model::tick()
     const auto pre_logic_time = now_in_ns();
     if (_entry) _entry->generate_patients();
     if (_exit) _exit->tick();
-    _icu->tick();
+    if (_icu->get_real_icu()) _icu->get_real_icu()->get().sync();
 
     // Iterate over all the agents to perform their actions
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {

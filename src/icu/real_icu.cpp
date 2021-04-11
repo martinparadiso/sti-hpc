@@ -17,7 +17,7 @@
 #include "../json_serialization.hpp"
 #include "../agent_factory.hpp"
 #include "../clock.hpp"
-#include "../contagious_agent.hpp"
+#include "../patient.hpp"
 #include "../hospital_plan.hpp"
 #include "../object.hpp"
 
@@ -44,7 +44,8 @@ struct no_patient_with_that_id : public std::exception {
         return "ICU: Someone tried to remove a patient that is not here";
     }
 };
-}
+
+} // namespace
 
 ////////////////////////////////////////////////////////////////////////////
 // STATISTICS
@@ -86,13 +87,11 @@ sti::real_icu::real_icu(communicator_ptr           communicator,
                         const hospital_plan&       hospital_plan,
                         space_wrapper*             space,
                         clock*                     clock)
-    : icu { hospital_props }
-    , _communicator { communicator }
+    : _communicator { communicator }
     , _mpi_base_tag { mpi_tag }
     , _space { space }
     , _clock { clock }
-    , _icu_entry { hospital_plan.icu().entry_location }
-    , _icu_exit { hospital_plan.icu().exit_location }
+    , _icu_location { hospital_plan.icu().location }
     , _stats { std::make_unique<statistics>() }
     , _reserved_beds { 0 }
     , _bed_pool(static_cast<std::size_t>(hospital_props.at("parameters").at("icu").at("beds").as_int64()), { nullptr, nullptr })
@@ -162,7 +161,7 @@ void sti::real_icu::sync()
 
     // Thr incoming requests are actually world_size - 1, but using a map is
     // more expensive
-    auto incoming_requests = std::vector(static_cast<std::uint64_t>(world_size), std::vector<repast::AgentId> {});
+    auto incoming_requests = std::vector(static_cast<std::uint64_t>(world_size), std::vector<request_message> {});
 
     // Receive the new requests
     for (auto p = 0; p < world_size; ++p) {
@@ -173,7 +172,7 @@ void sti::real_icu::sync()
     mpi_tag++;
 
     // Process the requests
-    auto outgoing_responses = std::vector(static_cast<std::uint64_t>(world_size), std::vector<message> {});
+    auto outgoing_responses = std::vector(static_cast<std::uint64_t>(world_size), std::vector<response_message> {});
 
     for (auto p = 0; p < world_size; ++p) {
         if (p != this_rank) {
@@ -198,20 +197,14 @@ void sti::real_icu::sync()
     }
 }
 
-/// @brief Absorb nearby agents into the ICU void
-/// @details The ICU is implemented as an spaceless entity, patients are
-/// absorbed into the ICU dimension and dissapear from space. They can
-/// contract the desease via environment, but not through other patients.
+/// @brief Execute periodic actions
 void sti::real_icu::tick()
 {
 
-    // Absorb all patients standing in the entry of the ICU
-    const auto agents_at_entry = _space->agents_in_cell(_icu_entry);
-
-    for (const auto& agent : agents_at_entry) {
-        if (agent->get_type() == contagious_agent::type::PATIENT) {
-            insert(agent);
-        }
+    // Run the infection logic
+    for (auto& [bed, patient] : _bed_pool) {
+        bed.interact_with(patient->get_infection_logic());
+        patient->get_infection_logic()->interact_with_cycle(bed);
     }
 
     // Collect stats, count the number of beds that are actually empty
@@ -249,7 +242,7 @@ void sti::real_icu::save(const std::string& folderpath) const
     // Write the admissions, releases and rejections
     auto inout_path = std::ostringstream {};
     inout_path << folderpath
-               << "icu_admissions_and_releases_in_process_"
+               << "/icu_admissions_and_releases_in_process_"
                << _communicator->rank()
                << ".csv";
     auto inout_file = std::ofstream { inout_path.str() };
@@ -276,22 +269,6 @@ void sti::real_icu::save(const std::string& folderpath) const
                    << "release"
                    << "\n";
     }
-
-    // Write the ICU probabilities/randoms generated
-    const auto* icu_stats  = icu::stats();
-    auto        stats_path = std::ostringstream {};
-    stats_path << folderpath
-               << "icu_in_process_"
-               << _communicator->rank()
-               << ".csv";
-    auto stats_file = std::ofstream { stats_path.str() };
-
-    stats_file << "sleep_time,assigned\n";
-
-    for (const auto& [sleep_time, assigned] : icu_stats->sleep_times) {
-        stats_file << sleep_time.length() << ","
-                   << assigned << "\n";
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -301,7 +278,7 @@ void sti::real_icu::save(const std::string& folderpath) const
 /// @brief Insert a patient into the ICU
 /// @throws no_more_beds If the bed_pool is full
 /// @param patient_ptr A pointer to the patient to remove
-void sti::real_icu::insert(sti::contagious_agent* patient)
+void sti::real_icu::insert(sti::patient_agent* patient)
 {
     // Find an empty bed
     auto it = std::find_if(_bed_pool.begin(),
@@ -321,7 +298,7 @@ void sti::real_icu::insert(sti::contagious_agent* patient)
 /// @brief Remove a patient from the ICU
 /// @throws no_patient If the agent to remove is not in the bed pool
 /// @param patient_ptr A pointer to the patient to remove
-void sti::real_icu::remove(const sti::contagious_agent* patient_ptr)
+void sti::real_icu::remove(const sti::patient_agent* patient_ptr)
 {
     auto it = std::find_if(_bed_pool.begin(), _bed_pool.end(),
                            [&](const auto& pair) {
@@ -335,7 +312,6 @@ void sti::real_icu::remove(const sti::contagious_agent* patient_ptr)
     it->second = nullptr;
 
     // Insert the patient into the space
-    _space->move_to(patient_ptr->getId(), _icu_exit);
 
     // Decrease the number of beds in use
     _reserved_beds -= 1;
