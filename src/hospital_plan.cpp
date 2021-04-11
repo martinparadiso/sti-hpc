@@ -91,11 +91,7 @@ std::vector<sti::tiles::triage> sti::tiles::triage::load(const boost::json::obje
 
 sti::tiles::icu sti::tiles::icu::load(const boost::json::object& hospital, sti::tiles::grid& map)
 {
-    const auto entry = boost::json::value_to<sti::coordinates<int>>((hospital.at("building").at("icu_entry")));
-    const auto exit = boost::json::value_to<sti::coordinates<int>>((hospital.at("building").at("icu_entry")));
-
-    map.at(static_cast<std::size_t>(entry.x)).at(static_cast<std::size_t>(entry.y));
-    return icu{entry, exit};
+    return load_one<icu, ENUMS::ICU>(hospital, "ICU", map);
 }
 
 std::vector<sti::tiles::receptionist> sti::tiles::receptionist::load(const boost::json::object& hospital, sti::tiles::grid& map)
