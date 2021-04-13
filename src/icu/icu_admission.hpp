@@ -73,6 +73,10 @@ public:
 
     /// @brief Check if the request has been processed, if so, return the answer
     /// @return An optional, containing True if there is a bed, false otherwise
+    virtual boost::optional<bool> peek_response(const repast::AgentId& id) const = 0;
+
+    /// @brief Check if the request has been processed, if so, return the answer
+    /// @return An optional, containing True if there is a bed, false otherwise
     virtual boost::optional<bool> get_response(const repast::AgentId& id) = 0;
 
     /// @brief Sync the requests and responses between the processes

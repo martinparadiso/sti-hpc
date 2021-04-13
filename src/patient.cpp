@@ -68,7 +68,7 @@ boost::json::object sti::patient_agent::stats() const
         { "path", _path },
         { "infection", _infection_logic.stats() },
         { "exit_time", _flyweight->clk->now().epoch() },
-        { "last_state", _fsm._last_state }
+        { "last_state", _fsm.last_state }
     };
 }
 

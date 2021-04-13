@@ -3,6 +3,7 @@
 #pragma once
 
 #include <boost/serialization/access.hpp>
+#include <boost/serialization/variant.hpp>
 #include <functional>
 #include <map>
 #include <memory>
@@ -47,9 +48,10 @@ struct patient_fsm {
         WALK_TO_DOCTOR,
         WAIT_IN_DOCTOR,
         NO_ATTENTION,
-        WAIT_IN_ICU,
+        WAIT_ICU,
         WALK_TO_ICU,
         SLEEP,
+        RESOLVE,
         MORGUE,
         WALK_TO_EXIT,
         AWAITING_DELETION,
@@ -74,6 +76,21 @@ struct patient_fsm {
     using entry_list = std::map<STATE, entry_signature>;
     using exit_list  = std::map<STATE, exit_signature>;
 
+    using patient_flyweight_ptr = patient_flyweight*;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // FLYWEIGHT / SHARED ATTRIBUTES
+    ////////////////////////////////////////////////////////////////////////////
+
+    class flyweight {
+    public:
+        flyweight();
+
+        transition_table transitions;
+        entry_list       entries;
+        exit_list        exits;
+    };
+
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
@@ -81,7 +98,7 @@ struct patient_fsm {
     /// @brief Default construct an empty FSM, starting in the initial state
     /// @param fw The patient flyweight
     /// @param patient The patient associated with this FSM
-    patient_fsm(patient_flyweight* fw, patient_agent* patient);
+    patient_fsm(patient_flyweight_ptr fw, patient_agent* patient);
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -98,25 +115,22 @@ struct patient_fsm {
     template <class Archive>
     void serialize(Archive& ar, const unsigned int /*unused*/)
     {
-        ar& _current_state;
-        ar& _destination;
-        ar& _attention_end;
-        ar& _last_state;
-        ar& _diagnosis;
+        ar& current_state;
+        ar& destination;
+        ar& attention_end;
+        ar& last_state;
+        ar& diagnosis;
     } // void serialize()
 
-    patient_flyweight* _flyweight;
-    patient_agent*     _patient;
-    transition_table   _transition_table;
-    entry_list         _entries;
-    exit_list          _exits;
+    patient_flyweight* patient_flyweight;
+    patient_agent*     patient;
 
     // Internal serializable state
-    STATE                    _current_state;
-    coordinates<double>      _destination;
-    datetime                 _attention_end;
-    std::string              _last_state;
-    triage::triage_diagnosis _diagnosis;
+    STATE                    current_state;
+    coordinates<double>      destination;
+    datetime                 attention_end;
+    std::string              last_state;
+    triage::triage_diagnosis diagnosis;
 }; // class patient_fsm
 
 } // namespace sti

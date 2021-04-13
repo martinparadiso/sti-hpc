@@ -21,9 +21,9 @@ function(tidy target)
 endfunction()
 
 # Address sanitation
-option(ASAN "Enable address sanitation options" OFF)
+option(ASAN "Enable address sanitization options" OFF)
 if(ASAN)
-    message("Builing with address sanitation")
+    message("Builing with address sanitization")
 endif()
 
 function(sanitize_address target)
@@ -84,6 +84,7 @@ target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic -Wshadow)
 optional_lto(sti-demo)
 tidy(sti-demo)
+sanitize_address(sti-demo)
 
 # Boost
 target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/boost/lib")

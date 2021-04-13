@@ -48,9 +48,7 @@ namespace sti {
 class icu final {
 
 public:
-    using precission              = double;
     constexpr static auto mpi_tag = 7835; //  MPI tag for synchronization
-    struct statistics;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
@@ -103,18 +101,6 @@ public:
     std::optional<std::reference_wrapper<const real_icu>> get_real_icu() const;
 
     ////////////////////////////////////////////////////////////////////////////
-    // ICU RANDOMNESS
-    ////////////////////////////////////////////////////////////////////////////
-
-    /// @brief Get the time the patient must spend in the ICU
-    /// @return The time the patient has to sleep
-    timedelta get_icu_time() const;
-
-    /// @brief Return the outcome of the ICU, dead or alive
-    /// @return True if the patient is saved, false if the patient dies
-    bool survive() const;
-
-    ////////////////////////////////////////////////////////////////////////////
     // STATISTICS COLLECTION
     ////////////////////////////////////////////////////////////////////////////
 
@@ -123,15 +109,12 @@ public:
     void save(const std::string& folderpath) const;
 
 private:
-    std::vector<std::pair<timedelta, precission>> _sleep_times;
-    precission                                    _death_probability;
 
     // The wrapper stores an owning pointer to an abstract icu_admission and a
     // raw pointer to the real icu, in case the real_icu is in this process
     real_icu*                      _real_icu;
     std::unique_ptr<icu_admission> _icu_admission;
 
-    std::unique_ptr<statistics> _stats;
 }; // class icu
 
 ////////////////////////////////////////////////////////////////////////////////

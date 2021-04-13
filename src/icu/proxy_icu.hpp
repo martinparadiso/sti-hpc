@@ -70,6 +70,10 @@ public:
 
     /// @brief Check if the request has been processed, if so, return the answer
     /// @return An optional, containing True if there is a bed, false otherwise
+    boost::optional<bool> peek_response(const repast::AgentId& id) const override;
+    
+    /// @brief Check if the request has been processed, if so, return the answer
+    /// @return An optional, containing True if there is a bed, false otherwise
     boost::optional<bool> get_response(const repast::AgentId& id) override;
 
     /// @brief Sync the requests and responses between the processes

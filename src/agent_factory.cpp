@@ -20,6 +20,7 @@
 #include "reception.hpp"
 #include "space_wrapper.hpp"
 #include "triage.hpp"
+#include "patient_fsm.hpp"
 
 /// @brief Create a new patient factory
 /// @param context A pointer to the repast context, to insert the agent
@@ -63,7 +64,8 @@ sti::agent_factory::agent_factory(context_ptr                context,
             icu,
             boost::json::value_to<double>(hospital_props.at("parameters").at("patient").at("walk_speed")),
             boost::json::value_to<timedelta>(hospital_props.at("parameters").at("reception").at("attention_time")),
-            boost::json::value_to<timedelta>(hospital_props.at("parameters").at("triage").at("attention_time"))
+            boost::json::value_to<timedelta>(hospital_props.at("parameters").at("triage").at("attention_time")),
+            patient_fsm::flyweight{}
         } // clang-format on
     , _person_flyweight { &_infection_factory }
     , _object_flyweight { &_infection_factory }

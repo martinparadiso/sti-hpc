@@ -2,13 +2,12 @@
 hospital.file = ./hospital.json
 
 # Process distribution
-x.process = 1
-y.process = 1
+x.process = 2
+y.process = 2
 chair.manager.rank = 0
 reception.manager.rank = 0
 triage.manager.rank = 0
 doctors.manager.rank = 0
-icu.manager.rank = 0
 
 # Simulation
 seconds.per.tick = 60

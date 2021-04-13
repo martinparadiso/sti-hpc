@@ -50,6 +50,7 @@ struct patient_flyweight {
     const double                             walk_speed {};
     sti::timedelta                           reception_time;
     sti::timedelta                           triage_duration;
+    patient_fsm::flyweight                   fsm {};
 };
 
 /// @brief An agent representing a patient

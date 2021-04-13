@@ -1,9 +1,12 @@
 #include "triage.hpp"
 
 #include <boost/json/object.hpp>
+#include <boost/json/value.hpp>
 #include <boost/lexical_cast.hpp>
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <numeric>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/Properties.h>
 #include <repast_hpc/Random.h>
@@ -50,7 +53,8 @@ struct sti::triage::statistic {
 
     using counter_type = std::uint32_t;
 
-    counter_type                                                     icu_diagnostics;
+    std::map<timedelta, counter_type>                                icu_diagnostics;
+    counter_type                                                     icu_deaths;
     std::map<doctor_type, std::map<triage_level_type, counter_type>> doctors_diagnostics;
 };
 
@@ -85,9 +89,9 @@ sti::triage::triage(const properties_type&     execution_props,
             return new proxy_queue_manager { comm, 4542, manager_rank };
         }()
     }
-    , _this_rank{comm->rank()}
+    , _this_rank { comm->rank() }
     , _clock { clock }
-    , _stats{std::make_unique<statistic>()}
+    , _stats { std::make_unique<statistic>() }
     , _icu_probability { [&]() {
         return hospital_props.at("parameters").at("triage").at("icu").at("chance").as_double();
     }() }
@@ -95,7 +99,8 @@ sti::triage::triage(const properties_type&     execution_props,
         auto       probs = decltype(_doctors_probabilities) {};
         const auto data  = hospital_props.at("parameters").at("triage").at("doctors_probabilities").as_object();
         for (const auto& [key, value] : data) {
-            probs[key.to_string()] = value.at("chance").as_double();
+            probs.push_back({ key.to_string(),
+                              static_cast<probability_precission>(value.at("chance").as_double()) });
         }
         return probs;
     }() }
@@ -103,7 +108,8 @@ sti::triage::triage(const properties_type&     execution_props,
         auto       probs = decltype(_levels_probabilities) {};
         const auto data  = hospital_props.at("parameters").at("triage").at("levels").as_object();
         for (const auto& [key, value] : data) {
-            probs[std::stoi(key.to_string())] = value.at("chance").as_double();
+            probs.push_back({ std::stoi(key.to_string()),
+                              static_cast<probability_precission>(value.at("chance").as_double()) });
         }
         return probs;
     }() }
@@ -115,15 +121,34 @@ sti::triage::triage(const properties_type&     execution_props,
         }
         return times;
     }() }
+    , _icu_sleep_times { [&]() {
+        auto       times = decltype(_icu_sleep_times) {};
+        const auto data  = hospital_props.at("parameters").at("icu").at("sleep_time").as_array();
+
+        for (const auto& entry : data) {
+
+            const auto time        = boost::json::value_to<timedelta>(entry.at("time"));
+            const auto probability = static_cast<probability_precission>(entry.at("probability").as_double());
+
+            times.push_back({ time, probability });
+        }
+
+        return times;
+    }() }
+    , _icu_death_probability { [&]() {
+        return hospital_props.at("parameters").at("icu").at("death_probability").as_double();
+    }() }
 {
     // Make sure all probabilities sum 1
-    auto doc_acc = _icu_probability;
-    for (const auto& [type, prob] : _doctors_probabilities) doc_acc += prob;
+    auto doc_acc = std::accumulate(_doctors_probabilities.begin(), _doctors_probabilities.end(), _icu_probability,
+                                   [](auto acc, const auto& val) { return acc + val.second; });
     if (doc_acc != 1.0) throw wrong_probability_sum { "icu/doctors", doc_acc };
 
-    auto sev_acc = 0.0;
-    for (const auto& [sev, prob] : _levels_probabilities) sev_acc += prob;
-    if (sev_acc != 1.0) throw wrong_probability_sum { "triage levels", sev_acc };
+    // auto sev_acc = 0.0;
+    // for (const auto& [sev, prob] : _levels_probabilities) sev_acc += prob;
+    auto severity_acc = std::accumulate(_levels_probabilities.begin(), _levels_probabilities.end(), 0.0,
+                                        [](auto acc, const auto& val) { return acc + val.second; });
+    if (severity_acc != 1.0) throw wrong_probability_sum { "triage levels", severity_acc };
 }
 
 sti::triage::~triage() = default;
@@ -164,95 +189,86 @@ void sti::triage::sync()
 // DIAGNOSTIC
 ////////////////////////////////////////////////////////////////////////////////
 
+namespace {
+
+/// @brief Find the bucket/bin in which a value falls
+/// @details Given a container with bin "tags" and the width of the bins, and a
+/// value, try to find the bin in which the value falls. Note that a "sub"
+/// histogram can be used, where probabilities sum < 1.0. If this is the case,
+/// an offset must be provided satisfying the contition sum(p) + offset = 1.0;
+/// in this case the parameter number *must* be greater than the offset, offset
+/// is considered the missing bin [0, offset).
+/// @tparam Value The "tag" type for a given bracket
+/// @tparam Chance The type used for the probability
+/// @param map The map containing the brackets (consisting of tag and probability)
+/// @param number The number trying to fit in the probability
+/// @param offset If the probabilities don't sum 1, an offset fullfiling P + offset = 1 must be provided
+template <typename Iterable, typename Chance>
+[[nodiscard]] auto find_bracket(const Iterable& container, Chance number, Chance offset = Chance(0.0))
+{
+    for (const auto& [value, chance] : container) {
+        if (offset <= number && number <= offset + chance) {
+            return value;
+        }
+        offset += chance;
+    }
+    const auto last = --container.end();
+    return last->first;
+}
+
+} // namespace
+
 /// @brief Diagnose a patient, randomly select a doctor or ICU
 /// @return The diagnostic
 sti::triage::triage_diagnosis sti::triage::diagnose()
 {
-    // The algorithm simply generates a random number and checks in which
-    // bracket it falls. All probabilities sum 1.0 and the random number is in
-    // the range [0, 1)
-
     // Roll dice
     const auto random_dispatch = repast::Random::instance()->nextDouble();
-    auto       base            = 0.0;
 
     // If the number falls in the ICU bracket (the lower one), return an ICU
     // diagnostic
     if (random_dispatch <= _icu_probability) {
-        _stats->icu_diagnostics++;
-        return triage::triage_diagnosis::icu();
+        const auto random_sleep_time = repast::Random::instance()->nextDouble();
+        const auto sleep_time        = find_bracket(_icu_sleep_times, random_sleep_time);
+        _stats->icu_diagnostics[sleep_time] += 1;
+
+        const auto random_survives_chance = repast::Random::instance()->nextDouble();
+        const auto survives               = random_survives_chance >= _icu_death_probability;
+        if (!survives) _stats->icu_deaths  += 1;
+
+        return icu_diagnosis{sleep_time, survives};
     }
 
-    // Otherwise start trying in the N doctors specialties generated
-    base += _icu_probability;
-    const auto doctor_assigned = [&]() {
-        for (const auto& [type, chance] : _doctors_probabilities) {
-            if (base <= random_dispatch && random_dispatch <= base + chance) {
-                return type;
-            }
-            base += chance;
-        }
-
-        // If for some reason none of the probabilities matched, return the last
-        // doctor in the map.
-        const auto last = --_doctors_probabilities.end();
-        return last->first;
-    }();
+    // Otherwise check in which doctor it falls
+    const auto doctor_assigned = find_bracket(_doctors_probabilities, random_dispatch, _icu_probability);
 
     const auto random_level = repast::Random::instance()->nextDouble();
-    base                    = 0.0;
-
-    const auto severity_diagnosed = [&]() {
-        for (const auto& [severity, chance] : _levels_probabilities) {
-            if (base <= random_level && random_level <= base + chance) {
-                return severity;
-            }
-            base += chance;
-        }
-        // If for some reason none of  the probabilities matched, return the
-        // last severity
-        const auto last = --_levels_probabilities.end();
-        return last->first;
-    }();
-
+    const auto severity_diagnosed = find_bracket(_levels_probabilities, random_level);
     const auto attention_limit = _clock->now() + _levels_time_limit.at(severity_diagnosed);
 
     // Increment the statistics
     _stats->doctors_diagnostics[doctor_assigned][severity_diagnosed] += 1;
 
     // Now we have all the information, return the doctor and the wait time
-    return triage_diagnosis::doctor(doctor_assigned, attention_limit);
+    return doctor_diagnosis { doctor_assigned, attention_limit };
 }
-
 
 /// @brief Save the stadistics/metrics to a file
 /// @param filepath The path to the folder where
 void sti::triage::save(const std::string& folderpath) const
 {
+    // Generate the JSON
+    auto jv = boost::json::value {
+        { "icu", { { "deaths", _stats->icu_deaths }, { "times", _stats->icu_diagnostics } } },
+        { "doctors", _stats->doctors_diagnostics }
+    };
+
     // Construct the file path and open the file
     auto os = std::ostringstream {};
     os << folderpath
        << "/triage_in_process_"
        << _this_rank
-       << ".csv";
+       << ".json";
     auto file = std::ofstream { os.str() };
-
-    // Write the header
-    file << "dispatched_to" << ","
-         << "severity" << ","
-         << "quantity" << "\n";
-
-    // Write the number of ICU diagnosis
-    file << "icu" << ","
-         << "," 
-         << _stats->icu_diagnostics << "\n";
-
-    // Write the doctors and triage levels
-    for (const auto& [doctor, severity_map] : _stats->doctors_diagnostics) {
-        for (const auto& [severity, quantity] : severity_map) {
-            file << doctor << ","
-                 << severity << ","
-                 << quantity << "\n";
-        }
-    }
+    file << jv;
 }

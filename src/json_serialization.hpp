@@ -46,7 +46,7 @@ inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::valu
 
 inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const datetime& td)
 {
-    jv                = {
+    jv = {
         { "time", td.epoch() }
     };
 }

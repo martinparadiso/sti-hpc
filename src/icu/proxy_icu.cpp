@@ -40,6 +40,25 @@ void sti::proxy_icu::request_bed(const repast::AgentId& id)
 
 /// @brief Check if the request has been processed
 /// @return If the request was processed by the manager, True if there is a bed, false otherwise
+boost::optional<bool> sti::proxy_icu::peek_response(const repast::AgentId& id) const
+{
+    // Search the vector of pending responses for the messages with that id
+    const auto it = std::find_if(_pending_responses.begin(),
+                                 _pending_responses.end(),
+                                 [&](const auto& r) {
+                                     return r.first == id;
+                                 });
+
+    if (it == _pending_responses.end()) {
+        return boost::none;
+    }
+
+    const auto response = *it;
+    return response.second;
+}
+
+/// @brief Check if the request has been processed
+/// @return If the request was processed by the manager, True if there is a bed, false otherwise
 boost::optional<bool> sti::proxy_icu::get_response(const repast::AgentId& id)
 {
     // Search the vector of pending responses for the messages with that id

@@ -221,7 +221,7 @@ void sti::model::tick()
 
     // Sync the clock with the simulation tick
     _clock->sync();
-
+    
     ////////////////////////////////////////////////////////////////////////////
     // INTER-PROCESS SYNCHRONIZATION
     ////////////////////////////////////////////////////////////////////////////
@@ -244,7 +244,7 @@ void sti::model::tick()
     const auto pre_logic_time = now_in_ns();
     if (_entry) _entry->generate_patients();
     if (_exit) _exit->tick();
-    if (_icu->get_real_icu()) _icu->get_real_icu()->get().sync();
+    if (_icu->get_real_icu()) _icu->get_real_icu()->get().tick();
 
     // Iterate over all the agents to perform their actions
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {

@@ -2,7 +2,9 @@
 /// @brief Implements the triage queue
 #pragma once
 
+#include <boost/serialization/variant.hpp>
 #include <boost/mpi/communicator.hpp>
+#include <boost/variant.hpp>
 #include <map>
 #include <memory>
 
@@ -44,37 +46,55 @@ public:
     /// @brief Triage statistics: patients assigned and such
     struct statistic;
 
-    struct triage_diagnosis {
+    ////////////////////////////////////////////////////////////////////////////
+    // DIAGNOSIS
+    ////////////////////////////////////////////////////////////////////////////
 
-        /// @brief Represent the two possible outcomes of the triage: go to a doctor or ICU
-        enum class DIAGNOSTIC {
-            DOCTOR,
-            ICU
-        }; // enum class DIAGNOSE
-
-        DIAGNOSTIC              area_assigned;
+    /// @brief Represents a doctor diagnosis, contains doctor assigned and priority
+    struct doctor_diagnosis {
         doctor_type             doctor_assigned;
         attention_waittime_type attention_time_limit;
-
-        static auto icu()
-        {
-            return triage_diagnosis { DIAGNOSTIC::ICU, "", attention_waittime_type {} };
-        }
-
-        static auto doctor(const doctor_type& type, const attention_waittime_type& wt)
-        {
-            return triage_diagnosis { DIAGNOSTIC::DOCTOR, type, wt };
-        }
 
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int /*unused*/)
         {
-            ar& area_assigned;
             ar& doctor_assigned;
             ar& attention_time_limit;
-        } // void serialize()
+        } // void serialize(...)
 
-    }; // struct triage_diagnosis
+    }; // struct doctor
+
+    /// @brief Represents a ICU diagnosis, contains the internation time and the outcome
+    struct icu_diagnosis {
+        timedelta sleep_time;
+        bool      survives {};
+
+        template <typename Archive>
+        void serialize(Archive& ar, const unsigned int /*unused*/)
+        {
+            ar& sleep_time;
+            ar& survives;
+        }
+
+    }; // struct icu
+
+    using triage_diagnosis = boost::variant<doctor_diagnosis, icu_diagnosis>;
+
+    // Helper function because boost::variant doesn't have holds_alternative
+
+    /// @brief Check if the variant holds and ICU diagnosis
+    /// @return True if the variant holds an object of type icu_diagnosis
+    static bool holds_doctor_diagnosis(const triage_diagnosis& td)
+    {
+        return td.which() == 0;
+    }
+
+    /// @brief Check if the variant holds and ICU diagnosis
+    /// @return True if the variant holds an object of type icu_diagnosis
+    static bool holds_icu_diagnosis(const triage_diagnosis& td)
+    {
+        return td.which() == 1;
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
@@ -143,23 +163,15 @@ private:
 
     std::unique_ptr<statistic> _stats;
 
-    probability_precission                        _icu_probability;
-    std::map<doctor_type, probability_precission> _doctors_probabilities;
+    probability_precission                                      _icu_probability;
+    std::vector<std::pair<doctor_type, probability_precission>> _doctors_probabilities;
 
-    std::map<triage_level_type, probability_precission> _levels_probabilities;
-    std::map<triage_level_type, timedelta>              _levels_time_limit;
+    std::vector<std::pair<triage_level_type, probability_precission>> _levels_probabilities;
+    std::map<triage_level_type, timedelta>                            _levels_time_limit;
+
+    std::vector<std::pair<timedelta, probability_precission>> _icu_sleep_times;
+    probability_precission                                    _icu_death_probability;
 
 }; // class triage
 
 } // namespace sti
-
-// Enum serialization
-namespace boost {
-namespace serialization {
-    template <typename Archive>
-    void serialize(Archive& ar, sti::triage::triage_diagnosis::DIAGNOSTIC diagnose, const unsigned int /*unsued*/)
-    {
-        ar& diagnose;
-    } // void serialize()
-} // namespace serialization
-} // namespace boost

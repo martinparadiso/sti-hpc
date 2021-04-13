@@ -94,7 +94,7 @@ sti::real_icu::real_icu(communicator_ptr           communicator,
     , _icu_location { hospital_plan.icu().location }
     , _stats { std::make_unique<statistics>() }
     , _reserved_beds { 0 }
-    , _bed_pool(static_cast<std::size_t>(hospital_props.at("parameters").at("icu").at("beds").as_int64()), { nullptr, nullptr })
+    , _capacity{static_cast<decltype(_capacity)>(hospital_props.at("parameters").at("icu").at("beds").as_int64())}
 {
 }
 
@@ -104,8 +104,8 @@ sti::real_icu::~real_icu() = default;
 /// @param if Infection factory, to construct the beds
 void sti::real_icu::create_beds(infection_factory& infection_factory)
 {
-    for (auto& bed : _bed_pool) {
-        bed.first = infection_factory.make_ghost_object_cycle("bed", ghost_object_cycle::STAGE::CLEAN);
+    for (auto i = 0U; i < _capacity; ++i) {
+        _bed_pool.push_back({infection_factory.make_ghost_object_cycle("bed", ghost_object_cycle::STAGE::CLEAN), nullptr});
     }
 }
 
@@ -130,6 +130,25 @@ void sti::real_icu::request_bed(const repast::AgentId& id)
         _stats->rejections.push_back({ id, _clock->now() });
         _pending_responses.push_back({ id, false });
     }
+}
+
+/// @brief Check if the request has been processed
+/// @return If the request was processed by the manager, True if there is a bed, false otherwise
+boost::optional<bool> sti::real_icu::peek_response(const repast::AgentId& id) const
+{
+    // Search the vector of pending responses for the messages with that id
+    const auto it = std::find_if(_pending_responses.begin(),
+                                 _pending_responses.end(),
+                                 [&](const auto& r) {
+                                     return r.first == id;
+                                 });
+
+    if (it == _pending_responses.end()) {
+        return boost::none;
+    }
+
+    const auto response = *it;
+    return response.second;
 }
 
 /// @brief Check if the request has been processed
@@ -203,8 +222,10 @@ void sti::real_icu::tick()
 
     // Run the infection logic
     for (auto& [bed, patient] : _bed_pool) {
-        bed.interact_with(patient->get_infection_logic());
-        patient->get_infection_logic()->interact_with_cycle(bed);
+        if (patient != nullptr) {
+            bed.interact_with(patient->get_infection_logic());
+            patient->get_infection_logic()->interact_with_cycle(bed);
+        }
     }
 
     // Collect stats, count the number of beds that are actually empty
@@ -250,15 +271,15 @@ void sti::real_icu::save(const std::string& folderpath) const
     inout_file << "time,agent,type\n";
 
     for (const auto& admission : _stats->agent_admission) {
-        inout_file << to_string(admission.first) << ","
-                   << admission.second.epoch() << ","
+        inout_file << admission.second.epoch() << ","
+                   << to_string(admission.first) << ","
                    << "admission"
                    << "\n";
     }
 
     for (const auto& release : _stats->agent_release) {
-        inout_file << to_string(release.first) << ","
-                   << release.second.epoch() << ","
+        inout_file << release.second.epoch() << ","
+                   << to_string(release.first) << ","
                    << "release"
                    << "\n";
     }
@@ -266,7 +287,7 @@ void sti::real_icu::save(const std::string& folderpath) const
     for (const auto& rejection : _stats->rejections) {
         inout_file << to_string(rejection.first) << ","
                    << rejection.second.epoch() << ","
-                   << "release"
+                   << "rejection"
                    << "\n";
     }
 }
@@ -307,11 +328,8 @@ void sti::real_icu::remove(const sti::patient_agent* patient_ptr)
 
     if (it == _bed_pool.end()) throw no_patient_with_that_id {};
 
-    // Patient found, 'remove' it by nulling the pointer. Then insert the
-    // patient into the ICU exit.
+    // Patient found, 'remove' it by nulling the pointer
     it->second = nullptr;
-
-    // Insert the patient into the space
 
     // Decrease the number of beds in use
     _reserved_beds -= 1;

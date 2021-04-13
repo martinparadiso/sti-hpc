@@ -83,6 +83,10 @@ public:
 
     /// @brief Check if the request has been processed, if so, return the answer
     /// @return An optional, containing True if there is a bed, false otherwise
+    boost::optional<bool> peek_response(const repast::AgentId& id) const override;
+
+    /// @brief Check if the request has been processed, if so, return the answer
+    /// @return An optional, containing True if there is a bed, false otherwise
     boost::optional<bool> get_response(const repast::AgentId& id) override;
 
     /// @brief Sync the requests and responses between the processes
@@ -131,7 +135,8 @@ private:
 
     std::unique_ptr<statistics> _stats;
 
-    bed_counter_type                                              _reserved_beds;
+    bed_counter_type                                           _reserved_beds;
+    bed_counter_type                                           _capacity;
     std::vector<std::pair<ghost_object_cycle, patient_agent*>> _bed_pool;
 
     std::vector<response_message> _pending_responses;
