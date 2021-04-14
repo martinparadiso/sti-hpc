@@ -1,13 +1,11 @@
 /// @brief Serialization of parallel agent
 #pragma once
 
+#include <boost/mpi/communicator.hpp>
 #include <sstream>
 #include <vector>
 
 #include <boost/archive/text_oarchive.hpp>
-#include <boost/serialization/deque.hpp>
-#include <boost/serialization/queue.hpp>
-#include <boost/serialization/variant.hpp>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/SharedContext.h>
 #include <repast_hpc/AgentRequest.h>
@@ -36,7 +34,7 @@ struct agent_package {
     /// @brief Create a new package, passing id and the contagious agent data
     /// @param id The repast ID
     /// @param data The serialized data of the contagious agent
-    agent_package(const repast::AgentId& id, std::string&& data)
+    agent_package(const repast::AgentId& id, sti::serial_data&& data)
         : id { id }
         , data { std::move(data) }
     {
@@ -60,7 +58,7 @@ struct agent_package {
 
     // Use Boost.Serialization to serialize the contagious_agent into a string
     // using boost::archive::text_iarchive and boost::archive::text_oarchive
-    std::string data;
+    sti::serial_data data;
 
 }; // class agent_package
 
@@ -68,24 +66,35 @@ struct agent_package {
 // Package receiver and provider
 ////////////////////////////////////////////////////////////////////////////////
 
+/// @brief Generates agents packages from agents
 class agent_provider {
 
 public:
-    agent_provider(repast::SharedContext<sti::contagious_agent>* agents)
+    using communicator_ptr = boost::mpi::communicator*;
+
+    /// @brief Construct an agent provieder
+    /// @param agents The repast SharedContext
+    /// @param comm The MPI communicator
+    agent_provider(repast::SharedContext<sti::contagious_agent>* agents, communicator_ptr comm)
         : _agents { agents }
+        , _communicator { comm }
     {
     }
 
     /// @brief Serialize an agent and add it to a vector
-    static void providePackage(sti::contagious_agent* agent, std::vector<agent_package>& out)
+    /// @param agent The agent to serialize
+    /// @param out The vector to insert the package into
+    void providePackage(sti::contagious_agent* agent, std::vector<agent_package>& out)
     {
         const auto id      = agent->getId();
-        auto       data    = agent->serialize();
+        auto       data    = agent->serialize(_communicator);
         auto       package = agent_package { id, std::move(data) };
         out.push_back(package);
     }
 
     /// @brief Serialize a group of agents and add it to a vector
+    /// @param req A collection of agents being requested
+    /// @param out The vector to insert the packages
     void provideContent(const repast::AgentRequest& req, std::vector<agent_package>& out)
     {
         for (const auto& id : req.requestedAgents()) {
@@ -95,12 +104,15 @@ public:
 
 private:
     repast::SharedContext<sti::contagious_agent>* _agents;
+    communicator_ptr                              _communicator;
 
 }; // class agent_provider
 
+/// @brief Deserialize agents from packages
 class agent_receiver {
 
 public:
+    using communicator_ptr  = boost::mpi::communicator*;
     using context_ptr       = repast::SharedContext<sti::contagious_agent>*;
     using space_ptr         = repast::SharedDiscreteSpace<sti::contagious_agent, repast::StrictBorders, repast::SimpleAdder<sti::contagious_agent>>*;
     using agent_factory_ptr = sti::agent_factory*;
@@ -109,10 +121,13 @@ public:
     /// @param context The repast context
     /// @param space The repast discrete space
     /// @param agent_factory A agent_factory to create the patient type
+    /// @param comm The MPI communicator
     agent_receiver(context_ptr       context,
-                   agent_factory_ptr agent_factory)
+                   agent_factory_ptr agent_factory,
+                   communicator_ptr  comm)
         : _context { context }
         , _agent_factory { agent_factory }
+        , _communicator { comm }
     {
     }
 
@@ -138,11 +153,13 @@ public:
     /// @brief Update a "borrowed" agent
     void updateAgent(const agent_package& pkg)
     {
-        _context->getAgent(pkg.get_id())->serialize(pkg.get_id(), pkg.data);
+        auto data_copy = pkg.data;
+        _context->getAgent(pkg.get_id())->serialize(pkg.get_id(), data_copy, _communicator);
     }
 
 private:
     context_ptr       _context;
     agent_factory_ptr _agent_factory;
+    communicator_ptr  _communicator;
 
 }; // class agent_receiver

@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 
             // Set a volatile bool, the debugger must change it
             volatile auto connected = false;
-            while (!connected) sleep(2);
+            while (!connected) sleep(1);
             std::cout << "Debugger attached!" << std::endl;
         }
     }

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdint>
 #include <fstream>
+#include <filesystem>
 #include <iomanip>
 #include <memory>
 #include <repast_hpc/AgentId.h>
@@ -54,32 +55,65 @@ auto now_in_ns()
 }
 }
 
-/// @brief Save the metrics to a file as a csv
-/// @param path The folder to save the metrics to
-void sti::process_metrics::save(const std::string& folder, int process) const
-{
-    auto filepath = std::ostringstream {};
-    filepath << folder << "/process_" << process << ".csv";
-    auto file = std::ofstream { filepath.str() };
+////////////////////////////////////////////////////////////////////////////////
+// PROCESS METRICS
+////////////////////////////////////////////////////////////////////////////////
 
-    file << "tick,"
-         << "agents,"
-         << "mpi_sync_ns,"
-         << "rhpc_sync_ns,"
-         << "logic_ns,"
-         << "tick_start_time\n";
+/// @brief Process metrics: local agents, sync and run time.
+struct sti::process_metrics {
 
-    auto i = 0U;
-    for (const auto& metric : values) {
-        file << i++ << ","
-             << metric.current_agents << ","
-             << metric.mpi_sync_ns << ","
-             << metric.rhpc_sync_ns << ","
-             << metric.logic_ns << ","
-             << metric.tick_start_time
-             << "\n";
+    constexpr static auto mpi_stages = 5;
+
+    /// @brief The metrics to collect
+    struct metrics {
+        std::int32_t                         current_agents; // Number of agents in this process
+        std::array<std::int64_t, mpi_stages> mpi_sync_ns; // Nanoseconds spent in non-repast sync, one entry for each sync
+        std::int64_t                         rhpc_sync_ns; // Nanoseconds spent in Repast sync
+        std::int64_t                         logic_ns; // Nanoseconds spent executing agent logic
+        std::int64_t                         tick_start_time; // The instant of time the tick started executing, epoch is the start of the simulation
+    };
+
+    /// @brief
+    process_metrics(std::int64_t                               init_time,
+                    const std::array<std::string, mpi_stages>& mpi_stages_tags)
+        : simulation_epoch { init_time }
+        , values {}
+        , mpi_stages_tags { mpi_stages_tags }
+    {
     }
-}
+
+    std::int64_t                        simulation_epoch;
+    std::vector<metrics>                values;
+    std::array<std::string, mpi_stages> mpi_stages_tags;
+
+    /// @brief Save the metrics to a file as a csv
+    /// @param path The folder to save the metrics to
+    /// @param process The process number
+    void save(const std::string& folder, int process) const
+    {
+        auto filepath = std::ostringstream {};
+        filepath << folder << "/profiling.p" << process << ".csv";
+        auto file = std::ofstream { filepath.str() };
+
+        file << "tick,"
+             << "agents,";
+        for (const auto& tag : mpi_stages_tags) file << tag << "_sync_ns,";
+        file << "rhpc_sync_ns,"
+             << "logic_ns,"
+             << "tick_start_time\n";
+
+        auto i = 0U;
+        for (const auto& metric : values) {
+            file << i++ << ","
+                 << metric.current_agents << ",";
+            for (const auto& mpi_value : metric.mpi_sync_ns) file << mpi_value << ",";
+            file << metric.rhpc_sync_ns << ","
+                 << metric.logic_ns << ","
+                 << metric.tick_start_time
+                 << "\n";
+        }
+    }
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
@@ -95,10 +129,13 @@ sti::model::model(const std::string& props_file, int argc, char** argv, boost::m
     , _hospital { _hospital_props }
     , _spaces { _hospital, *_props, _context, comm }
     , _clock { std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
-    , _pmetrics {
-        now_in_ns(),
-        {}
-    }
+    , _pmetrics { new process_metrics { now_in_ns(), {
+                                                         "chairs",
+                                                         "reception",
+                                                         "triage",
+                                                         "doctors",
+                                                         "icu",
+                                                     } } }
 {
     // Initialize the random generation
     repast::initializeRandom(*_props, comm);
@@ -127,7 +164,8 @@ void sti::model::init()
     _icu.reset(new icu(_communicator, *_props, _hospital_props, _hospital, &_spaces, _clock.get()));
 
     // Create the agent factory
-    _agent_factory.reset(new agent_factory { &_context,
+    _agent_factory.reset(new agent_factory { _communicator,
+                                             &_context,
                                              &_spaces,
                                              _clock.get(),
                                              &_hospital,
@@ -139,8 +177,8 @@ void sti::model::init()
                                              _hospital_props });
 
     // Create the package provider and receiver
-    _provider = std::make_unique<agent_provider>(&_context);
-    _receiver = std::make_unique<agent_receiver>(&_context, _agent_factory.get());
+    _provider = std::make_unique<agent_provider>(&_context, _communicator);
+    _receiver = std::make_unique<agent_receiver>(&_context, _agent_factory.get(), _communicator);
 
     // Create the entry logic, if the entry is in this process, and send the
     // rest of the processes the ticks to execute
@@ -201,7 +239,7 @@ void sti::model::init()
     }
 
     // Preallocate the metrics vector
-    _pmetrics.values.reserve(static_cast<decltype(_pmetrics.values)::size_type>(_stop_at));
+    _pmetrics->values.reserve(static_cast<decltype(_pmetrics->values)::size_type>(_stop_at));
 } // sti::model::init()
 
 /// @brief Initialize the scheduler
@@ -216,23 +254,33 @@ void sti::model::init_schedule(repast::ScheduleRunner& runner)
 /// @brief Periodic funcion
 void sti::model::tick()
 {
-    auto& new_metric           = _pmetrics.values.emplace_back(process_metrics::metrics {});
-    new_metric.tick_start_time = now_in_ns() - _pmetrics.simulation_epoch;
+    auto& new_metric           = _pmetrics->values.emplace_back(process_metrics::metrics {});
+    new_metric.tick_start_time = now_in_ns() - _pmetrics->simulation_epoch;
 
     // Sync the clock with the simulation tick
     _clock->sync();
-    
+
     ////////////////////////////////////////////////////////////////////////////
     // INTER-PROCESS SYNCHRONIZATION
     ////////////////////////////////////////////////////////////////////////////
 
     const auto pre_mpi_time = now_in_ns();
+
     _chair_manager->sync();
+    new_metric.mpi_sync_ns.at(0) = now_in_ns();
     _reception->sync();
+    new_metric.mpi_sync_ns.at(1) = now_in_ns();
     _triage->sync();
+    new_metric.mpi_sync_ns.at(2) = now_in_ns();
     _doctors->queues()->sync();
+    new_metric.mpi_sync_ns.at(3) = now_in_ns();
     _icu->admission().sync();
-    new_metric.mpi_sync_ns = now_in_ns() - pre_mpi_time;
+    new_metric.mpi_sync_ns.at(4) = now_in_ns();
+
+    for (auto i = process_metrics::mpi_stages - 1UL; i > 0; --i) {
+        new_metric.mpi_sync_ns.at(i) -= new_metric.mpi_sync_ns.at(i - 1);
+    }
+    new_metric.mpi_sync_ns.at(0) -= pre_mpi_time;
 
     const auto pre_rhpc_time = now_in_ns();
     _spaces.balance(); // Move the agents accross processes
@@ -240,6 +288,10 @@ void sti::model::tick()
     repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
     repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
     new_metric.rhpc_sync_ns = now_in_ns() - pre_rhpc_time;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // LOGIC
+    ////////////////////////////////////////////////////////////////////////////
 
     const auto pre_logic_time = now_in_ns();
     if (_entry) _entry->generate_patients();
@@ -259,6 +311,15 @@ void sti::model::tick()
 /// @brief Final function for data collection and such
 void sti::model::finish()
 {
+    // Create the folder to output the results
+    const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    auto       os  = std::ostringstream {};
+    os << _props->getProperty("output.folder")
+       << std::put_time(std::localtime(&now), "%Y-%m-%dT%H:%M:%S")
+       << "/";
+    const auto folderpath = os.str();
+
+    std::filesystem::create_directories(folderpath);
 
     if (_rank == 0) {
         _props->putProperty("Result", "Passed");
@@ -267,7 +328,7 @@ void sti::model::finish()
         _props->writeToSVFile("./output/results.csv", key_oder);
     }
     if (_exit) {
-        _exit->save("../output", _rank);
+        _exit->save(folderpath, _rank);
     }
 
     // Transmit the entry information
@@ -277,19 +338,19 @@ void sti::model::finish()
         entry_file << data;
     }
 
-    _triage->save("../output");
-    _icu->save("../output");
-    _pmetrics.save("../output", _communicator->rank());
+    _triage->save(folderpath);
+    _icu->save(folderpath);
+    _pmetrics->save(folderpath, _communicator->rank());
 
     // Remove the remaining agents
     // Iterate over all the agents to perform their actions
-    remove_remnants();
+    remove_remnants(folderpath);
 }
 
 /// @brief Remove all the agents that are still in the simulation
 /// @details Remove all the agents in the simulation and collect their
 /// metrics into a file
-void sti::model::remove_remnants()
+void sti::model::remove_remnants(const std::string& folderpath)
 {
     auto to_remove = std::vector<repast::AgentId> {};
 
@@ -304,7 +365,7 @@ void sti::model::remove_remnants()
     }
 
     auto os = std::ostringstream {};
-    os << "../output"
+    os << folderpath
        << "/agents_in_process_"
        << _communicator->rank()
        << ".json";

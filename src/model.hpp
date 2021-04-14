@@ -35,26 +35,8 @@ class icu;
 
 namespace sti {
 
-/// @brief Process metrics: local agents, sync and run time.
-struct process_metrics {
-
-    /// @brief The metrics to collect
-    struct metrics { // clang-format off
-        std::int32_t current_agents;    // Number of agents in this process
-        std::int64_t mpi_sync_ns;       // Nanoseconds spent in non-repast sync
-        std::int64_t rhpc_sync_ns;      // Nanoseconds spent in Repast sync
-        std::int64_t logic_ns;          // Nanoseconds spent executing agent logic
-        std::int64_t tick_start_time;   // The instant of time the tick started executing, epoch is the start of the simulation
-    }; // clang-format on
-
-    std::int64_t         simulation_epoch;
-    std::vector<metrics> values;
-
-    /// @brief Save the metrics to a file as a csv
-    /// @param path The folder to save the metrics to
-    /// @param process The process number
-    void save(const std::string& folder, int process) const;
-};
+/// @brief Process metrics: local agents, sync and run time
+struct process_metrics;
 
 /// @brief The Repast HPC simulation
 class model {
@@ -93,9 +75,10 @@ public:
     void finish();
 
     /// @brief Remove all the agents that are still in the simulation
+    /// @param folderpath The folder to write the file to
     /// @details Remove all the agents in the simulation and collect their
     /// metrics into a file
-    void remove_remnants();
+    void remove_remnants(const std::string& folderpath);
 
 private:
     boost::mpi::communicator*    _communicator;
@@ -113,7 +96,7 @@ private:
 
     std::unique_ptr<clock> _clock;
 
-    process_metrics _pmetrics;
+    std::unique_ptr<process_metrics> _pmetrics;
 
     std::unique_ptr<agent_factory> _agent_factory {}; // Properly initalized in init()
 

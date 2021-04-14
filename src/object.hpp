@@ -2,10 +2,9 @@
 /// @brief Person with no logic or mobility, only transmission
 #pragma once
 
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
+#include "patient.hpp"
 #include <cstdint>
-#include <sstream>
+#include <vector>
 
 #include "contagious_agent.hpp"
 #include "infection_logic.hpp"
@@ -56,12 +55,17 @@ public:
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Serialize the agent state into a string using Boost.Serialization
+    /// @param communicator The MPI communicator over which this archive will be sent
     /// @return A string with the serialized data
-    serial_data serialize() override;
+    serial_data serialize(boost::mpi::communicator* communicator) override;
 
     /// @brief Reconstruct the agent state from a string using Boost.Serialization
+    /// @param id The new AgentId
     /// @param data The serialized data
-    void serialize(const id_t& id, const serial_data& data) override;
+    /// @param communicator The MPI communicator over which the archive was sent
+    void serialize(const id_t&               id,
+                   serial_data&              data,
+                   boost::mpi::communicator* communicator) override;
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -89,7 +93,7 @@ public:
     /// @brief Return the agent statistics as a json object
     /// @return A Boost.JSON object containing relevant statistics
     boost::json::object stats() const override;
-    
+
 private:
     friend class boost::serialization::access;
 

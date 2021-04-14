@@ -23,6 +23,7 @@
 #include "patient_fsm.hpp"
 
 /// @brief Create a new patient factory
+/// @param comm The MPI communicator
 /// @param context A pointer to the repast context, to insert the agent
 /// @param space A pointer to the space_wrapper
 /// @param clock A pointer to the simulation clock
@@ -32,7 +33,8 @@
 /// @param triage A pointer to the triage
 /// @param doctors A pointer to the doctors queue
 /// @param props The JSON object containing the simulation properties
-sti::agent_factory::agent_factory(context_ptr                context,
+sti::agent_factory::agent_factory(communicator_ptr           comm,
+                                  context_ptr                context,
                                   space_wrapper*             space,
                                   sti::clock*                clock,
                                   sti::hospital_plan*        hospital_plan,
@@ -42,7 +44,8 @@ sti::agent_factory::agent_factory(context_ptr                context,
                                   sti::doctors*              doctors,
                                   sti::icu*                  icu,
                                   const boost::json::object& hospital_props)
-    : _context { context }
+    : _communicator { comm }
+    , _context { context }
     , _space { space }
     , _clock { clock }
     , _agents_created { 0 }
@@ -124,7 +127,7 @@ sti::agent_factory::patient_ptr sti::agent_factory::recreate_patient(const repas
 {
     auto* patient = new patient_agent { id,
                                         &_patient_flyweight };
-    patient->serialize(id, data);
+    patient->serialize(id, data, _communicator);
     return patient;
 };
 
@@ -171,7 +174,7 @@ sti::agent_factory::person_ptr sti::agent_factory::recreate_person(const repast:
 {
     auto* person = new person_agent { id,
                                       &_person_flyweight };
-    person->serialize(id, data);
+    person->serialize(id, data, _communicator);
     return person;
 };
 
@@ -213,6 +216,6 @@ sti::agent_factory::object_ptr sti::agent_factory::recreate_object(const repast:
 {
     auto* object = new object_agent { id,
                                       &_object_flyweight };
-    object->serialize(id, data);
+    object->serialize(id, data, _communicator);
     return object;
 };

@@ -1,6 +1,8 @@
 #include "patient.hpp"
 
 #include <repast_hpc/Point.h>
+#include <boost/mpi/packed_iarchive.hpp>
+#include <boost/mpi/packed_oarchive.hpp>
 
 #include "chair_manager.hpp"
 #include "clock.hpp"
@@ -44,6 +46,35 @@ sti::patient_agent::patient_agent(const id_t& id, flyweight_ptr fw)
 }
 
 sti::patient_agent::~patient_agent() = default;
+
+////////////////////////////////////////////////////////////////////////////
+// SERIALIZATION
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Serialize the agent state into a string using Boost.Serialization
+/// @return A string with the serialized data
+sti::serial_data sti::patient_agent::serialize(boost::mpi::communicator* communicator)
+{
+    auto buffer = serial_data {};
+    { // Used to make sure the stream is flushed
+        auto pa = boost::mpi::packed_oarchive { *communicator, buffer };
+        pa << (*this);
+    }
+    return buffer;
+}
+
+/// @brief Reconstruct the agent state from a string using Boost.Serialization
+/// @param data The serialized data
+void sti::patient_agent::serialize(const id_t&               id,
+                                   serial_data&              data,
+                                   boost::mpi::communicator* communicator)
+{
+    contagious_agent::id(id);
+    { // Used to make sure the stream is flushed
+        auto ia = boost::mpi::packed_iarchive { *communicator, data };
+        ia >> (*this);
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////
 // BAHAVIOUR

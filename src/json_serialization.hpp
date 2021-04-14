@@ -51,17 +51,6 @@ inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::valu
     };
 }
 
-inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const process_metrics::metrics& pm)
-{
-    jv = {
-        { "current_agents", pm.current_agents },
-        { "mpi_sync_ns", pm.mpi_sync_ns },
-        { "rhpc_sync_ns", pm.rhpc_sync_ns },
-        { "logic_ns", pm.logic_ns },
-        { "tick_start_time", pm.tick_start_time }
-    };
-}
-
 // From JSON
 
 template <typename T>

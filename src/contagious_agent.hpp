@@ -2,11 +2,14 @@
 #pragma once
 
 #include <boost/variant.hpp>
+#include <boost/mpi/detail/binary_buffer_oprimitive.hpp>
 #include <cstdint>
+#include <memory>
 #include <queue>
 #include <repast_hpc/AgentId.h>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "clock.hpp"
 #include "infection_logic/infection_factory.hpp"
@@ -15,13 +18,16 @@
 namespace boost {
 namespace json {
     class object;
-}
-}
+} // namespace json
+namespace mpi {
+    class communicator;
+} // namespace mpi
+} // namespace boost
 
 namespace sti {
 
-// The data is serialized into a string with Boost.Serialization
-using serial_data = std::string;
+// The data is serialized into a buffer with Boost.MPI packed archives
+using serial_data = boost::mpi::binary_buffer_oprimitive::buffer_type;
 
 /// @brief An virtual class representing an agent capable of infecting others
 class contagious_agent {
@@ -57,13 +63,17 @@ public:
     ////////////////////////////////////////////////////////////////////////////////
 
     /// @brief Serialize the agent state into a string using Boost.Serialization
+    /// @param communicator The MPI communicator over which this archive will be sent
     /// @return A string with the serialized data
-    virtual serial_data serialize() = 0;
+    virtual serial_data serialize(boost::mpi::communicator* communicator) = 0;
 
     /// @brief Reconstruct the agent state from a string using Boost.Serialization
     /// @param id The new AgentId
     /// @param data The serialized data
-    virtual void serialize(const id_t& id, const serial_data& data) = 0;
+    /// @param communicator The MPI communicator over which the archive was sent
+    virtual void serialize(const id_t& id,
+                           serial_data& data,
+                           boost::mpi::communicator* communicator) = 0;
 
     ////////////////////////////////////////////////////////////////////////////////
     // REPAST REQUIRED METHODS

@@ -4,10 +4,7 @@
 
 #include <algorithm>
 #include <array>
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
 #include <cstdint>
-#include <math.h>
 #include <memory>
 #include <repast_hpc/Grid.h>
 #include <repast_hpc/Point.h>
@@ -99,29 +96,17 @@ public:
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Serialize the agent state into a string using Boost.Serialization
+    /// @param communicator The MPI communicator over which this archive will be sent
     /// @return A string with the serialized data
-    serial_data serialize() override
-    {
-        auto ss = std::stringstream {};
-        { // Used to make sure the stream is flushed
-            auto oa = boost::archive::text_oarchive { ss };
-            oa << (*this);
-        }
-        return ss.str();
-    }
+    serial_data serialize(boost::mpi::communicator* communicator) override;
 
     /// @brief Reconstruct the agent state from a string using Boost.Serialization
+    /// @param id The new AgentId
     /// @param data The serialized data
-    void serialize(const id_t& id, const serial_data& data) override
-    {
-        contagious_agent::id(id);
-        auto ss = std::stringstream {};
-        ss << data;
-        { // Used to make sure the stream is flushed
-            auto ia = boost::archive::text_iarchive { ss };
-            ia >> (*this);
-        }
-    }
+    /// @param communicator The MPI communicator over which the archive was sent
+    void serialize(const id_t&               id,
+                   serial_data&              data,
+                   boost::mpi::communicator* communicator) override;
 
     ////////////////////////////////////////////////////////////////////////////
     // BAHAVIOUR

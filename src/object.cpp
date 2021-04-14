@@ -1,6 +1,11 @@
 #include "object.hpp"
 
 #include <boost/json/object.hpp>
+#include <boost/mpi.hpp>
+#include <boost/mpi/detail/antiques.hpp>
+#include <boost/mpi/packed_iarchive.hpp>
+#include <boost/mpi/packed_oarchive.hpp>
+#include <vector>
 
 #include "infection_logic/object_infection_cycle.hpp"
 #include "json_serialization.hpp"
@@ -43,25 +48,25 @@ sti::object_agent::object_agent(const id_t& id, flyweight_ptr fw)
 
 /// @brief Serialize the agent state into a string using Boost.Serialization
 /// @return A string with the serialized data
-sti::serial_data sti::object_agent::serialize()
+sti::serial_data sti::object_agent::serialize(boost::mpi::communicator* communicator)
 {
-    auto ss = std::stringstream {};
+    auto buffer = serial_data {};
     { // Used to make sure the stream is flushed
-        auto oa = boost::archive::text_oarchive { ss };
-        oa << (*this);
+        auto pa = boost::mpi::packed_oarchive { *communicator, buffer };
+        pa << (*this);
     }
-    return ss.str();
+    return buffer;
 }
 
 /// @brief Reconstruct the agent state from a string using Boost.Serialization
 /// @param data The serialized data
-void sti::object_agent::serialize(const id_t& id, const serial_data& data)
+void sti::object_agent::serialize(const id_t&               id,
+                                  serial_data&              data,
+                                  boost::mpi::communicator* communicator)
 {
     contagious_agent::id(id);
-    auto ss = std::stringstream {};
-    ss << data;
     { // Used to make sure the stream is flushed
-        auto ia = boost::archive::text_iarchive { ss };
+        auto ia = boost::mpi::packed_iarchive { *communicator, data };
         ia >> (*this);
     }
 }

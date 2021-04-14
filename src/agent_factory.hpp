@@ -44,15 +44,16 @@ public:
     using person_flyweight  = person_agent::flyweight;
     using object_flyweight  = object_agent::flyweight;
 
-    using object_type = object_agent::object_type;
-
-    using context_ptr = repast::SharedContext<agent>*;
+    using object_type      = object_agent::object_type;
+    using communicator_ptr = boost::mpi::communicator*;
+    using context_ptr      = repast::SharedContext<agent>*;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Create a new patient factory
+    /// @param comm The MPI communicator
     /// @param context A pointer to the repast context, to insert the agent
     /// @param space A pointer to the space_wrapper
     /// @param clock A pointer to the simulation clock
@@ -63,7 +64,8 @@ public:
     /// @param doctors A pointer to the doctors manager
     /// @param icu A pointer to the ICU
     /// @param hospital_props The JSON object containing the simulation properties
-    agent_factory(context_ptr                context,
+    agent_factory(communicator_ptr           comm,
+                  context_ptr                context,
                   sti::space_wrapper*        space,
                   sti::clock*                clock,
                   sti::hospital_plan*        hospital_plan,
@@ -139,10 +141,11 @@ public:
                                serial_data&           data) const;
 
 private:
-    context_ptr    _context;
-    space_wrapper* _space;
-    clock*         _clock;
-    std::uint32_t  _agents_created;
+    communicator_ptr _communicator;
+    context_ptr      _context;
+    space_wrapper*   _space;
+    clock*           _clock;
+    std::uint32_t    _agents_created;
 
     // Infection factory
     infection_factory _infection_factory;

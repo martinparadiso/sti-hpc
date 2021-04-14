@@ -78,20 +78,25 @@ boost::optional<sti::doctors_queue::position> sti::real_doctors::is_my_turn(cons
 /// @brief Sync the queues between the processes
 void sti::real_doctors::sync()
 {
-    const auto clients    = static_cast<std::size_t>(_communicator->rank());
-    auto       to_enqueue = std::vector(clients, std::vector<std::pair<doctor_type, patient_turn>> {});
-    auto       to_dequeue = std::vector(clients, std::vector<std::pair<doctor_type, repast::AgentId>> {});
+    const auto my_rank    = _communicator->rank();
+    const auto world_size = _communicator->size();
+    auto       to_enqueue = std::vector(static_cast<std::size_t>(world_size), std::vector<std::pair<doctor_type, patient_turn>> {});
+    auto       to_dequeue = std::vector(static_cast<std::size_t>(world_size), std::vector<std::pair<doctor_type, repast::AgentId>> {});
     auto       mpi_tag    = _base_tag;
 
     // Receive the new enqueue
-    for (auto p = 0UL; p < clients; ++p) {
-        _communicator->recv(boost::mpi::any_source, mpi_tag, to_enqueue.at(p));
+    for (auto p = 0; p < world_size; ++p) {
+        if (p != my_rank) {
+            _communicator->recv(p, mpi_tag, to_enqueue.at(static_cast<std::size_t>(p)));
+        }
     }
     mpi_tag++;
 
     // Receive the new dequeues
-    for (auto p = 0UL; p < clients; ++p) {
-        _communicator->recv(boost::mpi::any_source, mpi_tag, to_dequeue.at(p));
+    for (auto p = 0; p < world_size; ++p) {
+        if (p != my_rank) {
+            _communicator->recv(p, mpi_tag, to_dequeue.at(static_cast<std::size_t>(p)));
+        }
     }
     mpi_tag++;
 
