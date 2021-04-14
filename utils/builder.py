@@ -594,8 +594,8 @@ hospital.parameters.add_triage_level(5, 0.2, TimePeriod(0, 4, 0, 0))
 #     hospital.patient_influx.new_day([0 for x in range(12)])
 
 # Random patients
-for day in range(7):
-    hospital.patient_influx.new_day([randrange(5, 10) for x in range(12)])
+for day in range(365):
+    hospital.patient_influx.new_day([randrange(5, 15) for x in range(12)])
 
 d = hospital.dictionary()
 with open('./data/hospital.json', 'w') as f:
