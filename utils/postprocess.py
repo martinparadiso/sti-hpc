@@ -28,8 +28,8 @@ class AgentLocations(object):
 class AgentsOutput(object):
     """Load the agents output from output files"""
 
-    files_globs = ('agents_in_process_*.json',
-                   'exit_in_process_*.json')
+    files_globs = ('agents.p*.json',
+                   'exit.p*.json')
 
     human_cols = ['id', 'type', 'entry_time', 'exit_time', 'last_state', 'process',
                   'infection.stage', 'infection.infection_time', 'infection.infected_by']
@@ -48,7 +48,7 @@ class AgentsOutput(object):
                 data = json.load(f)
 
             df = pd.json_normalize(data)
-            df['process'] = int(re.match(r'.+_in_process_(\d+).json', path)[1])
+            df['process'] = int(re.match(r'.+\.p(\d+).json', path)[1])
             dfs.append(df)
 
         df = pd.concat(dfs)
