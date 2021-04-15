@@ -91,7 +91,7 @@ void sti::hospital_entry::save(const std::string& folderpath, int rank) const
     
     auto file = std::ofstream{os.str()};
 
-    file << "day,hour,patients_generated\n";
+    file << "day,period,patients_generated\n";
 
     for (auto day = 0; day < _generated_patients.axis(0).size(); ++day) {
         for (auto bin = 0; bin < _generated_patients.axis(1).size(); ++bin) {
