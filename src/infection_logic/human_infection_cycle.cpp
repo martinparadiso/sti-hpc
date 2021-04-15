@@ -184,6 +184,7 @@ boost::json::value sti::human_infection_cycle::stats() const
     };
 
     return {
+        { "model", "human" },
         { "stage", to_string(_stage) },
         { "infection_time", _infection_time.epoch() },
         { "infected_by", _infected_by }

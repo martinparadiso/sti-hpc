@@ -8,6 +8,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
+#include <iostream>
 #include <memory>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/GridComponents.h>
@@ -77,7 +78,6 @@ struct sti::process_metrics {
     process_metrics(std::int64_t                               init_time,
                     const std::array<std::string, mpi_stages>& mpi_stages_tags)
         : simulation_epoch { init_time }
-        , values {}
         , mpi_stages_tags { mpi_stages_tags }
     {
     }
@@ -116,6 +116,53 @@ struct sti::process_metrics {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// STATISTICS
+////////////////////////////////////////////////////////////////////////////////
+
+/// @brief Collect misc. stats durning the execution
+struct sti::model::statistics {
+
+    using agent_id_type = std::string;
+    using location_type = coordinates<double>;
+
+    struct agent_record {
+        agent_id_type id;
+        location_type location;
+    };
+
+    struct entry {
+        datetime                  time;
+        std::vector<agent_record> agents;
+    };
+
+    std::vector<entry> agents_locations;
+
+    /// @brief Save the stats to a file as a csv
+    /// @param path The folder to save the metrics to
+    /// @param process The process number
+    void save(const std::string& folder, int process) const
+    {
+        auto filepath = std::ostringstream {};
+        filepath << folder << "/agents_locations.p" << process << ".csv";
+        auto file = std::ofstream { filepath.str() };
+
+        file << "epoch" << ','
+             << "id" << ','
+             << "x" << ','
+             << "y" << '\n';
+
+        for (const auto& iteration : agents_locations) {
+            for (const auto& agent : iteration.agents) {
+                file << iteration.time.epoch() << ","
+                     << agent.id << ","
+                     << agent.location.x << ','
+                     << agent.location.y << '\n';
+            }
+        }
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -136,6 +183,7 @@ sti::model::model(const std::string& props_file, int argc, char** argv, boost::m
                                                          "doctors",
                                                          "icu",
                                                      } } }
+    , _stats { new statistics {} }
 {
     // Initialize the random generation
     repast::initializeRandom(*_props, comm);
@@ -238,8 +286,9 @@ void sti::model::init()
         _icu->get_real_icu()->get().create_beds(*(_agent_factory->get_infection_factory()));
     }
 
-    // Preallocate the metrics vector
+    // Reserve vectors to avoid reallocations
     _pmetrics->values.reserve(static_cast<decltype(_pmetrics->values)::size_type>(_stop_at));
+    _stats->agents_locations.reserve(static_cast<decltype(_stats->agents_locations)::size_type>(_stop_at));
 } // sti::model::init()
 
 /// @brief Initialize the scheduler
@@ -298,53 +347,61 @@ void sti::model::tick()
     if (_exit) _exit->tick();
     if (_icu->get_real_icu()) _icu->get_real_icu()->get().tick();
 
-    // Iterate over all the agents to perform their actions
+    // Check how many agents are currently in this process
+    new_metric.current_agents = _context.size(); // Add the metric
+    auto& locations           = _stats->agents_locations.emplace_back();
+    locations.time            = _clock->now();
+    locations.agents.reserve(static_cast<std::size_t>(new_metric.current_agents));
+
+    // Iterate over all the agents
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
+        //
         (*it)->act();
+
+        // Add the location to the log
+        locations.agents.push_back({ to_string((**it).getId()), _spaces.get_continuous_location((**it).getId()) });
     }
     new_metric.logic_ns = now_in_ns() - pre_logic_time;
-
-    // Rest of the metrics
-    new_metric.current_agents = _context.size();
 }
 
 /// @brief Final function for data collection and such
 void sti::model::finish()
 {
-    // Create the folder to output the results
-    const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    auto       os  = std::ostringstream {};
-    os << _props->getProperty("output.folder")
-       << std::put_time(std::localtime(&now), "%Y-%m-%dT%H:%M:%S")
-       << "/";
-    const auto folderpath = os.str();
+    const auto pre_write_time = now_in_ns();
 
-    std::filesystem::create_directories(folderpath);
+    // The rank 0 creates the folder and broadcasts it
+    auto folderpath = [&]() -> std::string {
+        if (_rank != 0) return "";
+        auto       os  = std::ostringstream {};
+        os << _props->getProperty("output.folder")
+           << '/'
+           << _props->getProperty("run.id")
+           << '/';
 
-    if (_rank == 0) {
-        _props->putProperty("Result", "Passed");
+        std::filesystem::create_directories(os.str());
 
-        auto key_oder = std::vector<std::string> { "RunNumber", "stop.at", "Result" };
-        _props->writeToSVFile("./output/results.csv", key_oder);
-    }
-    if (_exit) {
-        _exit->save(folderpath, _rank);
-    }
+        return os.str();
+    }();
 
-    // Transmit the entry information
-    if (_entry) {
-        const auto& data       = boost::json::serialize(_entry->statistics());
-        auto        entry_file = std::ofstream { "../output/entry.json" };
-        entry_file << data;
-    }
+    boost::mpi::broadcast(*_communicator, folderpath, 0);
 
+    if (_exit) _exit->save(folderpath, _rank);
+    if (_entry) _entry->save(folderpath, _communicator->rank());
     _triage->save(folderpath);
     _icu->save(folderpath);
     _pmetrics->save(folderpath, _communicator->rank());
+    _stats->save(folderpath, _communicator->rank());
 
     // Remove the remaining agents
     // Iterate over all the agents to perform their actions
     remove_remnants(folderpath);
+
+    // Print the output folder
+    if (_rank == 0) {
+        std::cout << "Output folder: " << folderpath << "\n"
+                  << "Process 0 files written in " << now_in_ns() - pre_write_time << " nanoseconds"
+                  << std::endl;
+    }
 }
 
 /// @brief Remove all the agents that are still in the simulation
@@ -366,7 +423,7 @@ void sti::model::remove_remnants(const std::string& folderpath)
 
     auto os = std::ostringstream {};
     os << folderpath
-       << "/agents_in_process_"
+       << "/agents.p"
        << _communicator->rank()
        << ".json";
 

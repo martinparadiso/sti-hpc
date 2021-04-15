@@ -146,14 +146,12 @@ private:
         ar& _entry_time;
         ar& _infection_logic;
         ar& _fsm;
-        ar& _path;
     } // serialize(...)
 
     flyweight_ptr                    _flyweight;
     datetime                         _entry_time;
     human_infection_cycle            _infection_logic;
     patient_fsm                      _fsm;
-    std::vector<coordinates<double>> _path {};
 }; // patient_agent
 
 } // namespace sti

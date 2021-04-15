@@ -42,6 +42,10 @@ struct process_metrics;
 class model {
 
 public:
+
+    /// @brief Collect misc. stats durning the execution
+    struct statistics;
+
     using agent            = contagious_agent;
     using continuous_space = repast::SharedContinuousSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
     using discrete_space   = repast::SharedDiscreteSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;
@@ -97,6 +101,7 @@ private:
     std::unique_ptr<clock> _clock;
 
     std::unique_ptr<process_metrics> _pmetrics;
+    std::unique_ptr<statistics>      _stats;
 
     std::unique_ptr<agent_factory> _agent_factory {}; // Properly initalized in init()
 

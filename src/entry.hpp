@@ -137,9 +137,14 @@ public:
     /// @brief Generate the pending patients
     void generate_patients();
 
-    /// @brief Generate a JSON object containing the entry statistics
-    /// @return The Boost.JSON object with the statistics
-    boost::json::array statistics() const;
+    ////////////////////////////////////////////////////////////////////////////
+    // SAVE STATISTICS
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Save the stadistics/metrics to a file
+    /// @param filepath The path to the folder where
+    /// @param rank The rank of the process
+    void save(const std::string& folderpath, int rank) const;
 
 private:
     coordinates<int>                      _location;

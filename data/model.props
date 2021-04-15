@@ -2,8 +2,8 @@
 hospital.file = ./hospital.json
 
 # Process distribution
-x.process = 2
-y.process = 2
+x.process = 1
+y.process = 1
 chair.manager.rank = 0
 reception.manager.rank = 0
 triage.manager.rank = 0
@@ -17,3 +17,6 @@ seconds.per.tick = 60
 
 # Randomness
 random.seed = 1574454
+
+# Debug 
+debug.performance.metrics = False

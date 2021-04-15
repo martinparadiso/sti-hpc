@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 
+from pathlib import Path
 import argparse
+import secrets
 import subprocess
 import time
-from pathlib import Path
 
 parser = argparse.ArgumentParser(
     description='Simulation runner. Facilitates the execution of the simulation')
@@ -27,11 +28,15 @@ if __name__ == '__main__':
     if not output_folder.exists():
         output_folder.mkdir()
 
+    # Generate a random id for the run
+    run_id = secrets.token_hex(16)
+
     commands = [args.mpi,
                 '-np', str(args.nodes),
                 f"{args.executable}",
                 f"{args.config}",
                 f"{args.model}",
+                f"run.id={run_id}",
                 f"hospital.file={args.hospital}"]
 
     if args.debug is not None:

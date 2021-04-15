@@ -4,6 +4,7 @@
 #include <boost/json/array.hpp>
 #include <boost/json/detail/value_to.hpp>
 #include <cstdint>
+#include <fstream>
 #include <sstream>
 
 #include "agent_factory.hpp"
@@ -73,22 +74,34 @@ std::uint64_t sti::hospital_entry::patients_waiting()
     return agents_waiting;
 }
 
-/// @brief Generate a JSON object containing the entry statistics
-/// @return The Boost.JSON object with the statistics
-boost::json::array sti::hospital_entry::statistics() const
+////////////////////////////////////////////////////////////////////////////
+// SAVE STATISTICS
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Save the stadistics/metrics to a file
+/// @param filepath The path to the folder where
+/// @param rank The rank of the process
+void sti::hospital_entry::save(const std::string& folderpath, int rank) const
 {
-    auto ret_arr = boost::json::array {};
+    auto os = std::ostringstream{};
+    os << folderpath
+       << "/entry.p"
+       << rank
+       << ".csv";
+    
+    auto file = std::ofstream{os.str()};
+
+    file << "day,hour,patients_generated\n";
 
     for (auto day = 0; day < _generated_patients.axis(0).size(); ++day) {
-        auto day_arr = boost::json::array {};
         for (auto bin = 0; bin < _generated_patients.axis(1).size(); ++bin) {
-            const auto i = static_cast<int>(_generated_patients.at(day, bin));
-            day_arr.push_back(i);
+            const auto gen = static_cast<int>(_generated_patients.at(day, bin));
+            file << day << ','
+                 << bin << ','
+                 << gen << '\n';
         }
-        ret_arr.emplace_back(day_arr);
     }
 
-    return ret_arr;
 }
 
 /// @brief Generate the pending patients

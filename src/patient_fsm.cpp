@@ -111,7 +111,7 @@ sti::patient_fsm::transition_table create_transition_table()
         return false;
     };
 
-    auto setdestination_chair = [](fsm& m) {
+    auto set_destination_chair = [](fsm& m) {
         auto response = m.patient_flyweight->chairs->get_response(m.patient->getId());
         m.destination = response->chair_location.get();
     };
@@ -173,7 +173,7 @@ sti::patient_fsm::transition_table create_transition_table()
         return m.patient_flyweight->reception->is_my_turn(m.patient->getId()).has_value();
     };
 
-    auto setdestination_reception = [](fsm& m) {
+    auto set_destination_reception = [](fsm& m) {
         m.destination = m.patient_flyweight->reception->is_my_turn(m.patient->getId()).get();
     };
 
@@ -193,7 +193,7 @@ sti::patient_fsm::transition_table create_transition_table()
         return m.patient_flyweight->triage->is_my_turn(m.patient->getId()).has_value();
     };
 
-    auto setdestination_triage = [](fsm& m) {
+    auto set_destination_triage = [](fsm& m) {
         m.destination = m.patient_flyweight->triage->is_my_turn(m.patient->getId()).get();
     };
 
@@ -333,7 +333,7 @@ sti::patient_fsm::transition_table create_transition_table()
     //    GUARD                   ACTION                              DESTINATION
     //  +-----------------------+-----------------------------------+---------------------------+
         { no_chair_available    , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
-        { got_chair             , setdestination_chair             , STATE::WALK_TO_CHAIR_1    },
+        { got_chair             , set_destination_chair             , STATE::WALK_TO_CHAIR_1    },
     };
 
     table[STATE::WALK_TO_CHAIR_1] = {
@@ -346,7 +346,7 @@ sti::patient_fsm::transition_table create_transition_table()
     table[STATE::WAIT_RECEPTION_TURN] = {
     //    GUARD                   ACTION                      DESTINATION
     //  +-----------------------+---------------------------+-------------------------------+
-        { reception_turn        , setdestination_reception , STATE::WALK_TO_RECEPTION      },
+        { reception_turn        , set_destination_reception , STATE::WALK_TO_RECEPTION      },
     };
 
     table[STATE::WALK_TO_RECEPTION] = {
@@ -366,7 +366,7 @@ sti::patient_fsm::transition_table create_transition_table()
     //    GUARD                   ACTION                              DESTINATION
     //  +-----------------------+-----------------------------------+---------------------------+
         { no_chair_available    , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
-        { got_chair             , setdestination_chair             , STATE::WALK_TO_CHAIR_2    },
+        { got_chair             , set_destination_chair             , STATE::WALK_TO_CHAIR_2    },
     };
 
     table[STATE::WALK_TO_CHAIR_2] = {
@@ -379,7 +379,7 @@ sti::patient_fsm::transition_table create_transition_table()
     table[STATE::WAIT_TRIAGE_TURN] = {
     //    GUARD               ACTION                      DESTINATION
     //  +-------------------+---------------------------+---------------------------+
-        { triage_turn       , setdestination_triage    , STATE::WALK_TO_TRIAGE     },
+        { triage_turn       , set_destination_triage    , STATE::WALK_TO_TRIAGE     },
     };
 
     table[STATE::WALK_TO_TRIAGE] = {
@@ -406,7 +406,7 @@ sti::patient_fsm::transition_table create_transition_table()
     //    GUARD                   ACTION                              DESTINATION
     //  +-----------------------+-----------------------------------+---------------------------+
         { no_chair_available    , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
-        { got_chair             , setdestination_chair             , STATE::WALK_TO_CHAIR_3    },
+        { got_chair             , set_destination_chair             , STATE::WALK_TO_CHAIR_3    },
     };
 
     table[STATE::WALK_TO_CHAIR_3] = {

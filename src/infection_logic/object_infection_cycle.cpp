@@ -145,6 +145,7 @@ boost::json::value sti::object_infection_cycle::stats() const
     };
 
     return {
+        { "model", "object"},
         { "stage", to_string(_stage) },
         { "infections", _infected_by }
     };

@@ -63,11 +63,12 @@ void sti::proxy_doctors::sync()
 
     _communicator->send(_real_rank, mpi_tag++, _enqueue_buffer);
     _communicator->send(_real_rank, mpi_tag++, _dequeue_buffer);
+    
+    // Clear the queues
+    _enqueue_buffer.clear();
+    _dequeue_buffer.clear();
 
     // Use broadcast for the front, more practical
     boost::mpi::broadcast(*_communicator, _front, _real_rank);
 
-    // Clear the queues
-    _enqueue_buffer.clear();
-    _dequeue_buffer.clear();
 }
