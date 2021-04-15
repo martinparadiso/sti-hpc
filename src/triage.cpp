@@ -266,7 +266,7 @@ void sti::triage::save(const std::string& folderpath) const
     // Construct the file path and open the file
     auto os = std::ostringstream {};
     os << folderpath
-       << "/triage_in_process_"
+       << "/triage.p"
        << _this_rank
        << ".json";
     auto file = std::ofstream { os.str() };

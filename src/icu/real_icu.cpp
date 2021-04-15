@@ -246,7 +246,7 @@ void sti::real_icu::save(const std::string& folderpath) const
     // Write per-tick stats
     auto tick_status = std::ostringstream {};
     tick_status << folderpath
-                << "/icu_status_in_process_"
+                << "/icu_status.p"
                 << _communicator->rank()
                 << ".csv";
 
@@ -263,7 +263,7 @@ void sti::real_icu::save(const std::string& folderpath) const
     // Write the admissions, releases and rejections
     auto inout_path = std::ostringstream {};
     inout_path << folderpath
-               << "/icu_admissions_and_releases_in_process_"
+               << "/icu_admissions_and_releases.p"
                << _communicator->rank()
                << ".csv";
     auto inout_file = std::ofstream { inout_path.str() };

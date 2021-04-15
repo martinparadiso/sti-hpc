@@ -71,7 +71,7 @@ void sti::hospital_exit::save(const std::string& folderpath, int rank) const
 {
     auto os = std::ostringstream{};
     os << folderpath
-       << "/exit_in_process_"
+       << "/exit.p"
        << rank
        << ".json";
 
