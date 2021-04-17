@@ -37,7 +37,7 @@ sti::infection_factory::infection_factory(const boost::json::object& hospital_pr
             map[object_name.to_string()] = {
                 space,
                 clock,
-                value.at("infect_chance").as_double(),
+                value.at("infect_probability").as_double(),
                 value.at("radius").as_double()
             };
         }

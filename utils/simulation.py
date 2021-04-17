@@ -224,7 +224,7 @@ class Parameter(object):
             if isinstance(self.type, set):
                 for parameter in self.type:
                     if not isinstance(values[self.key], dict):
-                        raise Exception(f"{self.key} should be a dict")
+                        raise Exception(f"{self.full_key} should be a dict")
                     parameter.validate(values[self.key], accumulators)
 
             # Otherwise is a concrete type, perform a proper validation
@@ -299,7 +299,10 @@ class Hospital(object):
         }),
         Parameter('triage', {
             Parameter('attention_time', TimePeriod),
-            Parameter('icu', float, prob=True, pgroup='triage_diagnosis'),
+            Parameter('icu', {
+                Parameter('death_probability', float, prob=True),
+                Parameter('probability', float, prob=True, pgroup='triage_diagnosis'),
+            }),
             Parameter('doctors_probabilities', islist=True, type={
                 Parameter('specialty', str),
                 Parameter('probability', float, pgroup='triage_diagnosis')
@@ -317,7 +320,7 @@ class Hospital(object):
             Parameter('environment', {
                 Parameter('infection_probability', float, prob=True)
             }),
-            Parameter('dead_probability', float, prob=True),
+            Parameter('death_probability', float, prob=True),
             Parameter('sleep_times', islist=True, type={
                 Parameter('time', TimePeriod),
                 Parameter('probability', float, pgroup='icu_sleep_times')
@@ -379,7 +382,10 @@ class Hospital(object):
         """Save the hospital to a file"""
 
         data = {
-            'building': {},
+            'building': {
+                "width": self.dimensions[0],
+                "height": self.dimensions[1]
+            },
             'parameters': self.parameters
         }
         for element in self.elements:
@@ -594,7 +600,7 @@ class Receptionist(HospitalElement):
 
     def store(self, dictionary):
         data = {
-            'doctor_location': self.receptionist_location,
+            'receptionist_location': self.receptionist_location,
             'patient_location': self.patient_location
         }
         try:
@@ -864,15 +870,15 @@ class Simulation(object):
 
     @wait_for_debugger.setter
     def wait_for_debugger(self, value):
-        if value is not None and isinstance(value, int):
+        if value is not None and not isinstance(value, int):
             raise Exception('wait_for_debugger should be an int or None')
         if value is not None:
-            if 0 <= value < self.props.number_of_processes:
+            if not 0 <= value < self.props.number_of_processes:
                 raise Exception(('wait_for_debugger should be in the range '
                                 f"[0, {self.props.number_of_processes})"))
         self._wait_for_debugger = value
 
-    def run(self):
+    def run(self, print_command=False):
         """Execute the simulation, return the subprocess result"""
 
         try:
@@ -894,6 +900,7 @@ class Simulation(object):
         if self.wait_for_debugger is not None:
             command.append(f"--debug={self.wait_for_debugger}")
 
+        print(' '.join(command))
         result = subprocess.run(command)
 
         return result

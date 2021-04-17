@@ -93,37 +93,41 @@ sti::triage::triage(const properties_type&     execution_props,
     , _clock { clock }
     , _stats { std::make_unique<statistic>() }
     , _icu_probability { [&]() {
-        return hospital_props.at("parameters").at("triage").at("icu").at("chance").as_double();
+        return hospital_props.at("parameters").at("triage").at("icu").at("probability").as_double();
     }() }
     , _doctors_probabilities { [&]() {
         auto       probs = decltype(_doctors_probabilities) {};
-        const auto data  = hospital_props.at("parameters").at("triage").at("doctors_probabilities").as_object();
-        for (const auto& [key, value] : data) {
-            probs.push_back({ key.to_string(),
-                              static_cast<probability_precission>(value.at("chance").as_double()) });
+        const auto data  = hospital_props.at("parameters").at("triage").at("doctors_probabilities").as_array();
+        for (const auto& value : data) {
+            const auto specialty   = boost::json::value_to<std::string>(value.at("specialty"));
+            const auto probability = value.at("probability").as_double();
+            probs.push_back({ specialty, probability });
         }
         return probs;
     }() }
     , _levels_probabilities { [&]() {
         auto       probs = decltype(_levels_probabilities) {};
-        const auto data  = hospital_props.at("parameters").at("triage").at("levels").as_object();
-        for (const auto& [key, value] : data) {
-            probs.push_back({ std::stoi(key.to_string()),
-                              static_cast<probability_precission>(value.at("chance").as_double()) });
+        const auto data  = hospital_props.at("parameters").at("triage").at("levels").as_array();
+        for (const auto& element : data) {
+            const auto level       = boost::json::value_to<int>(element.at("level"));
+            const auto probability = element.at("probability").as_double();
+            probs.push_back({ level, probability });
         }
         return probs;
     }() }
     , _levels_time_limit { [&]() {
         auto       times = decltype(_levels_time_limit) {};
-        const auto data  = hospital_props.at("parameters").at("triage").at("levels").as_object();
-        for (const auto& [key, value] : data) {
-            times[std::stoi(key.to_string())] = boost::json::value_to<sti::timedelta>(value.at("wait_time"));
+        const auto data  = hospital_props.at("parameters").at("triage").at("levels").as_array();
+        for (const auto& value : data) {
+            const auto& level = boost::json::value_to<int>(value.at("level"));
+            const auto& wait_time = boost::json::value_to<timedelta>(value.at("wait_time"));
+            times[level] = wait_time;
         }
         return times;
     }() }
     , _icu_sleep_times { [&]() {
         auto       times = decltype(_icu_sleep_times) {};
-        const auto data  = hospital_props.at("parameters").at("icu").at("sleep_time").as_array();
+        const auto data  = hospital_props.at("parameters").at("icu").at("sleep_times").as_array();
 
         for (const auto& entry : data) {
 
@@ -234,17 +238,17 @@ sti::triage::triage_diagnosis sti::triage::diagnose()
 
         const auto random_survives_chance = repast::Random::instance()->nextDouble();
         const auto survives               = random_survives_chance >= _icu_death_probability;
-        if (!survives) _stats->icu_deaths  += 1;
+        if (!survives) _stats->icu_deaths += 1;
 
-        return icu_diagnosis{sleep_time, survives};
+        return icu_diagnosis { sleep_time, survives };
     }
 
     // Otherwise check in which doctor it falls
     const auto doctor_assigned = find_bracket(_doctors_probabilities, random_dispatch, _icu_probability);
 
-    const auto random_level = repast::Random::instance()->nextDouble();
+    const auto random_level       = repast::Random::instance()->nextDouble();
     const auto severity_diagnosed = find_bracket(_levels_probabilities, random_level);
-    const auto attention_limit = _clock->now() + _levels_time_limit.at(severity_diagnosed);
+    const auto attention_limit    = _clock->now() + _levels_time_limit.at(severity_diagnosed);
 
     // Increment the statistics
     _stats->doctors_diagnostics[doctor_assigned][severity_diagnosed] += 1;

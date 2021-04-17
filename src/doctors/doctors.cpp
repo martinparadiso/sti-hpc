@@ -1,5 +1,6 @@
 #include "../doctors.hpp"
 
+#include <boost/json/kind.hpp>
 #include <boost/json/object.hpp>
 #include <boost/mpi/communicator.hpp>
 #include <cstdint>
@@ -22,15 +23,17 @@
 /// @param communicator The MPI communicator
 /// @param hospital_plan The hospital plan
 sti::doctors::doctors(repast::Properties&        execution_props,
-                      const boost::json::object& simulation_props,
+                      const boost::json::object& hospital_props,
                       communicator_ptr           communicator,
                       const hospital_plan&       hospital_plan)
     : _this_rank { communicator->rank() }
     , _attention_time { [&]() {
         auto       attention = decltype(_attention_time) {};
-        const auto data      = simulation_props.at("parameters").at("doctors").as_object();
-        for (const auto& [key, value] : data) {
-            attention[key.to_string()] = boost::json::value_to<timedelta>(value.at("attention_duration"));
+        const auto data      = hospital_props.at("parameters").at("doctors").as_array();
+        for (const auto& doctor : data) {
+            const auto specialty = boost::json::value_to<std::string>(doctor.at("specialty"));
+            const auto attention_duration = boost::json::value_to<timedelta>(doctor.at("attention_duration"));
+            attention[specialty] = attention_duration;
         }
         return attention;
     }() }

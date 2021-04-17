@@ -13,7 +13,7 @@ sti::icu_environment::icu_environment(const boost::json::object& hospital_params
     : _name { name }
     , _current_patients { 0 }
     , _icu_infection_chance { [&](){
-        return hospital_params.at("paremeters").at("icu").at("environment").at("infection_chance").as_double();
+        return hospital_params.at("paremeters").at("icu").at("environment").at("infection_probability").as_double();
     }() }
 {
 }

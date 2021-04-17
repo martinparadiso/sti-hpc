@@ -32,7 +32,7 @@ sti::hospital_entry::hospital_entry(sti::coordinates<int>                 locati
     , _interval_length { (24 * 60 * 60) / _patient_distribution->intervals() }
     , _agent_factory { factory }
     , _infected_chance {
-        props.at("parameters").at("patient").at("infected_chance").as_double()
+        props.at("parameters").at("patient").at("infected_probability").as_double()
     }
 {
 }

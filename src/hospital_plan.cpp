@@ -72,7 +72,7 @@ std::vector<sti::tiles::triage> sti::tiles::triage::load(const boost::json::obje
     auto vector = std::vector<triage> {};
 
     for (const auto& element : boost::json::value_to<std::vector<boost::json::value>>(hospital.at("building").at("triages"))) {
-        const auto location = boost::json::value_to<sti::coordinates<int>>(element.at("location"));
+        const auto location = boost::json::value_to<sti::coordinates<int>>(element.at("patient_location"));
         map.at(static_cast<std::size_t>(location.x))
             .at(static_cast<std::size_t>(location.y))
             = ENUMS::TRIAGE;
@@ -83,7 +83,7 @@ std::vector<sti::tiles::triage> sti::tiles::triage::load(const boost::json::obje
 
 sti::tiles::icu sti::tiles::icu::load(const boost::json::object& hospital, sti::tiles::grid& map)
 {
-    return load_one<icu, ENUMS::ICU>(hospital, "ICU", map);
+    return load_one<icu, ENUMS::ICU>(hospital, "icu", map);
 }
 
 std::vector<sti::tiles::receptionist> sti::tiles::receptionist::load(const boost::json::object& hospital, sti::tiles::grid& map)
@@ -92,8 +92,8 @@ std::vector<sti::tiles::receptionist> sti::tiles::receptionist::load(const boost
     auto vector = std::vector<receptionist> {};
 
     for (const auto& element : boost::json::value_to<std::vector<boost::json::value>>(hospital.at("building").at("receptionists"))) {
-        const auto location      = boost::json::value_to<sti::coordinates<int>>(element.at("location"));
-        const auto patient_chair = boost::json::value_to<sti::coordinates<int>>(element.at("patient_chair"));
+        const auto location      = boost::json::value_to<sti::coordinates<int>>(element.at("receptionist_location"));
+        const auto patient_chair = boost::json::value_to<sti::coordinates<int>>(element.at("patient_location"));
         map.at(static_cast<std::size_t>(location.x))
             .at(static_cast<std::size_t>(location.y))
             = ENUMS::RECEPTIONIST;
@@ -111,9 +111,9 @@ std::vector<sti::tiles::doctor> sti::tiles::doctor::load(const boost::json::obje
     auto vector = std::vector<doctor> {};
 
     for (const auto& element : boost::json::value_to<std::vector<boost::json::value>>(hospital.at("building").at("doctors"))) {
-        const auto location      = boost::json::value_to<sti::coordinates<int>>(element);
-        const auto patient_chair = boost::json::value_to<sti::coordinates<int>>(element.at("patient_chair"));
-        const auto type          = boost::json::value_to<std::string>(element.at("type"));
+        const auto location      = boost::json::value_to<sti::coordinates<int>>(element.at("doctor_location"));
+        const auto patient_chair = boost::json::value_to<sti::coordinates<int>>(element.at("patient_location"));
+        const auto type          = boost::json::value_to<std::string>(element.at("specialty"));
         map.at(static_cast<std::size_t>(location.x))
             .at(static_cast<std::size_t>(location.y))
             = ENUMS::DOCTOR;

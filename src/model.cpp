@@ -370,20 +370,7 @@ void sti::model::finish()
     const auto pre_write_time = now_in_ns();
 
     // The rank 0 creates the folder and broadcasts it
-    auto folderpath = [&]() -> std::string {
-        if (_rank != 0) return "";
-        auto       os  = std::ostringstream {};
-        os << _props->getProperty("output.folder")
-           << '/'
-           << _props->getProperty("run.id")
-           << '/';
-
-        std::filesystem::create_directories(os.str());
-
-        return os.str();
-    }();
-
-    boost::mpi::broadcast(*_communicator, folderpath, 0);
+    const auto& folderpath = _props->getProperty("output.folder");
 
     if (_exit) _exit->save(folderpath, _rank);
     if (_entry) _entry->save(folderpath, _communicator->rank());

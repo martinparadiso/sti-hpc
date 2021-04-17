@@ -46,7 +46,7 @@ hospital.parameters = {
             'infection_probability': 0.1
         },
         'beds': 5,
-        'dead_probability': 0.05,
+        'death_probability': 0.05,
         'sleep_times': [
             {
                 'time': s.TimePeriod(1, 0, 0, 0),
@@ -74,7 +74,10 @@ hospital.parameters = {
         'attention_time': s.TimePeriod(0, 0, 15, 0)
     },
     'triage': {
-        'icu': 0.2,
+        'icu': {
+            'death_probability': 0.2,
+            'probability': 0.2
+        },
         'doctors_probabilities': [
             {
                 'specialty': 'general_practitioner',
@@ -144,4 +147,4 @@ props = s.SimulationProperties(2, 2)
 
 run = s.Simulation(props, hospital)
 
-run.run()
+run.run(print_command=True)
