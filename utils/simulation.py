@@ -427,7 +427,7 @@ class HospitalElement(object):
                     self.location)
             except:
                 dictionary['building'][self.store_key] = [
-                    self.location.to_dict]
+                    self.location]
 
     def put_char_art(self, plan):
         """Store this element in a matrix of chars according to its location"""
@@ -775,7 +775,7 @@ class SimulationProperties(object):
 class Simulation(object):
     """
     Object for executing a new unique simulation. Every new object has a unique
-    16 char id
+    32 char id
 
     Keyword arguments:
 
@@ -796,23 +796,23 @@ class Simulation(object):
         if output_folder is not None:
             self.folder = output_folder/self.id
         else:
-            self.folder = Path(__file__).parent/'run/'/self.id
+            self.folder = (Path(__file__).parent.parent/'run/')/self.id
 
         if mpiexec is not None:
             self.mpiexec = mpiexec
         else:
-            self.default_mpiexec = Path(
-                __file__).parent/'lib/mpich/bin/mpiexec'
+            self.mpiexec = Path(
+                __file__).parent.parent/'lib/mpich/bin/mpiexec'
         self.wait_for_debugger = wait_for_debugger
 
     @property
-    def id(self):
-        return id
+    def id(self) -> str:
+        return self._id
 
     @id.setter
     def id(self, value):
-        if len(value) != 16 or not isinstance(value, str):
-            raise Exception('id should be 16 char long strings')
+        if len(value) != 32 or not isinstance(value, str):
+            raise Exception('id should be 32 char long string')
         self._id = value
 
     @property
@@ -854,7 +854,7 @@ class Simulation(object):
         if not isinstance(value, Path):
             raise Exception('mpiexec should be a path')
         if not value.exists() or not value.is_file():
-            raise Exception('mpiexec not found')
+            raise Exception(f"mpiexec not found in {value}")
 
         self._mpiexec = value
 
@@ -866,22 +866,27 @@ class Simulation(object):
     def wait_for_debugger(self, value):
         if value is not None and isinstance(value, int):
             raise Exception('wait_for_debugger should be an int or None')
-        if 0 <= value < self.props.number_of_processes:
-            raise Exception(('wait_for_debugger should be in the range '
-                             f"[0, {self.props.number_of_processes})"))
+        if value is not None:
+            if 0 <= value < self.props.number_of_processes:
+                raise Exception(('wait_for_debugger should be in the range '
+                                f"[0, {self.props.number_of_processes})"))
         self._wait_for_debugger = value
 
     def run(self):
         """Execute the simulation, return the subprocess result"""
 
+        try:
+            self.folder.parent.mkdir()
+        except:
+            pass
         self.folder.mkdir()
         self.props.save(self.folder, self.id)
         self.hospital.save(self.folder)
 
         command = [
             str(self.mpiexec),
-            '-np', str(self.props.number_of_process),
-            str(Path(__file__).parent/'sti-demo'),
+            '-np', str(self.props.number_of_processes),
+            str(Path(__file__).parent.parent/'build/sti-demo'),
             str(self.folder/'config.props'),
             str(self.folder/'model.props'),
         ]
