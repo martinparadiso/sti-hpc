@@ -1,6 +1,12 @@
 # Hospital file
 hospital.file = ./hospital.json
 
+# Simulation
+seconds.per.tick = 60
+
+# Randomness
+random.seed = 1574454
+
 # Process distribution
 x.process = 1
 y.process = 1
@@ -11,12 +17,6 @@ doctors.manager.rank = 0
 
 # Output
 output.folder = ../output/
-
-# Simulation
-seconds.per.tick = 60
-
-# Randomness
-random.seed = 1574454
 
 # Debug 
 debug.performance.metrics = False

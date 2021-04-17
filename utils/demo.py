@@ -139,3 +139,9 @@ hospital.parameters = {
 hospital.plot().to_console()
 
 # Generate a new run
+run = s.Simulation()
+
+run.props = s.SimulationProperties(2, 2)
+run.hospital = hospital
+
+run.run()

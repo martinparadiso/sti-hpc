@@ -1,5 +1,12 @@
 #!/usr/bin/python3
 
+from pathlib import Path
+import argparse
+import secrets
+import subprocess
+
+#!/usr/bin/python3
+
 from json.encoder import JSONEncoder
 import random
 import numpy as np
@@ -93,10 +100,11 @@ class TimePeriod(object):
             raise Exception('seconds must be an integer in the range [0, 59]')
         self._seconds = value
 
+
 class Encoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Point):
-            return {'x' : obj.x, 'y': obj.y}
+            return {'x': obj.x, 'y': obj.y}
         if isinstance(obj, TimePeriod):
             return {
                 'days': obj.days,
@@ -107,6 +115,7 @@ class Encoder(JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+
 
 class Parameters(object):
     """
@@ -320,10 +329,10 @@ class Hospital(object):
         })
     })
 
-    def __init__(self, width, height, parameters):
+    def __init__(self, width, height, parameters=None):
 
         self.dimensions = (width, height)
-        self.elements = set()
+        self.elements = []
         self.parameters = parameters
 
     @property
@@ -346,7 +355,8 @@ class Hospital(object):
 
     @parameters.setter
     def parameters(self, value):
-        self.required_parameters.validate(value)
+        if value is not None:
+            self.required_parameters.validate(value)
         self._parameters = value
 
     def add_element(self, element):
@@ -354,14 +364,14 @@ class Hospital(object):
         if not issubclass(element.__class__, HospitalElement):
             raise Exception(
                 'The element to add must be subclass of HospitalElement')
-        self.elements.add(element)
+        self.elements.append(element)
 
     def validate(self):
         """Check the parameters and the elements"""
 
         # Make sure doctors in the map have their respective properties
-        for doctor in {x for x in self.elements if isinstance(x, DoctorOffice)}:
-            if doctor.specialty not in {d['specialty'] for d in self.parameters['doctors']}:
+        for doctor in [x for x in self.elements if isinstance(x, DoctorOffice)]:
+            if doctor.specialty not in [d['specialty'] for d in self.parameters['doctors']]:
                 raise Exception(
                     f"Missing parameters for doctor '{doctor.specialty}'")
 
@@ -377,6 +387,29 @@ class Hospital(object):
 
         with open(f"{folder}/{filename}", 'w') as f:
             json.dump(data, f, cls=Encoder)
+
+    def plot(self):
+        return HospitalPlotter(self)
+
+
+class HospitalPlotter(object):
+    """Render a hospital plan"""
+
+    def __init__(self, hospital: Hospital):
+        
+        self.plan = [[' ' for y in range(hospital.dimensions[1])]
+                    for x in range(hospital.dimensions[0])]
+        self.elements = hospital.elements
+        
+    def to_console(self):
+        """Print the hospital to console"""
+        for element in self.elements:
+            element.put_char_art(self.plan)
+        
+        for y in range(len(self.plan[0]) - 1, -1, -1):
+            for x in range(len(self.plan)):
+                print(self.plan[x][y], end='')
+            print()
 
 
 class HospitalElement(object):
@@ -396,6 +429,10 @@ class HospitalElement(object):
                 dictionary['building'][self.store_key] = [
                     self.location.to_dict]
 
+    def put_char_art(self, plan):
+        """Store this element in a matrix of chars according to its location"""
+        plan[self.location.x][self.location.y] = self.char_art
+
 
 class DoctorOffice(HospitalElement):
     """
@@ -412,8 +449,8 @@ class DoctorOffice(HospitalElement):
 
     def __init__(self, specialty, doctor_location, patient_location):
         self.specialty = specialty
-        self.doctor_location = doctor_location
-        self.patient_location = patient_location
+        self.doctor_location = Point(*doctor_location)
+        self.patient_location = Point(*patient_location)
 
     def store(self, dictionary):
         data = {
@@ -426,6 +463,9 @@ class DoctorOffice(HospitalElement):
         except:
             dictionary['building'][self.store_key] = [data]
 
+    def put_char_art(self, plan):
+        plan[self.doctor_location.x][self.doctor_location.y] = 'D'
+        plan[self.patient_location.x][self.patient_location.y] = 'P'
 
 class Wall(HospitalElement):
     """
@@ -437,9 +477,10 @@ class Wall(HospitalElement):
     """
     unique = False
     store_key = 'walls'
+    char_art = '#'
 
     def __init__(self, location):
-        self.location = location
+        self.location = Point(*location)
 
 
 class Chair(HospitalElement):
@@ -452,9 +493,10 @@ class Chair(HospitalElement):
     """
     unique = False
     store_key = 'chairs'
+    char_art = 'h'
 
     def __init__(self, location):
-        self.location = location
+        self.location = Point(*location)
 
 
 class Entry(HospitalElement):
@@ -467,9 +509,10 @@ class Entry(HospitalElement):
     """
     unique = True
     store_key = 'entry'
+    char_art = 'E'
 
     def __init__(self, location):
-        self.location = location
+        self.location = Point(*location)
 
 
 class Exit(HospitalElement):
@@ -482,9 +525,10 @@ class Exit(HospitalElement):
     """
     unique = True
     store_key = 'exit'
+    char_art = 'X'
 
     def __init__(self, location):
-        self.location = location
+        self.location = Point(*location)
 
 
 class ICU(HospitalElement):
@@ -497,9 +541,10 @@ class ICU(HospitalElement):
     """
     unique = True
     store_key = 'icu'
+    char_art = 'I'
 
     def __init__(self, location):
-        self.location = location
+        self.location = Point(*location)
 
 
 class Triage(HospitalElement):
@@ -513,9 +558,10 @@ class Triage(HospitalElement):
     """
     unique = False
     store_key = 'triages'
+    char_art = 'T'
 
     def __init__(self, patient_location):
-        self.patient_location = patient_location
+        self.patient_location = Point(*patient_location)
 
     def store(self, dictionary):
         data = {
@@ -525,6 +571,9 @@ class Triage(HospitalElement):
             dictionary['building'][self.store_key].append(data)
         except:
             dictionary['building'][self.store_key] = [data]
+    
+    def put_char_art(self, plan):
+        plan[self.patient_location.x][self.patient_location.y] = self.char_art
 
 
 class Receptionist(HospitalElement):
@@ -540,8 +589,8 @@ class Receptionist(HospitalElement):
     store_key = 'receptionists'
 
     def __init__(self, receptionist_location, patient_location):
-        self.receptionist_location = receptionist_location
-        self.patient_location = patient_location
+        self.receptionist_location = Point(*receptionist_location)
+        self.patient_location = Point(*patient_location)
 
     def store(self, dictionary):
         data = {
@@ -553,118 +602,293 @@ class Receptionist(HospitalElement):
         except:
             dictionary['building'][self.store_key] = [data]
 
-hospital = Hospital(50, 20, {
-    'objects': {
-        'chair': {
-            'infect_probability': 0.1,
-            'cleaning_interval': TimePeriod(0, 2, 0, 0),
-            'radius': 0.1
-        },
-        'bed': {
-            'infect_probability': 0.0,
-            'radius': 0.0,
-            'cleaning_interval': TimePeriod(0, 2, 0, 0)
-        }
-    },
-    'icu': {
-        'environment': {
-            'infection_probability': 0.1
-        },
-        'beds': 5,
-        'dead_probability': 0.05,
-        'sleep_times': [
-            {
-                'time': TimePeriod(1, 0, 0, 0),
-                'probability': 0.2
-            },
-            {
-                'time': TimePeriod(2, 0, 0, 0),
-                'probability': 0.2
-            },
-            {
-                'time': TimePeriod(4, 0, 0, 0),
-                'probability': 0.2
-            },
-            {
-                'time': TimePeriod(8, 0, 0, 0),
-                'probability': 0.2
-            },
-            {
-                'time': TimePeriod(16, 0, 0, 0),
-                'probability': 0.2
-            }
+    def put_char_art(self, plan):
+        plan[self.receptionist_location.x][self.receptionist_location.y] = 'R'
+        plan[self.patient_location.x][self.patient_location.y] = 'P'
+
+class SimulationProperties(object):
+    """
+    Stores all the properties required by the simulation
+
+    Keyword arguments:
+        - x -- Number of processes in which to split the map along the x axis
+        - y -- Number of processes in which to split the map along the y axis
+        - seconds_per_tick -- Period of a tick in the simulation
+        - chair_manager_process -- Rank of the process containing the chair pool
+        - reception_manager_process -- Rank of the process containing the reception queue
+        - triage_manager_process -- Rank of the process containing the triage queue
+        - doctors_manager_process -- Rank of the process containing the doctors queues
+        - simulation_seed -- Int used as a random seed for the simulation
+        - debug_performance -- Collect performance statistics inside the simulation 
+    """
+
+    def __init__(self, x=1, y=1, seconds_per_tick=60, chair_manager_process=0,
+                 reception_manager_process=0, triage_manager_process=0,
+                 doctors_manager_process=0, simulation_seed=1574454,
+                 debug_performance=False):
+
+        self.process_layout = (x, y)
+        self.number_of_processes = x * y
+        self.seconds_per_tick = seconds_per_tick
+        self.chair_manager_process = chair_manager_process
+        self.reception_manager_process = reception_manager_process
+        self.triage_manager_process = triage_manager_process
+        self.doctors_manager_process = doctors_manager_process
+        self.simulation_seed = simulation_seed
+        self.debug_performance = debug_performance
+
+    @property
+    def process_layout(self):
+        return self._process_layout
+
+    @process_layout.setter
+    def process_layout(self, pl):
+        if not isinstance(pl, tuple) or len(pl) != 2:
+            raise Exception('Processes layout should be a tuple of size 2')
+
+        if not isinstance(pl[0], int) or not isinstance(pl[1], int):
+            raise Exception('Number of process should be of type int')
+
+        if pl[0] < 1 or pl[1] < 1:
+            raise Exception('Number of processes should be >=1')
+
+        self._process_layout = pl
+
+    @property
+    def seconds_per_tick(self):
+        return self._seconds_per_tick
+
+    @seconds_per_tick.setter
+    def seconds_per_tick(self, value):
+        if not isinstance(value, int) or value < 0:
+            raise Exception('seconds_per_tick should be a int > 0')
+
+        self._seconds_per_tick = value
+
+    @property
+    def chair_manager_process(self):
+        return self._chair_manager_process
+
+    @chair_manager_process.setter
+    def chair_manager_process(self, value):
+        if not isinstance(value, int):
+            raise Exception('chair_manager_process should be an int')
+        if not 0 <= value < self.number_of_processes:
+            raise Exception(('chair_manager_process should be in the range '
+                             f"[0, {self.number_of_processes}"))
+        self._chair_manager_process = value
+
+    @property
+    def reception_manager_process(self):
+        return self._reception_manager_process
+
+    @reception_manager_process.setter
+    def reception_manager_process(self, value):
+        if not isinstance(value, int):
+            raise Exception('reception_manager_process should be an int')
+        if not 0 <= value < self.number_of_processes:
+            raise Exception(('reception_manager_process should be in the range '
+                             f"[0, {self.number_of_processes}"))
+        self._reception_manager_process = value
+
+    @property
+    def triage_manager_process(self):
+        return self._triage_manager_process
+
+    @triage_manager_process.setter
+    def triage_manager_process(self, value):
+        if not isinstance(value, int):
+            raise Exception('triage_manager_process should be an int')
+        if not 0 <= value < self.number_of_processes:
+            raise Exception(('triage_manager_process should be in the range '
+                             f"[0, {self.number_of_processes}"))
+        self._triage_manager_process = value
+
+    @property
+    def doctors_manager_process(self):
+        return self._doctors_manager_process
+
+    @doctors_manager_process.setter
+    def doctors_manager_process(self, value):
+        if not isinstance(value, int):
+            raise Exception('doctors_manager_process should be an int')
+        if not 0 <= value < self.number_of_processes:
+            raise Exception(('doctors_manager_process should be in the range '
+                             f"[0, {self.number_of_processes}"))
+        self._doctors_manager_process = value
+
+    @property
+    def simulation_seed(self):
+        return self._simulation_seed
+
+    @simulation_seed.setter
+    def simulation_seed(self, value):
+        if not isinstance(value, int):
+            raise Exception('simulation_seed should be an int')
+        self._simulation_seed = value
+
+    @property
+    def debug_performance(self):
+        return self._debug_performance
+
+    @debug_performance.setter
+    def debug_performance(self, value):
+        if not isinstance(value, bool):
+            raise Exception('debug_performance should be a bool')
+        self._debug_performance = value
+
+    def save(self, folder, run_id):
+        """Save the properties to a file"""
+
+        with open(folder/'model.props', 'w') as f:
+            f.write('# Run id\n')
+            f.write(f"run.id = {run_id}")
+
+            f.write('# Process distribution\n')
+            f.write(f"x.process = {self.process_layout[0]}\n")
+            f.write(f"y.process = {self.process_layout[1]}\n")
+            f.write(f"chair.manager.rank = {self.chair_manager_process}\n")
+            f.write(
+                f"reception.manager.rank = {self.reception_manager_process}\n")
+            f.write(f"triage.manager.rank = {self.triage_manager_process}\n")
+            f.write(f"doctors.manager.rank = {self.doctors_manager_process}\n")
+
+            f.write('# Output\n')
+            f.write(f"output.folder = {folder.absolute()}\n")
+
+            f.write('# Debug\n')
+            f.write(f"debug.performance.metrics = {self.debug_performance}\n")
+
+            f.write('# Hospital file\n')
+            f.write(f"hospital.file = {folder.absolute()/'hospital.json'}\n")
+
+            f.write('# Simulation\n')
+            f.write(f"seconds.per.tick = {self.seconds_per_tick}\n")
+
+            f.write('# Randomness\n')
+            f.write(f"random.seed = {self.simulation_seed}\n")
+
+        with open(folder/'config.props', 'w') as f:
+            pass
+
+
+class Simulation(object):
+    """
+    Object for executing a new unique simulation. Every new object has a unique
+    16 char id
+
+    Keyword arguments:
+
+        - props -- A SimulationProperties object
+        - hospital -- An Hospital object
+        - folder -- Folder to save the simulation props and output
+        - mpiexec -- MPI executable
+        - wait_for_debugger -- Pass the debug flag to the given process
+    """
+
+    def __init__(self, props=None, hospital=None, output_folder=None, mpiexec=None, wait_for_debugger=None):
+
+        self.id = secrets.token_hex(16)
+
+        self.props = props
+        self.hospital = hospital
+
+        if output_folder is not None:
+            self.folder = output_folder/self.id
+        else:
+            self.folder = Path(__file__).parent/'run/'/self.id
+
+        if mpiexec is not None:
+            self.mpiexec = mpiexec
+        else:
+            self.default_mpiexec = Path(
+                __file__).parent/'lib/mpich/bin/mpiexec'
+        self.wait_for_debugger = wait_for_debugger
+
+    @property
+    def id(self):
+        return id
+
+    @id.setter
+    def id(self, value):
+        if len(value) != 16 or not isinstance(value, str):
+            raise Exception('id should be 16 char long strings')
+        self._id = value
+
+    @property
+    def props(self):
+        return self._props
+
+    @props.setter
+    def props(self, value):
+        if value is not None and not isinstance(value, SimulationProperties):
+            raise Exception('props must be of type SimulationProperties')
+        self._props = value
+
+    @property
+    def hospital(self):
+        return self._hospital
+
+    @hospital.setter
+    def hospital(self, value):
+        if value is not None and not isinstance(value, Hospital):
+            raise Exception('hospital must be of type Hospital')
+        self._hospital = value
+
+    @property
+    def folder(self):
+        return self._folder
+
+    @folder.setter
+    def folder(self, f):
+        if not isinstance(f, Path):
+            raise Exception('folder should be a path')
+        self._folder = f
+
+    @property
+    def mpiexec(self):
+        return self._mpiexec
+
+    @mpiexec.setter
+    def mpiexec(self, value: Path):
+        if not isinstance(value, Path):
+            raise Exception('mpiexec should be a path')
+        if not value.exists() or not value.is_file():
+            raise Exception('mpiexec not found')
+
+        self._mpiexec = value
+
+    @property
+    def wait_for_debugger(self):
+        return self._wait_for_debugger
+
+    @wait_for_debugger.setter
+    def wait_for_debugger(self, value):
+        if value is not None and isinstance(value, int):
+            raise Exception('wait_for_debugger should be an int or None')
+        if 0 <= value < self.props.number_of_processes:
+            raise Exception(('wait_for_debugger should be in the range '
+                             f"[0, {self.props.number_of_processes})"))
+        self._wait_for_debugger = value
+
+    def run(self):
+        """Execute the simulation, return the subprocess result"""
+
+        self.folder.mkdir()
+        self.props.save(self.folder, self.id)
+        self.hospital.save(self.folder)
+
+        command = [
+            str(self.mpiexec),
+            '-np', str(self.props.number_of_process),
+            str(Path(__file__).parent/'sti-demo'),
+            str(self.folder/'config.props'),
+            str(self.folder/'model.props'),
         ]
-    },
-    'reception': {
-        'attention_time': TimePeriod(0, 0, 15, 0)
-    },
-    'triage': {
-        'icu': 0.2,
-        'doctors_probabilities': [
-            {
-                'specialty': 'general_practitioner',
-                'probability': 0.6
-            },
-            {
-                'specialty': 'radiologist',
-                'probability': 0.2
-            }
-        ],
-        'levels': [
-            {
-                'level': 1,
-                'probability': 0.2,
-                'wait_time': TimePeriod(0, 0, 0, 0)
-            },
-            {
-                'level': 2,
-                'probability': 0.2,
-                'wait_time': TimePeriod(0, 0, 0, 15)
-            },
-            {
-                'level': 3,
-                'probability': 0.2,
-                'wait_time': TimePeriod(0, 0, 0, 30)
-            },
-            {
-                'level': 4,
-                'probability': 0.2,
-                'wait_time': TimePeriod(0, 0, 1, 0)
-            },
-            {
-                'level': 5,
-                'probability': 0.2,
-                'wait_time': TimePeriod(0, 0, 2, 0)
-            }
-        ],
-        'attention_time': TimePeriod(0, 0, 15, 0)
-    },
-    'doctors': [
-        {
-            'attention_duration': TimePeriod(0, 0, 30, 0),
-            'specialty': 'general_practitioner'
-        },
-        {
-            'attention_duration': TimePeriod(0, 1, 0, 0),
-            'specialty': 'radiologist'
-        }
-    ],
-    'patient': {
-        'walk_speed': 0.2,
-        'influx': np.array([[random.randrange(2, 10) for i in range(12)] for j in range(365)]),
-        'infected_probability': 0.1
-    },
-    'human': {
-        'infect_distance': 2.0,
-        'contamination_probability': 0.1,
-        'incubation_time': TimePeriod(0, 2, 0, 0),
-        'infect_probability': 0.2
-    }
-})
 
-hospital.add_element(DoctorOffice(
-    'general_practitioner', (2, 2), Point(2, 4)))
-hospital.add_element(DoctorOffice('radiologist', Point(12, 2), Point(12, 4)))
+        if self.wait_for_debugger is not None:
+            command.append(f"--debug={self.wait_for_debugger}")
 
-hospital.validate()
-hospital.save('/tmp/')
+        result = subprocess.run(command)
+
+        return result
