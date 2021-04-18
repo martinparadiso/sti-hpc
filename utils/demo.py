@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import simulation as s
+import performance
 import numpy as np
 import random
 
@@ -139,12 +140,19 @@ hospital.parameters = {
         'infect_probability': 0.2
     }
 }
-hospital.plot().to_console()
 
 # Generate a new run
-
 props = s.SimulationProperties(2, 2)
 
 run = s.Simulation(props, hospital)
 
-run.run(print_command=True)
+run.run()
+
+# Plot the performance 
+metrics = performance.Metrics(run.folder)
+print(f"Simulation {run.id}:")
+print(f"\t total_time = {metrics.total_time}")
+print(f"\t save_time = {metrics.save_time}")
+metrics.plot().pie()
+
+metrics.plot().plot(0, ('rhpc', 'mpi'))

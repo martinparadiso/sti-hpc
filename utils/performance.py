@@ -6,11 +6,16 @@ import glob
 import matplotlib.pyplot as plt
 import pandas as pd
 import re
-import math
 
 
 class Metrics(object):
-    """Collect metrics from a execution"""
+    """
+    Collect metrics from a execution
+
+    Keyword arguments:
+
+    - folderpath -- The folder of the simulation run, containing the metric data
+    """
 
     mpi_sync_stages = ('chairs_sync_ns',
                        'reception_sync_ns',
@@ -21,25 +26,53 @@ class Metrics(object):
     def __init__(self, folderpath):
 
         # Search for performance files, the name should be 'profiling.pX.csv'
-        files_found = glob.glob(f"{folderpath}/profiling.p*.csv")
 
-        dfs = []
-        for path in files_found:
-            # Read the CSV, append the process number
-            df = pd.read_csv(path)
-            process = int(re.match(r'.+profiling\.p(\d+)\.csv', path)[1])
-            df['process'] = process
-            dfs.append(df)
+        tick_files = glob.glob(f"{folderpath}/tick_metrics.p*.csv")
+        tick_dfs = []
+        for tick_path in tick_files:
+            tick_df = pd.read_csv(tick_path)
+            process = int(
+                re.match(r'.+tick_metrics\.p(\d+)\.csv', tick_path)[1])
+            tick_df['process'] = process
+            tick_dfs.append(tick_df)
+
+        global_files = glob.glob(f"{folderpath}/global_metrics.p*.csv")
+        global_dfs = []
+        for global_path in global_files:
+            global_df = pd.read_csv(global_path)
+            process = int(
+                re.match(r'.+global_metrics\.p(\d+)\.csv', global_path)[1])
+            global_df['process'] = process
+            global_dfs.append(global_df)
 
         # Combine all dataframes
-        self.dataframe = pd.concat(dfs)
+        self.ticks_df = pd.concat(tick_dfs)
+        self.global_df = pd.concat(global_dfs)
+
+        # Convert to timedelta
+        for c in ('chairs_sync_ns', 'reception_sync_ns', 'triage_sync_ns',
+                  'doctors_sync_ns', 'icu_sync_ns', 'rhpc_sync_ns',
+                  'logic_ns', 'tick_start_time'):
+            self.ticks_df[c] = pd.to_timedelta(self.ticks_df[c], unit='ns')
 
         # Add extra information
-        self.dataframe['total_mpi_sync_ns'] = sum(
-            [self.dataframe[column] for column in self.mpi_sync_stages])
+        self.ticks_df['total_mpi_sync_ns'] = self.ticks_df[[
+            *self.mpi_sync_stages]].sum(axis='columns')
 
-        print(self.dataframe)
-        print(self.dataframe.dtypes)
+    @property
+    def total_time(self):
+        """The total time it took to run the simulation"""
+        min_start_time = pd.to_timedelta(self.global_df['epoch'].min(),
+                                         unit='nanoseconds')
+        max_end_time = pd.to_timedelta(self.global_df['end_time'].max())
+
+        return max_end_time - min_start_time
+
+    @property
+    def save_time(self):
+        min_start_time = pd.to_timedelta(self.global_df['presave_time'].min())
+        max_end_time = pd.to_timedelta(self.global_df['end_time'].max())
+        return max_end_time - min_start_time
 
     def summary(self):
         return Summary(self)
@@ -49,11 +82,17 @@ class Metrics(object):
 
 
 class Summary(object):
-    """Generate a summary of the performance"""
+    """
+    Generate a summary of the performance
+
+    Keyword arguments:
+
+    - metrics -- The performance metrics to extract the data from
+    """
 
     def __init__(self, metrics: Metrics):
-        self.number_of_processes = metrics.dataframe.process.max() + 1
-        self.combined = metrics.dataframe.groupby('process').mean()
+        self.number_of_processes = metrics.ticks_df.process.max() + 1
+        self.combined = metrics.ticks_df.groupby('process').mean()
 
     def __str__(self):
         output = ''
@@ -63,7 +102,13 @@ class Summary(object):
 
 
 class Plots(object):
-    """Collection of different plots based on performance metrics"""
+    """
+    Collection of different plots based on performance metrics
+
+    Keyword arguments:
+
+    - metrics -- The performance metrics to extract the data from
+    """
 
     # Plot layouts, only for relevant number of process
     layout_map = {
@@ -81,6 +126,9 @@ class Plots(object):
 
     supported_plots = ('logic', 'rhpc', 'mpi')
 
+    def __init__(self, metrics: Metrics):
+        self.metrics = metrics
+
     @property
     def __plot_cols_mapper__(self):
         return {
@@ -88,9 +136,6 @@ class Plots(object):
             'rhpc': ['rhpc_sync_ns'],
             'mpi': [*self.metrics.mpi_sync_stages]
         }
-
-    def __init__(self, metrics: Metrics):
-        self.metrics = metrics
 
     def plot(self, process_number, plot=supported_plots):
         """Simple plot that shows the execution times in each tick"""
@@ -101,7 +146,7 @@ class Plots(object):
                 raise Exception((f"Unsupported plot <{entry}>. "
                                  f"Available: {', '.join(self.supported_plots)}"))
 
-        df = self.metrics.dataframe
+        df = self.metrics.ticks_df
         df = df[df['process'] == process_number]  # Keep only the relevent ps
 
         # Keep only the interested metrics
@@ -117,12 +162,15 @@ class Plots(object):
     def pie(self):
         """Plot a pie using the times stored in the metrics"""
 
-        # Group by process
-        df = self.metrics.dataframe.groupby('process').sum()
-        # Keep only times
+        df = self.metrics.ticks_df.groupby('process').sum(numeric_only=False)
         df = df[[*self.metrics.mpi_sync_stages,
                  'logic_ns',
                  'rhpc_sync_ns']]
+
+        # Timedeltas must be converted to integers so plt doesn't complain
+        for c in df.columns:
+            df[c] = df[c].dt.nanoseconds
+
         df.T.plot.pie(
             subplots=True, layout=self.layout_map[int(df.index.max() + 1)])
         plt.show()

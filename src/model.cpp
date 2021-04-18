@@ -83,6 +83,8 @@ struct sti::process_metrics {
     }
 
     std::int64_t                        simulation_epoch;
+    std::int64_t                        presave_time {};
+    std::int64_t                        end_time {};
     std::vector<metrics>                values;
     std::array<std::string, mpi_stages> mpi_stages_tags;
 
@@ -91,27 +93,39 @@ struct sti::process_metrics {
     /// @param process The process number
     void save(const std::string& folder, int process) const
     {
-        auto filepath = std::ostringstream {};
-        filepath << folder << "/profiling.p" << process << ".csv";
-        auto file = std::ofstream { filepath.str() };
+        auto tick_path = std::ostringstream {};
+        tick_path << folder << "/tick_metrics.p" << process << ".csv";
+        auto tick_file = std::ofstream { tick_path.str() };
 
-        file << "tick,"
-             << "agents,";
-        for (const auto& tag : mpi_stages_tags) file << tag << "_sync_ns,";
-        file << "rhpc_sync_ns,"
-             << "logic_ns,"
-             << "tick_start_time\n";
+        tick_file << "tick,"
+                  << "agents,";
+        for (const auto& tag : mpi_stages_tags) tick_file << tag << "_sync_ns,";
+        tick_file << "rhpc_sync_ns,"
+                  << "logic_ns,"
+                  << "tick_start_time\n";
 
         auto i = 0U;
         for (const auto& metric : values) {
-            file << i++ << ","
-                 << metric.current_agents << ",";
-            for (const auto& mpi_value : metric.mpi_sync_ns) file << mpi_value << ",";
-            file << metric.rhpc_sync_ns << ","
-                 << metric.logic_ns << ","
-                 << metric.tick_start_time
-                 << "\n";
+            tick_file << i++ << ","
+                      << metric.current_agents << ",";
+            for (const auto& mpi_value : metric.mpi_sync_ns) tick_file << mpi_value << ",";
+            tick_file << metric.rhpc_sync_ns << ","
+                      << metric.logic_ns << ","
+                      << metric.tick_start_time
+                      << "\n";
         }
+
+        auto global_path = std::ostringstream {};
+        global_path << folder << "/global_metrics.p" << process << ".csv";
+        auto global_file = std::ofstream { global_path.str() };
+
+        global_file << "epoch" << ','
+                    << "presave_time" << ','
+                    << "end_time" << '\n';
+
+        global_file << simulation_epoch << ','
+                    << presave_time << ','
+                    << end_time << '\n';
     }
 };
 
@@ -367,7 +381,7 @@ void sti::model::tick()
 /// @brief Final function for data collection and such
 void sti::model::finish()
 {
-    const auto pre_write_time = now_in_ns();
+    _pmetrics->presave_time = now_in_ns();
 
     // The rank 0 creates the folder and broadcasts it
     const auto& folderpath = _props->getProperty("output.folder");
@@ -376,19 +390,15 @@ void sti::model::finish()
     if (_entry) _entry->save(folderpath, _communicator->rank());
     _triage->save(folderpath);
     _icu->save(folderpath);
-    _pmetrics->save(folderpath, _communicator->rank());
     _stats->save(folderpath, _communicator->rank());
 
     // Remove the remaining agents
     // Iterate over all the agents to perform their actions
     remove_remnants(folderpath);
 
-    // Print the output folder
-    if (_rank == 0) {
-        std::cout << "Output folder: " << folderpath << "\n"
-                  << "Process 0 files written in " << now_in_ns() - pre_write_time << " nanoseconds"
-                  << std::endl;
-    }
+    _pmetrics->presave_time = now_in_ns();
+    _pmetrics->end_time     = now_in_ns();
+    _pmetrics->save(folderpath, _communicator->rank());
 }
 
 /// @brief Remove all the agents that are still in the simulation
