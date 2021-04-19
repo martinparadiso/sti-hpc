@@ -86,6 +86,7 @@ sti::object_agent::type sti::object_agent::get_type() const
 void sti::object_agent::act()
 {
     _infection_logic.contaminate_with_nearby();
+    _infection_logic.tick();
 }
 
 /// @brief Get the infection logic

@@ -93,6 +93,9 @@ public:
     /// @param human A reference to the human infection interacting with this object
     void interact_with(const infection_cycle* other);
 
+    /// @brief Perform the periodic logic, i.e. clean the object
+    void tick();
+    
     /// @brief Get statistics about the infection
     /// @return A Boost.JSON value containing relevant statistics
     boost::json::value stats() const;
@@ -102,6 +105,7 @@ private:
     id_type                                       _id;
     object_type                                   _object_type;
     STAGE                                         _stage;
+    datetime                                      _next_clean;
     std::vector<std::pair<std::string, datetime>> _infected_by;
 
 }; // class ghost_object_cycle

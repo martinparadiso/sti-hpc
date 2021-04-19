@@ -25,6 +25,7 @@ sti::object_infection_cycle::object_infection_cycle(flyweights_ptr fw)
     , _id {}
     , _object_type {}
     , _stage { STAGE::CLEAN }
+    , _next_clean {}
     , _infected_by {}
 {
 }
@@ -43,6 +44,7 @@ sti::object_infection_cycle::object_infection_cycle(
     , _id { id }
     , _object_type { type }
     , _stage { is }
+    , _next_clean { fw->at(_object_type).clock->now() + fw->at(_object_type).cleaning_interval }
     , _infected_by {}
 {
 }
@@ -110,7 +112,7 @@ void sti::object_infection_cycle::interact_with(const human_infection_cycle* hum
 void sti::object_infection_cycle::contaminate_with_nearby()
 {
     // If the object is already dirty, nothing to do here
-    if (_stage != STAGE::CLEAN) return;
+    if (_stage == STAGE::CONTAMINATED) return;
 
     const auto my_location = _flyweights->at(_object_type).space->get_continuous_location(_id);
     const auto near_agents = _flyweights->at(_object_type).space->agents_around(my_location, _flyweights->at(_object_type).object_radius);
@@ -131,6 +133,15 @@ void sti::object_infection_cycle::contaminate_with_nearby()
             // No need to keep iterating over the remaining agents
             break;
         }
+    }
+}
+
+/// @brief Perform the periodic logic, i.e. clean the object
+void sti::object_infection_cycle::tick()
+{
+    if (_next_clean <= _flyweights->at(_object_type).clock->now()) {
+        clean();
+        _next_clean = _next_clean + _flyweights->at(_object_type).cleaning_interval;
     }
 }
 

@@ -227,6 +227,7 @@ void sti::real_icu::tick()
             bed.interact_with(patient->get_infection_logic());
             patient->get_infection_logic()->interact_with_cycle(bed);
         }
+        bed.tick();
     }
 
     // Collect stats, count the number of beds that are actually empty

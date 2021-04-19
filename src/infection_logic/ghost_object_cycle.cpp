@@ -24,7 +24,7 @@ sti::ghost_object_cycle::ghost_object_cycle(flyweights_ptr fw)
     : _flyweights { fw }
     , _object_type {}
     , _stage { STAGE::CLEAN }
-    , _infected_by {}
+    , _next_clean {}
 {
 }
 
@@ -42,6 +42,7 @@ sti::ghost_object_cycle::ghost_object_cycle(
     , _id { id }
     , _object_type { type }
     , _stage { is }
+    , _next_clean { fw->at(_object_type).clock->now() + fw->at(_object_type).cleaning_interval }
 {
 }
 
@@ -95,6 +96,15 @@ void sti::ghost_object_cycle::interact_with(const infection_cycle* other)
         _stage = STAGE::CONTAMINATED;
         _infected_by.push_back({ other->get_id(),
                                  _flyweights->at(_object_type).clock->now() });
+    }
+}
+
+/// @brief Perform the periodic logic, i.e. clean the object
+void sti::ghost_object_cycle::tick()
+{
+    if (_next_clean <= _flyweights->at(_object_type).clock->now()) {
+        clean();
+        _next_clean = _next_clean + _flyweights->at(_object_type).cleaning_interval;
     }
 }
 

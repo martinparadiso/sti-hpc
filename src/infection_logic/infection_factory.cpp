@@ -38,7 +38,8 @@ sti::infection_factory::infection_factory(const boost::json::object& hospital_pr
                 space,
                 clock,
                 value.at("infect_probability").as_double(),
-                value.at("radius").as_double()
+                value.at("radius").as_double(),
+                boost::json::value_to<sti::timedelta>(value.at("cleaning_interval"))
             };
         }
         return map;

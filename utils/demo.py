@@ -130,7 +130,7 @@ hospital.parameters = {
     ],
     'patient': {
         'walk_speed': 0.2,
-        'influx': np.array([[random.randrange(2, 10) for i in range(12)] for j in range(14)]),
+        'influx': np.array([[random.randrange(2, 10) for i in range(12)] for j in range(365)]),
         'infected_probability': 0.1
     },
     'human': {
@@ -142,7 +142,7 @@ hospital.parameters = {
 }
 
 # Generate a new run
-props = s.SimulationProperties(2, 2)
+props = s.SimulationProperties(1, 1)
 
 run = s.Simulation(props, hospital)
 

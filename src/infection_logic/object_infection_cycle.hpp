@@ -28,17 +28,18 @@ class object_infection_cycle final : public infection_cycle {
 
 public:
     using object_type = std::string;
-    
+
     ////////////////////////////////////////////////////////////////////////////
     // FLYWEIGHT
     ////////////////////////////////////////////////////////////////////////////
     /// @brief Struct containing the shared attributes of all infection in humans
     struct flyweight {
-        const sti::space_wrapper* space;
-        const sti::clock*         clock;
+        const sti::space_wrapper* space {};
+        const sti::clock*         clock {};
 
-        precission infect_chance;
-        precission object_radius;
+        precission infect_chance {};
+        precission object_radius {};
+        timedelta  cleaning_interval;
     };
 
     using flyweights_ptr = const std::map<object_type, flyweight>*;
@@ -68,7 +69,7 @@ public:
                            const agent_id&    id,
                            const object_type& type,
                            STAGE              is);
-    
+
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////
@@ -83,7 +84,7 @@ public:
     /// @brief Get the probability of contaminating an object
     /// @return A value in the range [0, 1)
     precission get_contamination_probability() const override;
-    
+
     /// @brief Get the probability of infecting humans
     /// @param position The requesting agent position, to determine the probability
     /// @return A value in the range [0, 1)
@@ -95,6 +96,9 @@ public:
 
     /// @brief Try to get infected with nearby/overlaping patients
     void contaminate_with_nearby();
+
+    /// @brief Perform the periodic logic, i.e. clean the object
+    void tick();
 
     /// @brief Get statistics about the infection
     /// @return A Boost.JSON value containing relevant statistics
@@ -110,6 +114,7 @@ private:
         ar& _id;
         ar& _object_type;
         ar& _stage;
+        ar& _next_clean;
         ar& _infected_by;
     }
 
@@ -117,6 +122,7 @@ private:
     repast::AgentId                               _id;
     object_type                                   _object_type;
     STAGE                                         _stage;
+    datetime                                      _next_clean;
     std::vector<std::pair<std::string, datetime>> _infected_by;
 }; // class object_infection_cycle
 
