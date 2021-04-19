@@ -137,17 +137,20 @@ sti::agent_factory::patient_ptr sti::agent_factory::recreate_patient(const repas
 
 /// @brief Create a brand new patient, with a new id, insert it into the context
 /// @param pos The position where to insert the patients
+/// @param type The person type/rol, for post processing
 /// @param st The stage of the patient infection
 /// @param immune The person immunity, True if is immune
 /// @return A raw pointer to the contagious agent created
-sti::agent_factory::person_ptr sti::agent_factory::insert_new_person(const coordinates<double>&   pos,
-                                                                     human_infection_cycle::STAGE st,
-                                                                     bool                         immune)
+sti::agent_factory::person_ptr sti::agent_factory::insert_new_person(
+    const coordinates<double>&       pos,
+    const person_agent::person_type& type,
+    human_infection_cycle::STAGE     st,
+    bool                             immune)
 {
-    const auto rank = repast::RepastProcess::instance()->rank();
-    const auto type = to_int(contagious_agent::type::FIXED_PERSON);
-    const auto i    = static_cast<int>(_agents_created++);
-    const auto id   = repast::AgentId(i, rank, type, rank);
+    const auto rank        = repast::RepastProcess::instance()->rank();
+    const auto repast_type = to_int(contagious_agent::type::FIXED_PERSON);
+    const auto i           = static_cast<int>(_agents_created++);
+    const auto id          = repast::AgentId(i, rank, repast_type, rank);
 
     const auto infection_time = [&]() {
         if (st == human_infection_cycle::STAGE::HEALTHY) return datetime {};
@@ -156,7 +159,7 @@ sti::agent_factory::person_ptr sti::agent_factory::insert_new_person(const coord
     const auto mode = immune ? human_infection_cycle::MODE::IMMUNE : human_infection_cycle::MODE::NORMAL;
 
     const auto hic    = _infection_factory.make_human_cycle(id, st, mode, infection_time);
-    auto*      person = new person_agent { id, &_person_flyweight, hic };
+    auto*      person = new person_agent { id, type, &_person_flyweight, hic };
 
     // Move the agent into position, add it to the repast contexts
     _context->addAgent(person);

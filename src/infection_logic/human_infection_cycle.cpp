@@ -65,7 +65,7 @@ void sti::human_infection_cycle::mode(MODE new_mode)
 /// @return A string identifying the object
 std::string sti::human_infection_cycle::get_id() const
 {
-    return to_string(_id);
+    return "human." + std::to_string(_id.id()) + "." + std::to_string(_id.startingRank()) + "." + std::to_string(_id.agentType());
 }
 
 /// @brief Get the probability of contaminating an object
@@ -172,7 +172,7 @@ void sti::human_infection_cycle::tick()
 /// @return A Boost.JSON value containing relevant statistics
 boost::json::value sti::human_infection_cycle::stats() const
 {
-    auto to_string = [](STAGE stage) {
+    auto stos = [](STAGE stage) {
         switch (stage) {
         case STAGE::HEALTHY:
             return "healthy";
@@ -183,9 +183,22 @@ boost::json::value sti::human_infection_cycle::stats() const
         }
     };
 
+    auto mtos = [](MODE mode) {
+        switch (mode) {
+        case MODE::NORMAL:
+            return "normal";
+        case MODE::IMMUNE:
+            return "immune";
+        case MODE::COMA:
+            return "coma";
+        }
+    };
+
     return {
-        { "model", "human" },
-        { "stage", to_string(_stage) },
+        { "infection_id", get_id() },
+        { "infection_model", "human" },
+        { "infection_mode", mtos(_mode) },
+        { "infection_stage", stos(_stage) },
         { "infection_time", _infection_time.epoch() },
         { "infected_by", _infected_by }
     };

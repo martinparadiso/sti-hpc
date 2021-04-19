@@ -106,16 +106,18 @@ public:
 
     /// @brief Create a brand new patient, with a new id, insert it into the context
     /// @param pos The position where to insert the patients
+    /// @param type The person type/rol, for post processing
     /// @param st The stage of the patient infection
     /// @param immune The person immunity, True if is immune
     /// @return A raw pointer to the contagious agent created
-    person_ptr insert_new_person(const coordinates<double>&   pos,
-                                 human_infection_cycle::STAGE st,
-                                 bool                         immune);
+    person_ptr insert_new_person(const coordinates<double>&       pos,
+                                 const person_agent::person_type& type,
+                                 human_infection_cycle::STAGE     st,
+                                 bool                             immune);
 
     /// @brief Recreate a serialized patient, with an existing id
     /// @param id The agent id
-    /// @param data The serialized data
+    /// @param data const The serialized data&
     /// @return A pointer to the newly created object
     person_ptr recreate_person(const repast::AgentId& id,
                                serial_data&           data) const;

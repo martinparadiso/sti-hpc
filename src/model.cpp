@@ -286,12 +286,12 @@ void sti::model::init()
 
     for (const auto& doctor : doctors) {
         if (_spaces.local_dimensions().contains(doctor.location)) {
-            _agent_factory->insert_new_person(doctor.location.continuous(), human_infection_cycle::STAGE::HEALTHY, false);
+            _agent_factory->insert_new_person(doctor.location.continuous(), doctor.type, human_infection_cycle::STAGE::HEALTHY, false);
         }
     }
     for (const auto& receptionist : receptionits) {
         if (_spaces.local_dimensions().contains(receptionist.location)) {
-            _agent_factory->insert_new_person(receptionist.location.continuous(), human_infection_cycle::STAGE::HEALTHY, false);
+            _agent_factory->insert_new_person(receptionist.location.continuous(), "receptionist", human_infection_cycle::STAGE::HEALTHY, false);
         }
     }
 

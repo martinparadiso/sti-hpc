@@ -7,6 +7,7 @@
 #include <repast_hpc/VN2DGridQuery.h>
 #include <repast_hpc/Point.h>
 #include <sstream>
+#include <string>
 
 #include "infection_cycle.hpp"
 #include "../contagious_agent.hpp"
@@ -54,7 +55,7 @@ sti::object_infection_cycle::object_infection_cycle(
 /// @return A string identifying the object
 std::string sti::object_infection_cycle::get_id() const
 {
-    return to_string(_id);
+    return _object_type + "." + std::to_string(_id.id()) + "." + std::to_string(_id.startingRank()) + "." + std::to_string(_id.agentType());
 }
 
 /// @brief Clean the object, removing contamination and resetting the state
@@ -76,6 +77,9 @@ sti::infection_cycle::precission sti::object_infection_cycle::get_contamination_
 /// @return A value in the range [0, 1)
 sti::infection_cycle::precission sti::object_infection_cycle::get_infect_probability(coordinates<double> position) const
 {
+    // If the chair is clean, the probability is 0
+    if (_stage == STAGE::CLEAN) return 0.0;
+
     // If the patient is overlaping with me, return the infection chance
     const auto my_position = _flyweights->at(_object_type).space->get_continuous_location(_id);
     const auto distance    = sq_distance(my_position, position);
@@ -145,8 +149,9 @@ boost::json::value sti::object_infection_cycle::stats() const
     };
 
     return {
-        { "model", "object"},
-        { "stage", to_string(_stage) },
+        { "infection_id", get_id() },
+        { "infection_model", "object" },
+        { "infection_stage", to_string(_stage) },
         { "infections", _infected_by }
     };
 }

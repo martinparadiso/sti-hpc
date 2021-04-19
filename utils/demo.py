@@ -130,7 +130,7 @@ hospital.parameters = {
     ],
     'patient': {
         'walk_speed': 0.2,
-        'influx': np.array([[random.randrange(2, 10) for i in range(12)] for j in range(365)]),
+        'influx': np.array([[random.randrange(2, 10) for i in range(12)] for j in range(14)]),
         'infected_probability': 0.1
     },
     'human': {
@@ -150,7 +150,7 @@ run.run()
 
 # Plot the performance 
 metrics = performance.Metrics(run.folder)
-print(f"Simulation {run.id}:")
+print(f"Simulation {run.id}")
 print(f"\t total_time = {metrics.total_time}")
 print(f"\t save_time = {metrics.save_time}")
 metrics.plot().pie()

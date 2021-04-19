@@ -114,7 +114,7 @@ sti::object_infection_cycle* sti::object_agent::get_object_infection_logic()
 boost::json::object sti::object_agent::stats() const
 {
     return {
-        { "id", to_string(getId()) },
+        { "repast_id", to_string(getId()) },
         { "type", _object_type },
         { "infection", _infection_logic.stats() }
     };

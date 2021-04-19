@@ -29,12 +29,16 @@ class AgentsOutput(object):
     """Load the agents output from output files"""
 
     files_globs = ('agents.p*.json',
-                   'exit.p*.json')
+                   'exit.p*.json',
+                   'icu_beds.p*.json')
 
-    human_cols = ['id', 'type', 'entry_time', 'exit_time', 'last_state', 'process',
-                  'infection.stage', 'infection.infection_time', 'infection.infected_by']
-    object_cols = ['id', 'type', 'process',
-                   'infection.model', 'infection.infections']
+    human_cols = ['repast_id', 'type', 'entry_time', 'exit_time', 'last_state',
+                  'process',
+                  'infection_id', 'infection_model',  'infection_stage',
+                  'infection_time', 'infected_by']
+    object_cols = ['repast_id', 'type', 'process',
+                   'infection_id', 'infection_stage', 'infection_model',
+                   'infections']
 
     def __init__(self, folderpath):
 
@@ -46,18 +50,24 @@ class AgentsOutput(object):
         for path in paths:
             with open(path) as f:
                 data = json.load(f)
-
             df = pd.json_normalize(data)
+
+            # Remove the 'infection' prefix
+            for c in df.columns:
+                if c.startswith('infection.'):
+                    df = df.rename(columns={c: c[10:]})
+
             df['process'] = int(re.match(r'.+\.p(\d+).json', path)[1])
             dfs.append(df)
 
         df = pd.concat(dfs)
 
         # Fix the dtypes
-        for col in ('infection.infection_time', 'entry_time', 'exit_time'):
+        for col in ('infection_time', 'entry_time', 'exit_time'):
             df[col] = pd.to_timedelta(df[col], unit='seconds')
 
         # Add the dataframes to the object
+        # Split the objects in humans and objects
         self.dataframe = df
-        self.humans = df[df['infection.model'] == 'human'][self.human_cols]
-        self.objects = df[df['infection.model'] == 'object'][self.object_cols]
+        self.humans = df[df['infection_model'] == 'human'][self.human_cols]
+        self.objects = df[df['infection_model'] == 'object'][self.object_cols]

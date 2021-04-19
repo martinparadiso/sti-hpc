@@ -12,11 +12,17 @@
 ////////////////////////////////////////////////////////////////////////////
 
 /// @brief Construct a new person
+/// @param id The id of the agent
+/// @param type The 'type' of person. Normally a rol, i.e. radiologist
 /// @param fw The flyweight containing the shared attributes
 /// @param hic The infection logic
-sti::person_agent::person_agent(const id_t& id, const flyweight* fw, const human_infection_cycle& hic)
+sti::person_agent::person_agent(const id_t&                  id,
+                                const person_type&           type,
+                                const flyweight*             fw,
+                                const human_infection_cycle& hic)
     : contagious_agent { id }
     , _flyweight { fw }
+    , _type{type}
     , _infection_logic { hic }
 {
 }
@@ -49,8 +55,8 @@ sti::serial_data sti::person_agent::serialize(boost::mpi::communicator* communic
 /// @brief Reconstruct the agent state from a string using Boost.Serialization
 /// @param data The serialized data
 void sti::person_agent::serialize(const id_t&               id,
-                                   serial_data&              data,
-                                   boost::mpi::communicator* communicator)
+                                  serial_data&              data,
+                                  boost::mpi::communicator* communicator)
 {
     contagious_agent::id(id);
     { // Used to make sure the stream is flushed
@@ -97,8 +103,8 @@ const sti::human_infection_cycle* sti::person_agent::get_infection_logic() const
 boost::json::object sti::person_agent::stats() const
 {
     return {
-        { "id", to_string(getId()) },
-        { "type", "personnel" },
+        { "repast_id", to_string(getId()) },
+        { "type", _type },
         { "infection", _infection_logic.stats() }
     };
 }

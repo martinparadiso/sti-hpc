@@ -33,7 +33,7 @@ public:
     /// @brief Construct an ICU infection environment
     /// @param hospital_params JSON parameters of the hospital
     /// @param name The name of the environment, by default is 'icu'
-    icu_environment(const boost::json::object& hospital_params, const std::string& name = "icu");
+    icu_environment(const boost::json::object& hospital_params, const std::string& name = "icu_environment");
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR

@@ -28,15 +28,21 @@ public:
     };
 
     using flyweight_ptr = const flyweight*;
+    using person_type   = std::string;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Construct a new person
+    /// @param id The id of the agent
+    /// @param type The 'type' of person. Normally a rol, i.e. radiologist
     /// @param fw The flyweight containing the shared attributes
     /// @param hic The infection logic
-    person_agent(const id_t& id, const flyweight* fw, const human_infection_cycle& hic);
+    person_agent(const id_t&                  id,
+                 const person_type&           type,
+                 const flyweight*             fw,
+                 const human_infection_cycle& hic);
 
     /// @brief Create an empty person
     /// @param fw The agent flyweight
@@ -89,9 +95,12 @@ private:
     template <class Archive>
     void serialize(Archive& ar, const unsigned int /*unused*/)
     {
+        ar& _type;
         ar& _infection_logic;
     }
+
     flyweight_ptr         _flyweight;
+    person_type           _type;
     human_infection_cycle _infection_logic;
 
 }; // class person_agent

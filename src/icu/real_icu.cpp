@@ -1,6 +1,7 @@
 #include "real_icu.hpp"
 
 #include <algorithm>
+#include <boost/json/array.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/utility.hpp>
 #include <boost/json/object.hpp>
@@ -290,6 +291,21 @@ void sti::real_icu::save(const std::string& folderpath) const
                    << "rejection"
                    << "\n";
     }
+
+    // Save the beds metrics
+    auto beds = std::ostringstream {};
+    beds << folderpath
+               << "/icu_beds.p"
+               << _communicator->rank()
+               << ".json";
+    auto beds_file = std::ofstream { beds.str() };
+
+    auto data = boost::json::array{};
+    for (const auto& [bed, patient] : _bed_pool) {
+        data.push_back(bed.stats());
+    }
+    
+    beds_file << data;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

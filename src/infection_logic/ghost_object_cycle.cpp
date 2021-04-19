@@ -113,8 +113,9 @@ boost::json::value sti::ghost_object_cycle::stats() const
     };
 
     return {
-        { "model", "object" },
-        { "stage", to_string(_stage) },
+        { "infection_id", get_id() },
+        { "infection_model", "object" },
+        { "infection_stage", to_string(_stage) },
         { "infections", _infected_by }
     };
 }

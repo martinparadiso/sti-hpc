@@ -93,7 +93,7 @@ boost::json::object sti::patient_agent::stats() const
 {
 
     return {
-        { "id", to_string(getId()) },
+        { "repast_id", to_string(getId()) },
         { "type", "patient" },
         { "entry_time", _entry_time.epoch() },
         { "infection", _infection_logic.stats() },
