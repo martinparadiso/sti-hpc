@@ -36,7 +36,7 @@ class icu;
 namespace sti {
 
 /// @brief Process metrics: local agents, sync and run time
-struct process_metrics;
+class process_metrics;
 
 /// @brief The Repast HPC simulation
 class model {

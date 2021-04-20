@@ -142,9 +142,9 @@ hospital.parameters = {
 }
 
 # Generate a new run
-props = s.SimulationProperties(1, 1)
+props = s.SimulationProperties(2, 2)
 
-run = s.Simulation(props, hospital)
+run = s.Simulation(props, hospital, tag='latest')
 
 run.run()
 

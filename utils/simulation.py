@@ -790,14 +790,18 @@ class Simulation(object):
         - folder -- Folder to save the simulation props and output
         - mpiexec -- MPI executable
         - wait_for_debugger -- Pass the debug flag to the given process
+        - tag -- A name to easily identify the simulation. A soft-link folder 
+                 will be created with this name pointing to the simulation folder
     """
 
-    def __init__(self, props=None, hospital=None, output_folder=None, mpiexec=None, wait_for_debugger=None):
+    def __init__(self, props=None, hospital=None, output_folder=None,
+                 mpiexec=None, wait_for_debugger=None, tag=None):
 
         self.id = secrets.token_hex(16)
 
         self.props = props
         self.hospital = hospital
+        self.tag = tag
 
         if output_folder is not None:
             self.folder = output_folder/self.id
@@ -881,11 +885,19 @@ class Simulation(object):
     def run(self, print_command=False):
         """Execute the simulation, return the subprocess result"""
 
+        # Create root folder
         try:
             self.folder.parent.mkdir()
         except:
             pass
+
         self.folder.mkdir()
+        if self.tag is not None:
+            symlink = self.folder.parent/self.tag
+            if symlink.exists() and symlink.is_symlink():
+                symlink.unlink()
+            symlink.symlink_to(self.folder)
+            
         self.props.save(self.folder, self.id)
         self.hospital.save(self.folder)
 

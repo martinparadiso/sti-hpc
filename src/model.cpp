@@ -31,6 +31,7 @@
 #include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
+#include "debug_flags.hpp"
 #include "doctors.hpp"
 #include "doctors_queue.hpp"
 #include "entry.hpp"
@@ -61,72 +62,170 @@ auto now_in_ns()
 ////////////////////////////////////////////////////////////////////////////////
 
 /// @brief Process metrics: local agents, sync and run time.
-struct sti::process_metrics {
+class sti::process_metrics {
 
-    constexpr static auto mpi_stages = 5;
+public:
+    /// @brief Metrics of a single tick
+    template <std::size_t MPIStages>
+    struct tick_metrics {
+        using instant_type               = std::int64_t;
+        constexpr static auto mpi_stages = MPIStages;
 
-    /// @brief The metrics to collect
-    struct metrics {
-        std::int32_t                         current_agents; // Number of agents in this process
-        std::array<std::int64_t, mpi_stages> mpi_sync_ns; // Nanoseconds spent in non-repast sync, one entry for each sync
-        std::int64_t                         rhpc_sync_ns; // Nanoseconds spent in Repast sync
-        std::int64_t                         logic_ns; // Nanoseconds spent executing agent logic
-        std::int64_t                         tick_start_time; // The instant of time the tick started executing, epoch is the start of the simulation
+        tick_metrics()
+            : tick_start_time { now_in_ns() }
+        {
+        }
+
+        std::int64_t                        tick_start_time; // Instant of time the tick started executing
+        std::array<std::int64_t, MPIStages> mpi_sync_ns; // Finish time of each MPI sync stages
+        std::int32_t                        current_agents {}; // Number of agents in this process
+        std::int64_t                        rhpc_sync_ns {}; // Finish time of the RepastHPC sync
+        std::int64_t                        logic_ns {}; // Finish time of logic execution
+        std::int64_t                        tick_end_time {}; // Finish time of the tick
     };
 
-    /// @brief
-    process_metrics(std::int64_t                               init_time,
-                    const std::array<std::string, mpi_stages>& mpi_stages_tags)
-        : simulation_epoch { init_time }
-        , mpi_stages_tags { mpi_stages_tags }
+    using per_tick_metrics = tick_metrics<5>;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // CONSTRUCTION
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Construct a new metric collector
+    /// @param mpi_stages_tags The names of the MPI stages
+    process_metrics(const std::array<std::string, per_tick_metrics::mpi_stages>& mpi_stages_tags)
+        : _simulation_epoch { now_in_ns() }
+        , _mpi_stages_tags { mpi_stages_tags }
     {
     }
 
-    std::int64_t                        simulation_epoch;
-    std::int64_t                        presave_time {};
-    std::int64_t                        end_time {};
-    std::vector<metrics>                values;
-    std::array<std::string, mpi_stages> mpi_stages_tags;
+    ////////////////////////////////////////////////////////////////////////////
+    // GLOBAL METRICS
+    ////////////////////////////////////////////////////////////////////////////
 
+    /// @brief Indicate the number of ticks, so the metrics can preallocate enough space
+    void preallocate(std::size_t ticks)
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _per_tick_metrics.reserve(ticks);
+        }
+    }
+
+    /// @brief Indicate that the program is going to save files
+    void start_save()
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _presave_time = now_in_ns();
+        }
+    }
     /// @brief Save the metrics to a file as a csv
     /// @param path The folder to save the metrics to
     /// @param process The process number
-    void save(const std::string& folder, int process) const
+    void save(const std::string& folder, int process)
     {
-        auto tick_path = std::ostringstream {};
-        tick_path << folder << "/tick_metrics.p" << process << ".csv";
-        auto tick_file = std::ofstream { tick_path.str() };
+        if constexpr (sti::debug::performance_metrics) {
+            _end_time = now_in_ns();
 
-        tick_file << "tick,"
-                  << "agents,";
-        for (const auto& tag : mpi_stages_tags) tick_file << tag << "_sync_ns,";
-        tick_file << "rhpc_sync_ns,"
-                  << "logic_ns,"
-                  << "tick_start_time\n";
+            auto tick_path = std::ostringstream {};
+            tick_path << folder << "/tick_metrics.p" << process << ".csv";
+            auto tick_file = std::ofstream { tick_path.str() };
 
-        auto i = 0U;
-        for (const auto& metric : values) {
-            tick_file << i++ << ","
-                      << metric.current_agents << ",";
-            for (const auto& mpi_value : metric.mpi_sync_ns) tick_file << mpi_value << ",";
-            tick_file << metric.rhpc_sync_ns << ","
-                      << metric.logic_ns << ","
-                      << metric.tick_start_time
-                      << "\n";
+            tick_file << "tick,"
+                      << "start_time,"
+                      << "end_time,"
+                      << "agents,";
+            for (const auto& tag : _mpi_stages_tags) tick_file << tag << "_sync,";
+            tick_file << "rhpc_sync,"
+                      << "logic\n";
+
+            auto i = 0U;
+            for (const auto& metric : _per_tick_metrics) {
+                tick_file << i++ << ","
+                          << metric.tick_start_time << ','
+                          << metric.tick_end_time << ','
+                          << metric.current_agents << ",";
+                for (const auto& mpi_value : metric.mpi_sync_ns) tick_file << mpi_value << ",";
+                tick_file << metric.rhpc_sync_ns << ","
+                          << metric.logic_ns
+                          << "\n";
+            }
+
+            auto global_path = std::ostringstream {};
+            global_path << folder << "/global_metrics.p" << process << ".csv";
+            auto global_file = std::ofstream { global_path.str() };
+
+            global_file << "epoch" << ','
+                        << "presave_time" << ','
+                        << "end_time" << '\n';
+
+            global_file << _simulation_epoch << ','
+                        << _presave_time << ','
+                        << _end_time << '\n';
         }
-
-        auto global_path = std::ostringstream {};
-        global_path << folder << "/global_metrics.p" << process << ".csv";
-        auto global_file = std::ofstream { global_path.str() };
-
-        global_file << "epoch" << ','
-                    << "presave_time" << ','
-                    << "end_time" << '\n';
-
-        global_file << simulation_epoch << ','
-                    << presave_time << ','
-                    << end_time << '\n';
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // PER TICK METRICS
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Indicate the start of a new tick
+    void new_tick()
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _per_tick_metrics.push_back(per_tick_metrics {});
+            _current_tick = _per_tick_metrics.end() - 1;
+        }
+    }
+
+    /// @brief Notify the start of the MPI synchronization
+    /// @tparam StageNumber The stage of MPI to notify
+    template <std::size_t StageNumber>
+    void finish_mpi_stage() const
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _current_tick->mpi_sync_ns.at(StageNumber) = now_in_ns();
+        }
+    }
+
+    /// @brief Notify the start of the RepastHPC synchronization
+    void finish_rhpc_sync() const
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _current_tick->rhpc_sync_ns = now_in_ns();
+        }
+    }
+
+    /// @brief Notify te start of the logic
+    void finish_logic() const
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _current_tick->logic_ns = now_in_ns();
+        }
+    }
+
+    /// @brief Indicate how many agents are currently in the simulation
+    /// @param n The number of agents
+    void agents(std::int32_t n) const
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _current_tick->current_agents = n;
+        }
+    }
+
+    /// @brief Indicate the end of a tick
+    void tick_end() const
+    {
+        if constexpr (sti::debug::performance_metrics) {
+            _current_tick->tick_end_time = now_in_ns();
+        }
+    }
+
+private:
+    std::int64_t                                          _simulation_epoch;
+    std::int64_t                                          _presave_time {};
+    std::int64_t                                          _end_time {};
+    std::vector<per_tick_metrics>                         _per_tick_metrics {};
+    decltype(_per_tick_metrics)::iterator                 _current_tick;
+    std::array<std::string, per_tick_metrics::mpi_stages> _mpi_stages_tags {};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -190,13 +289,13 @@ sti::model::model(const std::string& props_file, int argc, char** argv, boost::m
     , _hospital { _hospital_props }
     , _spaces { _hospital, *_props, _context, comm }
     , _clock { std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
-    , _pmetrics { new process_metrics { now_in_ns(), {
-                                                         "chairs",
-                                                         "reception",
-                                                         "triage",
-                                                         "doctors",
-                                                         "icu",
-                                                     } } }
+    , _pmetrics { new process_metrics { {
+          "chairs",
+          "reception",
+          "triage",
+          "doctors",
+          "icu",
+      } } }
     , _stats { new statistics {} }
 {
     // Initialize the random generation
@@ -301,7 +400,7 @@ void sti::model::init()
     }
 
     // Reserve vectors to avoid reallocations
-    _pmetrics->values.reserve(static_cast<decltype(_pmetrics->values)::size_type>(_stop_at));
+    _pmetrics->preallocate(static_cast<std::size_t>(_stop_at));
     _stats->agents_locations.reserve(static_cast<decltype(_stats->agents_locations)::size_type>(_stop_at));
 } // sti::model::init()
 
@@ -317,8 +416,7 @@ void sti::model::init_schedule(repast::ScheduleRunner& runner)
 /// @brief Periodic funcion
 void sti::model::tick()
 {
-    auto& new_metric           = _pmetrics->values.emplace_back(process_metrics::metrics {});
-    new_metric.tick_start_time = now_in_ns() - _pmetrics->simulation_epoch;
+    _pmetrics->new_tick();
 
     // Sync the clock with the simulation tick
     _clock->sync();
@@ -327,45 +425,36 @@ void sti::model::tick()
     // INTER-PROCESS SYNCHRONIZATION
     ////////////////////////////////////////////////////////////////////////////
 
-    const auto pre_mpi_time = now_in_ns();
-
     _chair_manager->sync();
-    new_metric.mpi_sync_ns.at(0) = now_in_ns();
+    _pmetrics->finish_mpi_stage<0>();
     _reception->sync();
-    new_metric.mpi_sync_ns.at(1) = now_in_ns();
+    _pmetrics->finish_mpi_stage<1>();
     _triage->sync();
-    new_metric.mpi_sync_ns.at(2) = now_in_ns();
+    _pmetrics->finish_mpi_stage<2>();
     _doctors->queues()->sync();
-    new_metric.mpi_sync_ns.at(3) = now_in_ns();
+    _pmetrics->finish_mpi_stage<3>();
     _icu->admission().sync();
-    new_metric.mpi_sync_ns.at(4) = now_in_ns();
+    _pmetrics->finish_mpi_stage<4>();
 
-    for (auto i = process_metrics::mpi_stages - 1UL; i > 0; --i) {
-        new_metric.mpi_sync_ns.at(i) -= new_metric.mpi_sync_ns.at(i - 1);
-    }
-    new_metric.mpi_sync_ns.at(0) -= pre_mpi_time;
-
-    const auto pre_rhpc_time = now_in_ns();
     _spaces.balance(); // Move the agents accross processes
     repast::RepastProcess::instance()->synchronizeAgentStatus<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
     repast::RepastProcess::instance()->synchronizeProjectionInfo<sti::contagious_agent, agent_package, agent_provider, agent_receiver>(_context, *_provider, *_receiver, *_receiver);
     repast::RepastProcess::instance()->synchronizeAgentStates<agent_package, agent_provider, agent_receiver>(*_provider, *_receiver);
-    new_metric.rhpc_sync_ns = now_in_ns() - pre_rhpc_time;
+    _pmetrics->finish_rhpc_sync();
 
     ////////////////////////////////////////////////////////////////////////////
     // LOGIC
     ////////////////////////////////////////////////////////////////////////////
 
-    const auto pre_logic_time = now_in_ns();
     if (_entry) _entry->generate_patients();
     if (_exit) _exit->tick();
     if (_icu->get_real_icu()) _icu->get_real_icu()->get().tick();
 
     // Check how many agents are currently in this process
-    new_metric.current_agents = _context.size(); // Add the metric
-    auto& locations           = _stats->agents_locations.emplace_back();
-    locations.time            = _clock->now();
-    locations.agents.reserve(static_cast<std::size_t>(new_metric.current_agents));
+    _pmetrics->agents(_context.size()); // Add the metric
+    auto& locations = _stats->agents_locations.emplace_back();
+    locations.time  = _clock->now();
+    locations.agents.reserve(static_cast<std::size_t>(_context.size()));
 
     // Iterate over all the agents
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
@@ -375,13 +464,15 @@ void sti::model::tick()
         // Add the location to the log
         locations.agents.push_back({ to_string((**it).getId()), _spaces.get_continuous_location((**it).getId()) });
     }
-    new_metric.logic_ns = now_in_ns() - pre_logic_time;
+    _pmetrics->finish_logic();
+
+    _pmetrics->tick_end();
 }
 
 /// @brief Final function for data collection and such
 void sti::model::finish()
 {
-    _pmetrics->presave_time = now_in_ns();
+    _pmetrics->start_save();
 
     // The rank 0 creates the folder and broadcasts it
     const auto& folderpath = _props->getProperty("output.folder");
@@ -396,8 +487,6 @@ void sti::model::finish()
     // Iterate over all the agents to perform their actions
     remove_remnants(folderpath);
 
-    _pmetrics->presave_time = now_in_ns();
-    _pmetrics->end_time     = now_in_ns();
     _pmetrics->save(folderpath, _communicator->rank());
 }
 
