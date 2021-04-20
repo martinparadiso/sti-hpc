@@ -114,7 +114,7 @@ private:
         ar& _id;
         ar& _object_type;
         ar& _stage;
-        ar& _next_clean;
+        // ar& _next_clean;
         ar& _infected_by;
     }
 
