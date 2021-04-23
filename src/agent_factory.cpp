@@ -71,7 +71,6 @@ sti::agent_factory::agent_factory(communicator_ptr           comm,
             patient_fsm::flyweight{}
         } // clang-format on
     , _person_flyweight { &_infection_factory }
-    , _object_flyweight { &_infection_factory }
 {
 }
 
@@ -179,46 +178,4 @@ sti::agent_factory::person_ptr sti::agent_factory::recreate_person(const repast:
                                       &_person_flyweight };
     person->serialize(id, data, _communicator);
     return person;
-};
-
-////////////////////////////////////////////////////////////////////////////
-// OBJECT CREATION
-////////////////////////////////////////////////////////////////////////////
-
-/// @brief Create a new object agent, with a new id, insert it into the context
-/// @param type The object type, i.e. 'chair', 'bed'
-/// @param pos The position where to insert the patients
-/// @param st The stage of the patient infection
-/// @return A raw pointer to the contagious agent created
-sti::agent_factory::object_ptr sti::agent_factory::insert_new_object(
-    const object_type&            type,
-    coordinates<double>           pos,
-    object_infection_cycle::STAGE st)
-{
-    const auto rank        = repast::RepastProcess::instance()->rank();
-    const auto repast_type = to_int(contagious_agent::type::OBJECT);
-    const auto i           = static_cast<int>(_agents_created++);
-    const auto id          = repast::AgentId(i, rank, repast_type, rank);
-
-    const auto hic    = _infection_factory.make_object_cycle(type, id, st);
-    auto*      object = new object_agent { id, type, &_object_flyweight, hic };
-
-    // Move the agent into position, add it to the repast contexts
-    _context->addAgent(object);
-    _space->move_to(id, pos);
-
-    return object;
-}
-
-/// @brief Recreate a serialized patient, with an existing id
-/// @param id The agent id
-/// @param data The serialized data
-/// @return A pointer to the newly created object
-sti::agent_factory::object_ptr sti::agent_factory::recreate_object(const repast::AgentId& id,
-                                                                   serial_data&           data) const
-{
-    auto* object = new object_agent { id,
-                                      &_object_flyweight };
-    object->serialize(id, data, _communicator);
-    return object;
 };

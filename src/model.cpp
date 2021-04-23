@@ -414,13 +414,6 @@ void sti::model::init()
         _exit.reset(new sti::hospital_exit(&_context, &_spaces, _clock.get(), ex.location));
     }
 
-    // Create chairs (if the chair is in the local space)
-    for (const auto& chair : _hospital.chairs()) {
-        if (_spaces.local_dimensions().contains(chair.location)) {
-            _agent_factory->insert_new_object("chair", chair.location.continuous(), object_infection_cycle::STAGE::CLEAN);
-        }
-    }
-
     // Create medical personnel
     const auto& doctors      = _hospital.doctors();
     const auto& receptionits = _hospital.receptionists();

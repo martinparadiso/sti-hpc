@@ -37,7 +37,6 @@ public:
     /// @brief The different type of contagious agents
     enum class type {
         FIXED_PERSON,
-        OBJECT,
         PATIENT,
     };
 
@@ -152,7 +151,6 @@ struct unknown_agent_type : public std::exception {
 ///          to/from int when interfacing with repast.
 inline const auto agent_type_lut = std::vector {
     contagious_agent::type::FIXED_PERSON,
-    contagious_agent::type::OBJECT,
     contagious_agent::type::PATIENT
 };
 
@@ -188,8 +186,6 @@ inline std::string to_string(contagious_agent::type type)
     switch (type) {
     case E::FIXED_PERSON:
         return "fixed_person";
-    case E::OBJECT:
-        return "object";
     case E::PATIENT:
         return "patient";
     }

@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include "infection_logic/infection_factory.hpp"
-#include "object.hpp"
 #include "patient.hpp"
 #include "person.hpp"
 
@@ -36,15 +35,12 @@ class agent_factory {
 public:
     using agent       = contagious_agent;
     using agent_ptr   = agent*;
-    using object_ptr  = object_agent*;
     using person_ptr  = person_agent*;
     using patient_ptr = patient_agent*;
 
     using patient_flyweight = patient_agent::flyweight;
     using person_flyweight  = person_agent::flyweight;
-    using object_flyweight  = object_agent::flyweight;
 
-    using object_type      = object_agent::object_type;
     using communicator_ptr = boost::mpi::communicator*;
     using context_ptr      = repast::SharedContext<agent>*;
 
@@ -122,26 +118,6 @@ public:
     person_ptr recreate_person(const repast::AgentId& id,
                                serial_data&           data) const;
 
-    ////////////////////////////////////////////////////////////////////////////
-    // OBJECT CREATION
-    ////////////////////////////////////////////////////////////////////////////
-
-    /// @brief Create a new object agent, with a new id, insert it into the context
-    /// @param type The object type, i.e. 'chair', 'bed'
-    /// @param pos The position where to insert the patients
-    /// @param st The stage of the patient infection
-    /// @return A raw pointer to the contagious agent created
-    object_ptr insert_new_object(const object_type&            type,
-                                 coordinates<double>           pos,
-                                 object_infection_cycle::STAGE st);
-
-    /// @brief Recreate a serialized patient, with an existing id
-    /// @param id The agent id
-    /// @param data The serialized data
-    /// @return A pointer to the newly created object
-    object_ptr recreate_object(const repast::AgentId& id,
-                               serial_data&           data) const;
-
 private:
     communicator_ptr _communicator;
     context_ptr      _context;
@@ -155,7 +131,6 @@ private:
     // Agent flyweights
     patient_flyweight _patient_flyweight;
     person_flyweight  _person_flyweight;
-    object_flyweight  _object_flyweight;
 };
 
 } // namespace sti

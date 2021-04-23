@@ -20,7 +20,6 @@
 #include "../clock.hpp"
 #include "../patient.hpp"
 #include "../hospital_plan.hpp"
-#include "../object.hpp"
 
 namespace {
 

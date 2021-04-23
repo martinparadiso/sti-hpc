@@ -70,7 +70,6 @@ add_executable(sti-demo
                         "src/infection_logic/ghost_object_cycle.cpp"
                         "src/main.cpp"
                         "src/model.cpp"
-                        "src/object.cpp"
                         "src/patient_fsm.cpp"
                         "src/patient.cpp"
                         "src/person.cpp"

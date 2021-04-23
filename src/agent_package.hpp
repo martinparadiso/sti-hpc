@@ -144,9 +144,6 @@ public:
         if (agent_type == sti::contagious_agent::type::FIXED_PERSON) {
             return _agent_factory->recreate_person(id, string_data);
         }
-        if (agent_type == sti::contagious_agent::type::OBJECT) {
-            return _agent_factory->recreate_object(id, string_data);
-        }
         throw sti::wrong_serialization {};
     }
 
