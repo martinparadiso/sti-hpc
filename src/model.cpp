@@ -31,6 +31,7 @@
 #include "chair_manager.hpp"
 #include "clock.hpp"
 #include "contagious_agent.hpp"
+#include "coordinates.hpp"
 #include "debug_flags.hpp"
 #include "doctors.hpp"
 #include "doctors_queue.hpp"
@@ -105,7 +106,7 @@ public:
     /// @brief Indicate the number of ticks, so the metrics can preallocate enough space
     void preallocate(std::size_t ticks)
     {
-        if constexpr (sti::debug::performance_metrics) {
+        if constexpr (sti::debug::per_tick_performance) {
             _per_tick_metrics.reserve(ticks);
         }
     }
@@ -113,18 +114,14 @@ public:
     /// @brief Indicate that the program is going to save files
     void start_save()
     {
-        if constexpr (sti::debug::performance_metrics) {
-            _presave_time = now_in_ns();
-        }
+        _presave_time = now_in_ns();
     }
     /// @brief Save the metrics to a file as a csv
     /// @param path The folder to save the metrics to
     /// @param process The process number
     void save(const std::string& folder, int process)
     {
-        if constexpr (sti::debug::performance_metrics) {
-            _end_time = now_in_ns();
-
+        if constexpr (sti::debug::per_tick_performance) {
             auto tick_path = std::ostringstream {};
             tick_path << folder << "/tick_metrics.p" << process << ".csv";
             auto tick_file = std::ofstream { tick_path.str() };
@@ -148,19 +145,21 @@ public:
                           << metric.logic_ns
                           << "\n";
             }
-
-            auto global_path = std::ostringstream {};
-            global_path << folder << "/global_metrics.p" << process << ".csv";
-            auto global_file = std::ofstream { global_path.str() };
-
-            global_file << "epoch" << ','
-                        << "presave_time" << ','
-                        << "end_time" << '\n';
-
-            global_file << _simulation_epoch << ','
-                        << _presave_time << ','
-                        << _end_time << '\n';
         }
+        _end_time = now_in_ns();
+
+        auto global_path = std::ostringstream {};
+        global_path << folder << "/global_metrics.p" << process << ".csv";
+        auto global_file = std::ofstream { global_path.str() };
+
+        global_file << "epoch" << ','
+                    << "presave_time" << ','
+                    << "end_time" << '\n';
+
+        global_file << _simulation_epoch << ','
+                    << _presave_time << ','
+                    << _end_time << '\n';
+                    
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -170,7 +169,7 @@ public:
     /// @brief Indicate the start of a new tick
     void new_tick()
     {
-        if constexpr (sti::debug::performance_metrics) {
+        if constexpr (sti::debug::per_tick_performance) {
             _per_tick_metrics.push_back(per_tick_metrics {});
             _current_tick = _per_tick_metrics.end() - 1;
         }
@@ -181,7 +180,7 @@ public:
     template <std::size_t StageNumber>
     void finish_mpi_stage() const
     {
-        if constexpr (sti::debug::performance_metrics) {
+        if constexpr (sti::debug::per_tick_performance) {
             _current_tick->mpi_sync_ns.at(StageNumber) = now_in_ns();
         }
     }
@@ -189,7 +188,7 @@ public:
     /// @brief Notify the start of the RepastHPC synchronization
     void finish_rhpc_sync() const
     {
-        if constexpr (sti::debug::performance_metrics) {
+        if constexpr (sti::debug::per_tick_performance) {
             _current_tick->rhpc_sync_ns = now_in_ns();
         }
     }
@@ -197,7 +196,7 @@ public:
     /// @brief Notify te start of the logic
     void finish_logic() const
     {
-        if constexpr (sti::debug::performance_metrics) {
+        if constexpr (sti::debug::per_tick_performance) {
             _current_tick->logic_ns = now_in_ns();
         }
     }
@@ -206,7 +205,7 @@ public:
     /// @param n The number of agents
     void agents(std::int32_t n) const
     {
-        if constexpr (sti::debug::performance_metrics) {
+        if constexpr (sti::debug::per_tick_performance) {
             _current_tick->current_agents = n;
         }
     }
@@ -214,7 +213,7 @@ public:
     /// @brief Indicate the end of a tick
     void tick_end() const
     {
-        if constexpr (sti::debug::performance_metrics) {
+        if constexpr (sti::debug::per_tick_performance) {
             _current_tick->tick_end_time = now_in_ns();
         }
     }
@@ -233,46 +232,89 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 
 /// @brief Collect misc. stats durning the execution
-struct sti::model::statistics {
+class sti::model::statistics {
 
-    using agent_id_type = std::string;
+public:
+    using agent_id_type = repast::AgentId;
     using location_type = coordinates<double>;
 
-    struct agent_record {
+    /// @brief Preallocate the number of entries in the vector
+    /// @param ticks The number of ticks the simulation will run
+    void preallocate_ticks(std::size_t ticks)
+    {
+        if constexpr (sti::debug::track_movements) {
+            _agents_locations.reserve(ticks);
+        }
+    }
+
+    /// @brief Indicate the beggining of a new tick
+    void new_tick(datetime epoch)
+    {
+        if constexpr (sti::debug::track_movements) {
+            _agents_locations.push_back({ epoch, {} });
+            _current_tick = _agents_locations.end() - 1;
+        }
+    }
+
+    /// @brief Indicate the number of agents that will be stored in this tick
+    /// @param nagents The number of agents for which positions will be collected
+    void preallocate_agents(std::size_t nagents)
+    {
+        if constexpr (sti::debug::track_movements) {
+            _current_tick->agents.reserve(nagents);
+        }
+    }
+
+    /// @brief Add a new agent location to the current tick
+    /// @param id The agent id
+    /// @param location The agent location
+    void add_agent_location(const repast::AgentId& id, const coordinates<double> location)
+    {
+        if constexpr (sti::debug::track_movements) {
+            _current_tick->agents.push_back({ id, location });
+        }
+    }
+
+    /// @brief Save the stats to a file as a csv
+    /// @param folderpath The folder to save the metrics to
+    /// @param rank The process number
+    void save(const std::string& folderpath, int rank) const
+    {
+        if constexpr (sti::debug::track_movements) {
+
+            auto filepath = std::ostringstream {};
+            filepath << folderpath << "/agents_locations.p" << rank << ".csv";
+            auto file = std::ofstream { filepath.str() };
+
+            file << "epoch" << ','
+                 << "id" << ','
+                 << "x" << ','
+                 << "y" << '\n';
+
+            for (const auto& iteration : _agents_locations) {
+                for (const auto& agent : iteration.agents) {
+                    file << iteration.time.epoch() << ","
+                         << agent.id << ","
+                         << agent.location.x << ','
+                         << agent.location.y << '\n';
+                }
+            }
+        }
+    }
+
+    struct agent_location {
         agent_id_type id;
         location_type location;
     };
 
-    struct entry {
-        datetime                  time;
-        std::vector<agent_record> agents;
+    struct tick_entry {
+        datetime                    time;
+        std::vector<agent_location> agents;
     };
 
-    std::vector<entry> agents_locations;
-
-    /// @brief Save the stats to a file as a csv
-    /// @param path The folder to save the metrics to
-    /// @param process The process number
-    void save(const std::string& folder, int process) const
-    {
-        auto filepath = std::ostringstream {};
-        filepath << folder << "/agents_locations.p" << process << ".csv";
-        auto file = std::ofstream { filepath.str() };
-
-        file << "epoch" << ','
-             << "id" << ','
-             << "x" << ','
-             << "y" << '\n';
-
-        for (const auto& iteration : agents_locations) {
-            for (const auto& agent : iteration.agents) {
-                file << iteration.time.epoch() << ","
-                     << agent.id << ","
-                     << agent.location.x << ','
-                     << agent.location.y << '\n';
-            }
-        }
-    }
+private:
+    std::vector<tick_entry>               _agents_locations;
+    decltype(_agents_locations)::iterator _current_tick;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -401,7 +443,7 @@ void sti::model::init()
 
     // Reserve vectors to avoid reallocations
     _pmetrics->preallocate(static_cast<std::size_t>(_stop_at));
-    _stats->agents_locations.reserve(static_cast<decltype(_stats->agents_locations)::size_type>(_stop_at));
+    _stats->preallocate_ticks(static_cast<std::size_t>(_stop_at));
 } // sti::model::init()
 
 /// @brief Initialize the scheduler
@@ -420,6 +462,8 @@ void sti::model::tick()
 
     // Sync the clock with the simulation tick
     _clock->sync();
+
+    _stats->new_tick(_clock->now());
 
     ////////////////////////////////////////////////////////////////////////////
     // INTER-PROCESS SYNCHRONIZATION
@@ -452,9 +496,7 @@ void sti::model::tick()
 
     // Check how many agents are currently in this process
     _pmetrics->agents(_context.size()); // Add the metric
-    auto& locations = _stats->agents_locations.emplace_back();
-    locations.time  = _clock->now();
-    locations.agents.reserve(static_cast<std::size_t>(_context.size()));
+    _stats->preallocate_agents(static_cast<std::size_t>(_context.size()));
 
     // Iterate over all the agents
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
@@ -462,7 +504,7 @@ void sti::model::tick()
         (*it)->act();
 
         // Add the location to the log
-        locations.agents.push_back({ to_string((**it).getId()), _spaces.get_continuous_location((**it).getId()) });
+        _stats->add_agent_location((**it).getId(), _spaces.get_continuous_location((**it).getId()));
     }
     _pmetrics->finish_logic();
 
@@ -481,7 +523,11 @@ void sti::model::finish()
     if (_entry) _entry->save(folderpath, _communicator->rank());
     _triage->save(folderpath);
     _icu->save(folderpath);
-    _stats->save(folderpath, _communicator->rank());
+    _chair_manager->save(folderpath);
+
+    if constexpr (sti::debug::track_movements) {
+        _stats->save(folderpath, _communicator->rank());
+    }
 
     // Remove the remaining agents
     // Iterate over all the agents to perform their actions

@@ -26,28 +26,35 @@ class Metrics(object):
     def __init__(self, folderpath):
 
         tick_files = glob.glob(f"{folderpath}/tick_metrics.p*.csv")
-        tick_dfs = []
-        for tick_path in tick_files:
-            tick_df = pd.read_csv(tick_path)
-            process = int(
-                re.match(r'.+tick_metrics\.p(\d+)\.csv', tick_path)[1])
-            tick_df['process'] = process
-            tick_dfs.append(tick_df)
-        tmp_df = pd.concat(tick_dfs)
 
-        # Convert to a more usable format
-        self.ticks = pd.DataFrame()
-        self.ticks['tick'] = tmp_df['tick']
-        self.ticks['process'] = tmp_df['process']
-        self.ticks['agents'] = tmp_df['agents']
-        self.ticks['duration'] = tmp_df['end_time'] - tmp_df['start_time']
-        self.ticks[self.mpi_stages[0]
-                   ] = tmp_df[self.mpi_stages[0]] - tmp_df['start_time']
-        for prev, current in zip(self.mpi_stages[0:], self.mpi_stages[1:]):
-            self.ticks[current] = tmp_df[current] - tmp_df[prev]
-        self.ticks['rhpc_sync'] = tmp_df['rhpc_sync'] - \
-            tmp_df[self.mpi_stages[-1]]
-        self.ticks['logic'] = tmp_df['logic'] - tmp_df['rhpc_sync']
+        # Per tick metrics can be disable, so the the file may no exist
+        if tick_files:
+            tick_dfs = []
+            for tick_path in tick_files:
+                tick_df = pd.read_csv(tick_path)
+                process = int(
+                    re.match(r'.+tick_metrics\.p(\d+)\.csv', tick_path)[1])
+                tick_df['process'] = process
+                tick_dfs.append(tick_df)
+            tmp_df = pd.concat(tick_dfs)
+
+            # Convert to a more usable format
+            self.ticks = pd.DataFrame()
+            self.ticks['tick'] = tmp_df['tick']
+            self.ticks['process'] = tmp_df['process']
+            self.ticks['agents'] = tmp_df['agents']
+            self.ticks['duration'] = tmp_df['end_time'] - tmp_df['start_time']
+            self.ticks[self.mpi_stages[0]
+                    ] = tmp_df[self.mpi_stages[0]] - tmp_df['start_time']
+            for prev, current in zip(self.mpi_stages[0:], self.mpi_stages[1:]):
+                self.ticks[current] = tmp_df[current] - tmp_df[prev]
+            self.ticks['rhpc_sync'] = tmp_df['rhpc_sync'] - \
+                tmp_df[self.mpi_stages[-1]]
+            self.ticks['logic'] = tmp_df['logic'] - tmp_df['rhpc_sync']
+
+            # Add extra information
+            self.ticks['total_mpi_sync'] = self.ticks[[
+                *self.mpi_stages]].sum(axis='columns')
 
         global_files = glob.glob(f"{folderpath}/global_metrics.p*.csv")
         global_dfs = []
@@ -58,10 +65,6 @@ class Metrics(object):
             global_df['process'] = process
             global_dfs.append(global_df)
         self.global_df = pd.concat(global_dfs)
-
-        # Add extra information
-        self.ticks['total_mpi_sync'] = self.ticks[[
-            *self.mpi_stages]].sum(axis='columns')
 
     @property
     def total_time(self):

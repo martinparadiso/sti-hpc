@@ -1,7 +1,12 @@
 #include <algorithm>
+#include <fstream>
+#include <memory>
+#include <sstream>
+#include <utility>
 #include <vector>
 
 #include "chair_manager.hpp"
+#include "clock.hpp"
 #include "hospital_plan.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,6 +92,11 @@ void sti::proxy_chair_manager::sync()
     _release_buffer.clear();
 }
 
+/// @brief Save stats
+void sti::proxy_chair_manager::save(const std::string& /*unused*/) const
+{
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // UNNAMED NAMESPACE FOR AUX. FUNCTIONS
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,13 +143,53 @@ sti::chair_response_msg search_chair(std::vector<sti::real_chair_manager::chair>
 } // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
+// REAL_CHAIR_MANAGER STATS
+////////////////////////////////////////////////////////////////////////////////
+
+/// @brief Collect chair stats
+class sti::real_chair_manager::statistics {
+
+public:
+    using counter_type = decltype(sti::real_chair_manager::_chair_pool)::difference_type;
+
+    /// @brief Add a new entry to the number of available chairs
+    void push_free_chairs(counter_type c)
+    {
+        free_chairs.push_back(c);
+    }
+
+    /// @brief Save the stats to a given folder
+    void save(const std::string& folderpath, int rank)
+    {
+        auto os = std::ostringstream {};
+        os << folderpath
+           << "/chair_availability.p"
+           << rank
+           << ".csv";
+        auto avail_file = std::ofstream { os.str() };
+
+        avail_file << "tick" << ','
+                   << "free_chairs" << '\n';
+
+        auto tick = 0;
+        for (const auto& entry : free_chairs) {
+            avail_file << tick++ << ','
+                       << entry << '\n';
+        }
+    }
+
+private:
+    std::vector<counter_type> free_chairs; // TODO: Preallocate this vector
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // REAL_CHAIR_MANAGER
 ////////////////////////////////////////////////////////////////////////////////
 
 sti::real_chair_manager::real_chair_manager(communicator* comm, const hospital_plan& building)
     : _world { comm }
+    , _stats { std::make_unique<statistics>() }
 {
-
     for (const auto& chair : building.chairs()) {
         _chair_pool.push_back({ chair.location.continuous(), false });
     }
@@ -236,6 +286,15 @@ void sti::real_chair_manager::sync()
         out_response[from_rank].push_back(response);
     }
 
+    // Count the chairs
+    if (_stats) {
+        const auto free_chairs = std::count_if(_chair_pool.begin(), _chair_pool.end(),
+                                               [](const auto& chair) {
+                                                   return !chair.in_use;
+                                               });
+        _stats->push_free_chairs(free_chairs);
+    }
+
     // Generate the missing output buffers,
     for (auto i = 0; i < _world->size(); i++) {
         if (_world->rank() != i) {
@@ -246,5 +305,13 @@ void sti::real_chair_manager::sync()
     // Send all the messages, the receiver it's in the agent id
     for (const auto& [from_rank, vector] : out_response) {
         _world->send(from_rank, mpi_base_tag + 2, vector);
+    }
+}
+
+/// @brief Save stats
+void sti::real_chair_manager::save(const std::string& folderpath) const
+{
+    if (_stats) {
+        _stats->save(folderpath, _world->rank());
     }
 }

@@ -20,29 +20,7 @@
 #include "queue_manager.hpp"
 #include "queue_manager/proxy_queue_manager.hpp"
 #include "queue_manager/real_queue_manager.hpp"
-
-////////////////////////////////////////////////////////////////////////////////
-// ADDITIONAL DEFINITONS
-////////////////////////////////////////////////////////////////////////////////
-
-/// @brief Error trying to serialize or deserialize an agent
-struct wrong_probability_sum : public std::exception {
-
-    std::string msg;
-
-    wrong_probability_sum(std::string_view which, double value)
-    {
-        auto os = std::ostringstream {};
-        os << "Exception: Wrong" << which << "probabilities: "
-           << value;
-        msg = os.str();
-    };
-
-    const char* what() const noexcept override
-    {
-        return msg.c_str();
-    }
-};
+#include "utils.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 // STATISTICS
@@ -119,9 +97,9 @@ sti::triage::triage(const properties_type&     execution_props,
         auto       times = decltype(_levels_time_limit) {};
         const auto data  = hospital_props.at("parameters").at("triage").at("levels").as_array();
         for (const auto& value : data) {
-            const auto& level = boost::json::value_to<int>(value.at("level"));
+            const auto& level     = boost::json::value_to<int>(value.at("level"));
             const auto& wait_time = boost::json::value_to<timedelta>(value.at("wait_time"));
-            times[level] = wait_time;
+            times[level]          = wait_time;
         }
         return times;
     }() }
@@ -144,15 +122,16 @@ sti::triage::triage(const properties_type&     execution_props,
     }() }
 {
     // Make sure all probabilities sum 1
-    auto doc_acc = std::accumulate(_doctors_probabilities.begin(), _doctors_probabilities.end(), _icu_probability,
-                                   [](auto acc, const auto& val) { return acc + val.second; });
-    if (doc_acc != 1.0) throw wrong_probability_sum { "icu/doctors", doc_acc };
+    sti::validate_distribution(
+        _doctors_probabilities.begin(), _doctors_probabilities.end(),
+        [](auto acc, auto val) { return acc + val.second; },
+        "Triage diagnosis distribution",
+        _icu_probability);
 
-    // auto sev_acc = 0.0;
-    // for (const auto& [sev, prob] : _levels_probabilities) sev_acc += prob;
-    auto severity_acc = std::accumulate(_levels_probabilities.begin(), _levels_probabilities.end(), 0.0,
-                                        [](auto acc, const auto& val) { return acc + val.second; });
-    if (severity_acc != 1.0) throw wrong_probability_sum { "triage levels", severity_acc };
+    sti::validate_distribution(
+        _levels_probabilities.begin(), _levels_probabilities.end(),
+        [](auto acc, const auto& val) { return acc + val.second; }, 
+        "Triage level distribution");
 }
 
 sti::triage::~triage() = default;

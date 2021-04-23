@@ -14,10 +14,10 @@ namespace debug {
     constexpr auto doctors_print_front = false;
 
     /// @brief Record performance metrics of the main loop
-    constexpr auto performance_metrics = true;
+    constexpr auto per_tick_performance = false;
 
     /// @brief Record the patients locations/movement
-    constexpr auto track_movements = true;
+    constexpr auto track_movements = false;
 
     /// @brief Disable any cross-process synchronization
     /// @warning The simulation must run in only one process, otherwise it will crash

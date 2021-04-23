@@ -79,6 +79,7 @@ add_executable(sti-demo
                         "src/reception.cpp"
                         "src/space_wrapper.cpp"
                         "src/triage.cpp"
+                        "src/utils.cpp"
               )
 target_include_directories(sti-demo PUBLIC include/)
 target_compile_options(sti-demo PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic -Wshadow)

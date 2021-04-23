@@ -7,6 +7,7 @@
 #include <boost/serialization/optional.hpp>
 #include <boost/serialization/vector.hpp>
 #include <map>
+#include <memory>
 #include <repast_hpc/AgentId.h>
 #include <utility>
 #include <vector>
@@ -98,6 +99,9 @@ public:
 
     /// @brief Synchronize with the other processes
     virtual void sync() = 0;
+
+    /// @brief Save stats
+    virtual void save(const std::string& folderpath) const = 0;
 };
 
 /// @brief A proxy chair manager, that comunicates with the real one through MPI
@@ -116,24 +120,27 @@ public:
 
     /// @brief Request an empty chair
     /// @param id The id of the agent requesting a chair
-    void request_chair(const repast::AgentId& id) final;
+    void request_chair(const repast::AgentId& id) override;
 
     /// @brief Release a chair
     /// @param chair_loc The coordinates of the chair being released
-    void release_chair(const coordinates& chair_loc) final;
+    void release_chair(const coordinates& chair_loc) override;
 
     /// @brief Check if there is a response without removing from the queue
     /// @param id The id of the agent requesting the chair
     /// @return An optional containing the response, if the manager already processed the request
-    optional<chair_response_msg> peek_response(const repast::AgentId& id) final;
+    optional<chair_response_msg> peek_response(const repast::AgentId& id) override;
 
     /// @brief Get the response of a chair request
     /// @param id The id of the agent requesting the chair
     /// @return An optional containing the response, if the manager already processed the request
-    optional<chair_response_msg> get_response(const repast::AgentId& id) final;
+    optional<chair_response_msg> get_response(const repast::AgentId& id) override;
 
     /// @brief Send the requests and retrieve the pending responses
-    void sync() final;
+    void sync() override;
+
+    /// @brief Save stats
+    void save(const std::string& folderpath) const override;
 
 private:
     communicator* _world;
@@ -152,6 +159,11 @@ public:
         sti::coordinates<double> location;
         bool                     in_use;
     };
+    template <typename T>
+    using pool_t = std::vector<T>;
+
+    /// @brief Collect chair pool stats
+    class statistics;
 
     /// @brief Construct a chair manager
     /// @param comm Boost.MPI communicator
@@ -160,34 +172,33 @@ public:
 
     /// @brief Request an empty chair
     /// @param id The id of the agent requesting a chair
-    void request_chair(const repast::AgentId& id) final;
+    void request_chair(const repast::AgentId& id) override;
 
     /// @brief Release a chair
     /// @param chair_loc The coordinates of the chair being released
-    void release_chair(const coordinates& chair_loc) final;
+    void release_chair(const coordinates& chair_loc) override;
 
     /// @brief Check if there is a response without removing from the queue
     /// @param id The id of the agent requesting the chair
     /// @return An optional containing the response, if the manager already processed the request
-    optional<chair_response_msg> peek_response(const repast::AgentId& id) final;
+    optional<chair_response_msg> peek_response(const repast::AgentId& id) override;
 
     /// @brief Get the response of a chair request
     /// @param id The id of the agent requesting the chair
     /// @return An optional containing the response, if the manager already processed the request
-    optional<chair_response_msg> get_response(const repast::AgentId& id) final;
+    optional<chair_response_msg> get_response(const repast::AgentId& id) override;
 
     /// @brief Receive all requests, process, and respond
-    void sync() final;
+    void sync() override;
+
+    /// @brief Save stats
+    void save(const std::string& folderpath) const override;
 
 private:
-    communicator* _world;
-
-    template <typename T>
-    using pool_t = std::vector<T>;
-
-    pool_t<chair> _chair_pool;
-
+    communicator*                   _world;
+    pool_t<chair>                   _chair_pool;
     std::vector<chair_response_msg> _pending_responses;
+    std::unique_ptr<statistics>     _stats;
 };
 
 } // namespace sti

@@ -44,7 +44,7 @@ class model {
 public:
 
     /// @brief Collect misc. stats durning the execution
-    struct statistics;
+    class statistics;
 
     using agent            = contagious_agent;
     using continuous_space = repast::SharedContinuousSpace<agent, repast::StrictBorders, repast::SimpleAdder<agent>>;

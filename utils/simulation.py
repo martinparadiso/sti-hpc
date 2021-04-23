@@ -244,7 +244,7 @@ class Parameter(object):
                     except:
                         accumulators[self.pgroup] = values[self.key]
 
-                    if accumulators[self.pgroup] > 1:
+                    if accumulators[self.pgroup] > 1.01:
                         raise Exception(('Probability accumulator overflow for '
                                          f"group {self.pgroup}"))
 
@@ -913,6 +913,6 @@ class Simulation(object):
             command.append(f"--debug={self.wait_for_debugger}")
 
         print(' '.join(command))
-        result = subprocess.run(command)
+        result = subprocess.run(command, stdout=subprocess.PIPE)
 
         return result
