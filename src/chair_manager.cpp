@@ -1,4 +1,8 @@
 #include <algorithm>
+#include <boost/json.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/serialization/optional.hpp>
+#include <boost/serialization/vector.hpp>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -7,14 +11,84 @@
 
 #include "chair_manager.hpp"
 #include "clock.hpp"
-#include "hospital_plan.hpp"
+#include "infection_logic/object_infection.hpp"
+#include "infection_logic/infection_factory.hpp"
+#include "contagious_agent.hpp"
+#include "space_wrapper.hpp"
+
+////////////////////////////////////////////////////////////////////////////
+// CHAIR MANAGER
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Construct a chair manager
+/// @param space A pointer to the space wrapper
+sti::chair_manager::chair_manager(const space_wrapper* space)
+: _space{space}
+{
+}
+
+/// @brief Create all the chairs located in this process
+/// @param hospital_plan The hospital plan
+/// @param inf_fac The infection factory
+void sti::chair_manager::create_chairs(const hospital_plan& hospital_plan, infection_factory& inff)
+{
+    for (const auto& chair : hospital_plan.chairs()) {
+        if (_space->local_dimensions().contains(chair.location)) {
+            _chair_pool.push_back({ chair.location,
+                                    inff.make_object_infection("chair", object_infection::STAGE::CLEAN) });
+        }
+    }
+}
+
+/// @brief Execute the periodic logic
+void sti::chair_manager::tick()
+{
+    for (auto& [chair_location, chair_infection] : _chair_pool) {
+        for (auto& agent : _space->agents_in_cell(chair_location)) {
+            chair_infection.interact_with(*agent->get_infection_logic());
+            agent->get_infection_logic()->interact_with(chair_infection);
+        }
+        chair_infection.tick();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////
+// STATISTICS
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Save stats
+/// @param folderpath The folder to save the results to
+/// @param rank The rank of the process
+void sti::chair_manager::save(const std::string& folderpath, int rank) const
+{
+    auto output_array = boost::json::array {};
+
+    for (const auto& [location, infection] : _chair_pool) {
+        output_array.push_back(infection.stats());
+    }
+
+    auto os = std::ostringstream {};
+    os << folderpath
+       << "/chairs.p"
+       << rank
+       << ".json";
+    auto chairs_file = std::ofstream { os.str() };
+    chairs_file << output_array;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // PROXY_CHAIR_MANAGER
 ////////////////////////////////////////////////////////////////////////////////
 
-sti::proxy_chair_manager::proxy_chair_manager(communicator* comm, int real_manager)
-    : _world { comm }
+/// @brief Construct a proxy chair manager
+/// @param comm The MPI communicator
+/// @param real_manager The rank of the real chair manager
+/// @param space A pointer to the space
+sti::proxy_chair_manager::proxy_chair_manager(communicator*        comm,
+                                              int                  real_manager,
+                                              const space_wrapper* space)
+    : chair_manager { space }
+    , _world { comm }
     , _real_rank { real_manager }
 {
 }
@@ -93,8 +167,11 @@ void sti::proxy_chair_manager::sync()
 }
 
 /// @brief Save stats
-void sti::proxy_chair_manager::save(const std::string& /*unused*/) const
+/// @param folderpath The folder to save the results to
+/// @param rank The rank of the process
+void sti::proxy_chair_manager::save(const std::string& folderpath, int rank) const
 {
+    chair_manager::save(folderpath, rank);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,8 +263,15 @@ private:
 // REAL_CHAIR_MANAGER
 ////////////////////////////////////////////////////////////////////////////////
 
-sti::real_chair_manager::real_chair_manager(communicator* comm, const hospital_plan& building)
-    : _world { comm }
+/// @brief Construct a proxy chair manager
+/// @param comm The MPI communicator
+/// @param building The hospital plan
+/// @param space A pointer to the space
+sti::real_chair_manager::real_chair_manager(communicator*        comm,
+                                            const hospital_plan& building,
+                                            const space_wrapper* space)
+    : chair_manager { space }
+    , _world { comm }
     , _stats { std::make_unique<statistics>() }
 {
     for (const auto& chair : building.chairs()) {
@@ -309,9 +393,29 @@ void sti::real_chair_manager::sync()
 }
 
 /// @brief Save stats
-void sti::real_chair_manager::save(const std::string& folderpath) const
+/// @param folderpath The folder to save the results to
+/// @param rank The rank of the process
+void sti::real_chair_manager::save(const std::string& folderpath, int rank) const
 {
+    chair_manager::save(folderpath, rank);
     if (_stats) {
         _stats->save(folderpath, _world->rank());
     }
+}
+
+/// @brief Construct a chair manager
+/// @param comm The MPI communicator
+/// @param building The hospital plan
+/// @param space A pointer to the space
+std::unique_ptr<sti::chair_manager> sti::make_chair_manager(repast::Properties&       execution_props,
+                                                            boost::mpi::communicator* comm,
+                                                            const hospital_plan&      building,
+                                                            const space_wrapper*      space)
+{
+    const auto real_rank = boost::lexical_cast<int>(execution_props.getProperty("chair.manager.rank"));
+
+    if (comm->rank() == real_rank) {
+        return std::make_unique<real_chair_manager>(comm, building, space);
+    }
+    return std::make_unique<proxy_chair_manager>(comm, real_rank, space);
 }

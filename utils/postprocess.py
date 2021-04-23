@@ -30,13 +30,14 @@ class AgentsOutput(object):
 
     files_globs = ('agents.p*.json',
                    'exit.p*.json',
-                   'icu_beds.p*.json')
+                   'icu_beds.p*.json',
+                   'chairs.p*.json')
 
     human_cols = ['repast_id', 'type', 'entry_time', 'exit_time', 'last_state',
                   'process',
                   'infection_id', 'infection_model',  'infection_stage',
                   'infection_time', 'infected_by']
-    object_cols = ['repast_id', 'type', 'process',
+    object_cols = ['process',
                    'infection_id', 'infection_stage', 'infection_model',
                    'infections']
 

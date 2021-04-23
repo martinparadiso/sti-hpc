@@ -49,6 +49,10 @@ public:
     /// @return A string identifying the object
     virtual std::string get_id() const = 0;
 
+    /// @brief Make the cycle interact with another cycle
+    /// @param other A reference to the other cycle
+    virtual void interact_with(const infection_cycle& other) = 0;
+
 }; // class infection_cycle
 
 } // namespace sti

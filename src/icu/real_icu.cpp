@@ -223,8 +223,8 @@ void sti::real_icu::tick()
     // Run the infection logic
     for (auto& [bed, patient] : _bed_pool) {
         if (patient != nullptr) {
-            bed.interact_with(patient->get_infection_logic());
-            patient->get_infection_logic()->interact_with_cycle(bed);
+            bed.interact_with(*patient->get_infection_logic());
+            patient->get_infection_logic()->interact_with(bed);
         }
         bed.tick();
     }

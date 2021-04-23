@@ -159,7 +159,6 @@ public:
         global_file << _simulation_epoch << ','
                     << _presave_time << ','
                     << _end_time << '\n';
-                    
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -352,15 +351,7 @@ void sti::model::init()
 {
 
     // Create the chair manager
-    const auto chair_mgr_rank = boost::lexical_cast<int>(_props->getProperty("chair.manager.rank"));
-    if (_rank == chair_mgr_rank) {
-        // The chair manager is in this process, create the real one
-        _chair_manager.reset(new real_chair_manager { _communicator, _hospital });
-    } else {
-        _chair_manager.reset(new proxy_chair_manager { _communicator, chair_mgr_rank });
-    }
-
-    // Create the reception, triage and doctors
+    _chair_manager = make_chair_manager(*_props, _communicator, _hospital, &_spaces);
     _reception.reset(new reception { *_props, _communicator, _hospital });
     _triage.reset(new triage { *_props, _hospital_props, _communicator, _clock.get(), _hospital });
     _doctors = std::make_unique<doctors>(*_props, _hospital_props, _communicator, _hospital);
@@ -434,6 +425,9 @@ void sti::model::init()
         _icu->get_real_icu()->get().create_beds(*(_agent_factory->get_infection_factory()));
     }
 
+    // Create the chairs
+    _chair_manager->create_chairs(_hospital, *_agent_factory->get_infection_factory());
+
     // Reserve vectors to avoid reallocations
     _pmetrics->preallocate(static_cast<std::size_t>(_stop_at));
     _stats->preallocate_ticks(static_cast<std::size_t>(_stop_at));
@@ -486,6 +480,7 @@ void sti::model::tick()
     if (_entry) _entry->generate_patients();
     if (_exit) _exit->tick();
     if (_icu->get_real_icu()) _icu->get_real_icu()->get().tick();
+    _chair_manager->tick();
 
     // Check how many agents are currently in this process
     _pmetrics->agents(_context.size()); // Add the metric
@@ -516,7 +511,7 @@ void sti::model::finish()
     if (_entry) _entry->save(folderpath, _communicator->rank());
     _triage->save(folderpath);
     _icu->save(folderpath);
-    _chair_manager->save(folderpath);
+    _chair_manager->save(folderpath, _communicator->rank());
 
     if constexpr (sti::debug::track_movements) {
         _stats->save(folderpath, _communicator->rank());

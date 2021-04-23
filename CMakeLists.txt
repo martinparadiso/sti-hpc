@@ -53,7 +53,6 @@ add_executable(sti-demo
                         "src/agent_factory.cpp"
                         "src/chair_manager.cpp"
                         "src/clock.cpp"
-                        "src/doctors/doctors_queue.cpp"
                         "src/doctors/doctors.cpp"
                         "src/doctors/proxy_doctors.cpp"
                         "src/doctors/real_doctors.cpp"

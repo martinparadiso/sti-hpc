@@ -98,9 +98,9 @@ public:
     /// @return A value in the range [0, 1)
     precission get_infect_probability(coordinates<double> position) const override;
 
-    /// @brief Make the object interact with a human
-    /// @param human A reference to the human infection interacting with this object
-    void interact_with(const infection_cycle* other);
+    /// @brief Make the object interact with another cycle
+    /// @param other A reference to the human infection interacting with this object
+    void interact_with(const infection_cycle& other) override;
 
     /// @brief Perform the periodic logic, i.e. clean the object
     void tick();

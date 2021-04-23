@@ -120,7 +120,7 @@ public:
 
     /// @brief Make the human interact with another infection logic
     /// @param other The other infection cycle
-    void interact_with_cycle(const infection_cycle& other);
+    void interact_with(const infection_cycle& other) override;
 
     /// @brief Try to get infected via the environment
     void infect_with_environment();

@@ -100,7 +100,7 @@ sti::infection_cycle::precission sti::human_infection_cycle::get_infect_probabil
 
 /// @brief Make the human interact with another infection logic
 /// @param other The other infection cycle
-void sti::human_infection_cycle::interact_with_cycle(const infection_cycle& other)
+void sti::human_infection_cycle::interact_with(const infection_cycle& other)
 {
     // Get the chance of getting infected by that agent
     const auto my_location        = _flyweight->space->get_continuous_location(_id);
@@ -146,7 +146,7 @@ void sti::human_infection_cycle::infect_with_nearby()
 
     for (const auto& agent : near_agents) {
 
-        this->interact_with_cycle(*agent->get_infection_logic());
+        this->interact_with(*agent->get_infection_logic());
         // If got infected No need to keep iterating over the remaining agents
         if (_stage != STAGE::HEALTHY) break;
     }

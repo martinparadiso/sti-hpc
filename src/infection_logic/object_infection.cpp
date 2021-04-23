@@ -54,7 +54,7 @@ sti::object_infection::object_infection(
 /// @return A string identifying the object
 std::string sti::object_infection::get_id() const
 {
-    return "bed." + std::to_string(_id.first) + "." + std::to_string(_id.second);
+    return _object_type + '.' + std::to_string(_id.first) + '.' + std::to_string(_id.second);
 }
 
 /// @brief Clean the object, removing contamination and resetting the state
@@ -83,7 +83,7 @@ sti::infection_cycle::precission sti::object_infection::get_infect_probability(c
 /// @details Note that this can infect/contaminate both agents depending on
 /// the current status of each  cycle
 /// @param human A reference to the human infection interacting with this object
-void sti::object_infection::interact_with(const infection_cycle* other)
+void sti::object_infection::interact_with(const infection_cycle& other)
 {
     // If the object is already contaminated do nothing
     if (_stage == STAGE::CONTAMINATED) return;
@@ -91,10 +91,10 @@ void sti::object_infection::interact_with(const infection_cycle* other)
     // Generate a random number and compare with the contamination
     // probability of the other cycle
     const auto random_number = repast::Random::instance()->nextDouble();
-    if (random_number < other->get_contamination_probability()) {
+    if (random_number < other.get_contamination_probability()) {
         // The object got contaminated, change state and record the source
         _stage = STAGE::CONTAMINATED;
-        _infected_by.push_back({ other->get_id(),
+        _infected_by.push_back({ other.get_id(),
                                  _flyweights->at(_object_type).clock->now() });
     }
 }

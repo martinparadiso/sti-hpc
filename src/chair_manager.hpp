@@ -3,17 +3,30 @@
 #pragma once
 
 #include <boost/mpi/communicator.hpp>
-#include <boost/optional/optional.hpp>
-#include <boost/serialization/optional.hpp>
-#include <boost/serialization/vector.hpp>
 #include <map>
 #include <memory>
 #include <repast_hpc/AgentId.h>
+#include <repast_hpc/Properties.h>
 #include <utility>
 #include <vector>
 
-// #include "plan/plan.hpp"
+#include "coordinates.hpp"
 #include "hospital_plan.hpp"
+#include "infection_logic/object_infection.hpp"
+
+// Fw. declarations
+namespace repast {
+class Properties;
+}
+
+namespace boost {
+template <typename T>
+class optional;
+}
+namespace sti {
+class infection_factory;
+class space_wrapper;
+}
 
 namespace sti {
 
@@ -54,7 +67,11 @@ struct chair_response_msg {
     }
 };
 
-/// @brief An abstract chair manager
+////////////////////////////////////////////////////////////////////////////
+// CHAIR MANAGER
+////////////////////////////////////////////////////////////////////////////
+
+/// @brief Contains an interface for managing chairs, and the infection logic
 class chair_manager {
 
 public:
@@ -65,7 +82,9 @@ public:
 
     static constexpr auto mpi_base_tag = 716823;
 
-    chair_manager() = default;
+    /// @brief Construct a chair manager
+    /// @param space A pointer to the space wrapper
+    chair_manager(const space_wrapper* space);
 
     chair_manager(const chair_manager&) = default;
     chair_manager& operator=(const chair_manager&) = default;
@@ -76,7 +95,7 @@ public:
     virtual ~chair_manager() = default;
 
     ////////////////////////////////////////////////////////////////////////////
-    // BEHAVIOUR
+    // ASSIGNMENT BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Request an empty chair
@@ -100,8 +119,30 @@ public:
     /// @brief Synchronize with the other processes
     virtual void sync() = 0;
 
+    ////////////////////////////////////////////////////////////////////////////
+    // CHAIR INFECTIONS
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Create all the chairs located in this process
+    /// @param hospital_plan The hospital plan
+    /// @param inf_fac The infection factory
+    void create_chairs(const hospital_plan& hospital_plan, infection_factory& inff);
+
+    /// @brief Execute the periodic logic
+    void tick();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // STATISTICS
+    ////////////////////////////////////////////////////////////////////////////
+
     /// @brief Save stats
-    virtual void save(const std::string& folderpath) const = 0;
+    /// @param folderpath The folder to save the results to
+    /// @param rank The rank of the process
+    virtual void save(const std::string& folderpath, int rank) const;
+
+private:
+    const space_wrapper*                                            _space;
+    std::vector<std::pair<sti::coordinates<int>, object_infection>> _chair_pool;
 };
 
 /// @brief A proxy chair manager, that comunicates with the real one through MPI
@@ -112,7 +153,13 @@ public:
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
-    proxy_chair_manager(communicator* comm, int real_manager);
+    /// @brief Construct a proxy chair manager
+    /// @param comm The MPI communicator
+    /// @param real_manager The rank of the real chair manager
+    /// @param space A pointer to the space
+    proxy_chair_manager(communicator*        comm,
+                        int                  real_manager,
+                        const space_wrapper* space);
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -140,7 +187,9 @@ public:
     void sync() override;
 
     /// @brief Save stats
-    void save(const std::string& folderpath) const override;
+
+    /// @param rank The rank of the process
+    void save(const std::string& folderpath, int rank) const override;
 
 private:
     communicator* _world;
@@ -165,10 +214,17 @@ public:
     /// @brief Collect chair pool stats
     class statistics;
 
-    /// @brief Construct a chair manager
-    /// @param comm Boost.MPI communicator
-    /// @param building Building plan
-    real_chair_manager(communicator* comm, const hospital_plan& building);
+    ////////////////////////////////////////////////////////////////////////////
+    // CONSTRUCTION
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Construct a proxy chair manager
+    /// @param comm The MPI communicator
+    /// @param building The hospital plan
+    /// @param space A pointer to the space
+    real_chair_manager(communicator*        comm,
+                       const hospital_plan& building,
+                       const space_wrapper* space);
 
     /// @brief Request an empty chair
     /// @param id The id of the agent requesting a chair
@@ -192,7 +248,9 @@ public:
     void sync() override;
 
     /// @brief Save stats
-    void save(const std::string& folderpath) const override;
+    /// @param folderpath The folder to save the results to
+    /// @param rank The rank of the process
+    void save(const std::string& folderpath, int rank) const override;
 
 private:
     communicator*                   _world;
@@ -200,5 +258,14 @@ private:
     std::vector<chair_response_msg> _pending_responses;
     std::unique_ptr<statistics>     _stats;
 };
+
+/// @brief Construct a chair manager
+/// @param comm The MPI communicator
+/// @param building The hospital plan
+/// @param space A pointer to the space
+std::unique_ptr<chair_manager> make_chair_manager(repast::Properties&       execution_props,
+                                                  boost::mpi::communicator* comm,
+                                                  const hospital_plan&      building,
+                                                  const space_wrapper*      space);
 
 } // namespace sti
