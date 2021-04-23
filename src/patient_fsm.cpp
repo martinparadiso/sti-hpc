@@ -158,7 +158,7 @@ sti::patient_fsm::transition_table create_transition_table()
         m.patient_flyweight->space->move_towards(
             m.patient->getId(),
             m.destination,
-            m.patient_flyweight->walk_speed);
+            m.patient_flyweight->walk_speed * m.patient_flyweight->clk->seconds_per_tick());
     };
 
     ////////////////////////////////////////////////////////////////////////////

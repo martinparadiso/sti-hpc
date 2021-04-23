@@ -176,6 +176,12 @@ public:
         return datetime { static_cast<timedelta::resolution>(_tick) * _seconds_per_tick };
     }
 
+    /// @brief Get the 'length' of a tick, in seconds
+    /// @return The span of a tick, in seconds
+    auto seconds_per_tick() const {
+        return _seconds_per_tick;
+    }
+
 private:
     double                      _tick;
     const timedelta::resolution _seconds_per_tick;
