@@ -105,7 +105,7 @@ sti::real_icu::~real_icu() = default;
 void sti::real_icu::create_beds(infection_factory& infection_factory)
 {
     for (auto i = 0U; i < _capacity; ++i) {
-        _bed_pool.push_back({infection_factory.make_ghost_object_cycle("bed", ghost_object_cycle::STAGE::CLEAN), nullptr});
+        _bed_pool.push_back({infection_factory.make_object_infection("bed", object_infection::STAGE::CLEAN), nullptr});
     }
 }
 

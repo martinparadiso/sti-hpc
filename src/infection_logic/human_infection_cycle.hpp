@@ -21,8 +21,7 @@ namespace json {
 namespace sti {
 class clock;
 class infection_environment;
-class object_infection_cycle;
-class ghost_object_cycle;
+class object_infection;
 class space_wrapper;
 } // namespace sti
 

@@ -5,8 +5,7 @@
 #include <map>
 
 #include "human_infection_cycle.hpp"
-#include "object_infection_cycle.hpp"
-#include "ghost_object_cycle.hpp"
+#include "object_infection.hpp"
 
 // Fw. declarations
 namespace boost {
@@ -32,11 +31,11 @@ class infection_factory {
 
 public:
     using human_flyweight  = human_infection_cycle::flyweight;
-    using object_flyweight = object_infection_cycle::flyweight;
+    using object_flyweight = object_infection::flyweight;
     using agent_id         = repast::AgentId;
 
     /// @brief Store the type of object as a string, for instance: chair, bed.
-    using object_type = object_infection_cycle::object_type;
+    using object_type = object_infection::object_type;
 
     /// @brief Construct an infection factory, used to create infection cycles
     /// @param hospital_props The boost.JSON object containing the hospital paramters
@@ -71,36 +70,14 @@ public:
 
     /// @brief Construct an empty object infection
     /// @return A default constructed object infection cycle
-    object_infection_cycle make_object_cycle() const;
-
-    // /// @brief Default construct an object infection
-    // /// @param type The object type, normally 'chair' or 'bed'
-    // /// @return A default constructed object infection cycle
-    // object_infection_cycle make_object_cycle(const object_type& type) const;
-
-    /// @brief Construct an object infection cycle
-    /// @param type The object type, normally 'chair' or 'bed'
-    /// @param id The agent id associated with this cycle/logic
-    /// @param is Initial stage of the cycle
-    /// @return An object infection cycle object
-    object_infection_cycle make_object_cycle(const object_type&            type,
-                                             const agent_id&               id,
-                                             object_infection_cycle::STAGE is) const;
-
-    ////////////////////////////////////////////////////////////////////////////
-    // GHOST INFECTION CYCLE CREATION
-    ////////////////////////////////////////////////////////////////////////////
-
-    /// @brief Construct an empty object infection
-    /// @return A default constructed object infection cycle
-    ghost_object_cycle make_ghost_object_cycle();
+    object_infection make_object_infection();
 
     /// @brief Construct an object infection cycle with no repast relationship
     /// @param type The object type, normally 'chair' or 'bed'
     /// @param is Initial stage of the cycle
     /// @return An object infection cycle object
-    ghost_object_cycle make_ghost_object_cycle(const object_type&        type,
-                                               ghost_object_cycle::STAGE is);
+    object_infection make_object_infection(const object_type&        type,
+                                               object_infection::STAGE is);
 
 private:
     human_flyweight                         _human_flyweight;

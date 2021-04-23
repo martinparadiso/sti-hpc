@@ -15,7 +15,7 @@
 #include "infection_logic/human_infection_cycle.hpp"
 #include "infection_logic/infection_cycle.hpp"
 #include "infection_logic/infection_factory.hpp"
-#include "infection_logic/object_infection_cycle.hpp"
+#include "infection_logic/object_infection.hpp"
 #include "json_serialization.hpp"
 #include "reception.hpp"
 #include "space_wrapper.hpp"

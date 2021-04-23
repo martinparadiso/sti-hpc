@@ -28,7 +28,7 @@ class patient_agent;
 class hospital_plan;
 class clock;
 class space_wrapper;
-class ghost_object_cycle;
+class object_infection;
 } // namespace sti
 
 namespace sti {
@@ -137,7 +137,7 @@ private:
 
     bed_counter_type                                           _reserved_beds;
     bed_counter_type                                           _capacity;
-    std::vector<std::pair<ghost_object_cycle, patient_agent*>> _bed_pool;
+    std::vector<std::pair<object_infection, patient_agent*>> _bed_pool;
 
     std::vector<response_message> _pending_responses;
 };

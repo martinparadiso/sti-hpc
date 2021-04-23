@@ -9,7 +9,6 @@
 #include <utility>
 
 #include "contagious_agent.hpp"
-#include "infection_logic.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 
 namespace sti {

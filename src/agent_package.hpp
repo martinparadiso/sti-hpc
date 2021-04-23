@@ -8,6 +8,7 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <repast_hpc/AgentId.h>
 #include <repast_hpc/SharedContext.h>
+#include <repast_hpc/SharedDiscreteSpace.h>
 #include <repast_hpc/AgentRequest.h>
 
 #include "agent_factory.hpp"

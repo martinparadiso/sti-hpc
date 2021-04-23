@@ -1,4 +1,4 @@
-#include "ghost_object_cycle.hpp"
+#include "object_infection.hpp"
 
 #include <boost/json/object.hpp>
 #include <repast_hpc/Random.h>
@@ -20,7 +20,7 @@
 /// @brief Construct an empty object, flyweight is still needed
 /// @param fw The flyweight containing shared data
 /// @param type The object type, i.e. chair, bed
-sti::ghost_object_cycle::ghost_object_cycle(flyweights_ptr fw)
+sti::object_infection::object_infection(flyweights_ptr fw)
     : _flyweights { fw }
     , _object_type {}
     , _stage { STAGE::CLEAN }
@@ -33,7 +33,7 @@ sti::ghost_object_cycle::ghost_object_cycle(flyweights_ptr fw)
 /// @param uint_id Unsigned int giving the agent an id
 /// @param type The object type, i.e. chair, bed
 /// @param is The initial stage of the object
-sti::ghost_object_cycle::ghost_object_cycle(
+sti::object_infection::object_infection(
     flyweights_ptr     fw,
     id_type            id,
     const object_type& type,
@@ -52,20 +52,20 @@ sti::ghost_object_cycle::ghost_object_cycle(
 
 /// @brief Get an ID/string to identify the object in post-processing
 /// @return A string identifying the object
-std::string sti::ghost_object_cycle::get_id() const
+std::string sti::object_infection::get_id() const
 {
     return "bed." + std::to_string(_id.first) + "." + std::to_string(_id.second);
 }
 
 /// @brief Clean the object, removing contamination and resetting the state
-void sti::ghost_object_cycle::clean()
+void sti::object_infection::clean()
 {
     _stage = STAGE::CLEAN;
 }
 
 /// @brief Get the probability of contaminating an object
 /// @return A value in the range [0, 1)
-sti::infection_cycle::precission sti::ghost_object_cycle::get_contamination_probability() const
+sti::infection_cycle::precission sti::object_infection::get_contamination_probability() const
 {
     // An object can't contaminate other objects
     return 0.0;
@@ -74,7 +74,7 @@ sti::infection_cycle::precission sti::ghost_object_cycle::get_contamination_prob
 /// @brief Get the probability of infecting humans
 /// @param position The requesting agent position, to determine the probability
 /// @return A value in the range [0, 1)
-sti::infection_cycle::precission sti::ghost_object_cycle::get_infect_probability(coordinates<double> /*unused*/) const
+sti::infection_cycle::precission sti::object_infection::get_infect_probability(coordinates<double> /*unused*/) const
 {
     return _flyweights->at(_object_type).infect_chance;
 }
@@ -83,7 +83,7 @@ sti::infection_cycle::precission sti::ghost_object_cycle::get_infect_probability
 /// @details Note that this can infect/contaminate both agents depending on
 /// the current status of each  cycle
 /// @param human A reference to the human infection interacting with this object
-void sti::ghost_object_cycle::interact_with(const infection_cycle* other)
+void sti::object_infection::interact_with(const infection_cycle* other)
 {
     // If the object is already contaminated do nothing
     if (_stage == STAGE::CONTAMINATED) return;
@@ -100,7 +100,7 @@ void sti::ghost_object_cycle::interact_with(const infection_cycle* other)
 }
 
 /// @brief Perform the periodic logic, i.e. clean the object
-void sti::ghost_object_cycle::tick()
+void sti::object_infection::tick()
 {
     if (_next_clean <= _flyweights->at(_object_type).clock->now()) {
         clean();
@@ -110,7 +110,7 @@ void sti::ghost_object_cycle::tick()
 
 /// @brief Get statistics about the infection
 /// @return A Boost.JSON value containing relevant statistics
-boost::json::value sti::ghost_object_cycle::stats() const
+boost::json::value sti::object_infection::stats() const
 {
 
     auto to_string = [](STAGE stage) {
