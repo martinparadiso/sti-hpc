@@ -912,7 +912,8 @@ class Simulation(object):
         if self.wait_for_debugger is not None:
             command.append(f"--debug={self.wait_for_debugger}")
 
-        print(' '.join(command))
+        if print_command:
+            print(' '.join(command))
         result = subprocess.run(command, stdout=subprocess.PIPE)
 
         return result
