@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Run the simulation N times with fixed parameters in order to obtain a 
+Run the simulation N times with fixed parameters in order to obtain a
 reliable metric
 """
 import performance as perf
@@ -12,14 +12,24 @@ import random
 import argparse
 import numpy as np
 from pathlib import Path
+import subprocess
+import logging
 
 parser = argparse.ArgumentParser(
     description='Run the simulation N times, print the execution time')
-parser.add_argument('iterations', type=int, default=16,
+parser.add_argument('-i', '--iterations', type=int, default=16,
                     help='Number of times the simulation will run')
 parser.add_argument('-c', '--max-cores', type=int, default=os.cpu_count(),
                     help='Maximum number of CPU cores used for the benchmark')
+parser.add_argument('-l', '--log', type=str, default=Path(__file__).parent/'benchmark.log',
+                    help='Log file')
+parser.add_argument('-r', '--remove-runs', action='store_true',
+                    help='Cleanup run folder')
 args = parser.parse_args()
+
+logging.basicConfig(filename=args.log,
+                    level=logging.DEBUG,
+                    format='%(message)s')
 
 width = 53
 height = 36
@@ -236,17 +246,57 @@ hospital.parameters = {
 }
 
 hospital.validate()
-props = sim.SimulationProperties(1, 1)
 
-simulations = [sim.Simulation(props, hospital) for i in range(args.iterations)]
 
 def worker(simulation):
     simulation.run()
 
-with Pool(args.max_cores) as pool:
-    pool.map(worker, simulations)
 
-print(' '.join([s.id for s in simulations]))
+ps_layout = ((1, 1),
+             (1, 2),
+             (2, 1),
+             (2, 2))
 
-times = pd.Series([perf.Metrics(run.folder).total_time for run in simulations])
-print(times.describe())
+git_clean = subprocess.run(['git', 'status', '--porcelain'],
+                           capture_output=True, text=True).stdout
+
+logging.info('\n---\n')
+if git_clean is None:
+    commit_id = subprocess.run(['git', 'rev-parse', 'HEAD'],
+                               capture_output=True, text=True).stdout.strip()
+    logging.info(f"Commit: {commit_id}")
+else:
+    logging.info(f"Dirty tree, cannot determine commit")
+
+logging.info(f"Iterations: {args.iterations}")
+logging.info(f"Max cores: {args.max_cores}")
+logging.info(f"Layouts: {ps_layout}")
+
+for layout in ps_layout:
+
+    props = sim.SimulationProperties(*layout)
+    simulations = [sim.Simulation(props, hospital)
+                   for i in range(args.iterations)]
+
+    cores_per_run = props.number_of_processes
+    simultaneous = min(args.iterations,
+                       int(args.max_cores/props.number_of_processes))
+    cores_used = cores_per_run * simultaneous
+
+    logging.info((f"Benchmarking {layout} process layout, running "
+                  f"{simultaneous} instances at a time "
+                  f"across {cores_used} cores"))
+
+    with Pool(simultaneous) as pool:
+        pool.map(worker, simulations)
+
+    logging.info(f"Runs IDs: {' '.join([s.id for s in simulations])}")
+
+    times = pd.Series(
+        [perf.Metrics(run.folder).total_time for run in simulations])
+    logging.info(times.describe())
+    logging.info('')
+
+    if args.remove_runs:
+        for run in simulations:
+            subprocess.run(['rm', '-r', str(run.folder)], capture_output=True)
