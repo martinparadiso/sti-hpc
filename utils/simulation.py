@@ -329,6 +329,9 @@ class Hospital(object):
         Parameter('doctors', islist=True, type={
             Parameter('specialty', str),
             Parameter('attention_duration', TimePeriod)
+        }),
+        Parameter('personnel', type={
+            Parameter('immunity', type=float, prob=True)
         })
     })
 
@@ -422,6 +425,11 @@ class HospitalElement(object):
     """
     An element inside the hospital with physical presence
     """
+
+    unique = None
+    store_key = None
+    location = None
+    char_art = None
 
     def store(self, dictionary):
         """Store the element in a dictionary"""

@@ -15,7 +15,7 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser(
     description='Run the simulation N times, print the execution time')
-parser.add_argument('iterations', type=int,
+parser.add_argument('iterations', type=int, default=16,
                     help='Number of times the simulation will run')
 parser.add_argument('-c', '--max-cores', type=int, default=os.cpu_count(),
                     help='Maximum number of CPU cores used for the benchmark')
@@ -229,6 +229,9 @@ hospital.parameters = {
         'contamination_probability': 0.1,
         'incubation_time': sim.TimePeriod(0, 2, 0, 0),
         'infect_probability': 0.5
+    },
+    'personnel': {
+        'immunity': 0.8
     }
 }
 
@@ -242,6 +245,8 @@ def worker(simulation):
 
 with Pool(args.max_cores) as pool:
     pool.map(worker, simulations)
+
+print(' '.join([s.id for s in simulations]))
 
 times = pd.Series([perf.Metrics(run.folder).total_time for run in simulations])
 print(times.describe())
