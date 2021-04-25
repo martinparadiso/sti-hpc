@@ -261,7 +261,7 @@ git_clean = subprocess.run(['git', 'status', '--porcelain'],
                            capture_output=True, text=True).stdout
 
 logging.info('\n---\n')
-if git_clean is None:
+if git_clean == '':
     commit_id = subprocess.run(['git', 'rev-parse', 'HEAD'],
                                capture_output=True, text=True).stdout.strip()
     logging.info(f"Commit: {commit_id}")
