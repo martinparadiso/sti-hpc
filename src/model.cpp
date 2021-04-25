@@ -339,7 +339,7 @@ sti::model::model(const std::string& props_file, int argc, char** argv, boost::m
           "icu",
       } } }
     , _stats { new statistics {} }
-    , _staff_manager{std::make_unique<decltype(_staff_manager)::element_type>(&_context)}
+    , _staff_manager { std::make_unique<decltype(_staff_manager)::element_type>(&_context) }
 {
     // Initialize the random generation
     repast::initializeRandom(*_props, comm);
@@ -408,7 +408,7 @@ void sti::model::init()
     }
 
     // Create medical personnel
-    _staff_manager->create_staff(*_agent_factory, _hospital, _hospital_props);
+    _staff_manager->create_staff(*_agent_factory, _spaces, _hospital, _hospital_props);
 
     // Create the beds
     if (_icu->get_real_icu()) {

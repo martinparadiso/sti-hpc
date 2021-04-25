@@ -19,6 +19,7 @@ namespace sti {
 class hospital_plan;
 class agent_factory;
 class contagious_agent;
+class space_wrapper;
 } // namespace sti
 
 namespace sti {
@@ -33,9 +34,11 @@ public:
 
     /// @brief Create all the hospital staff agents
     /// @param af The agent factory
+    /// @param spaces The space wrapper
     /// @param hospital The hospital plan
     /// @param hospital_props Properties of the hospital
     void create_staff(agent_factory&             af,
+                      const space_wrapper&       spaces,
                       const hospital_plan&       hospital,
                       const boost::json::object& hospital_props);
 

@@ -9,6 +9,7 @@
 #include "hospital_plan.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
 #include "utils.hpp"
+#include "space_wrapper.hpp"
 
 /// @brief Construct a staff_manager
 /// @param context The repast agent context
@@ -19,9 +20,11 @@ sti::staff_manager::staff_manager(repast::SharedContext<contagious_agent>* conte
 
 /// @brief Create all the hospital staff agents
 /// @param af The agent factory
+/// @param spaces The space wrappers
 /// @param hospital The hospital plan
 /// @param hospital_props Properties of the hospital
 void sti::staff_manager::create_staff(agent_factory&             af,
+                                      const space_wrapper&       spaces,
                                       const hospital_plan&       hospital,
                                       const boost::json::object& hospital_props)
 {
@@ -35,19 +38,24 @@ void sti::staff_manager::create_staff(agent_factory&             af,
 
     for (const auto& doc : hospital.doctors()) {
 
-        const auto* agent = af.insert_new_person(doc.location.continuous(),
-                                                 doc.type,
-                                                 human_infection_cycle::STAGE::HEALTHY,
-                                                 is_immune());
-        _created_ids.push_back(agent->getId());
+        if (spaces.local_dimensions().contains(doc.location)) {
+
+            const auto* agent = af.insert_new_person(doc.location.continuous(),
+                                                     doc.type,
+                                                     human_infection_cycle::STAGE::HEALTHY,
+                                                     is_immune());
+            _created_ids.push_back(agent->getId());
+        }
     }
 
     for (const auto& rec : hospital.receptionists()) {
-        const auto* agent = af.insert_new_person(rec.location.continuous(),
-                                                 "receptionist",
-                                                 human_infection_cycle::STAGE::HEALTHY,
-                                                 is_immune());
-        _created_ids.push_back(agent->getId());
+        if (spaces.local_dimensions().contains(rec.location)) {
+            const auto* agent = af.insert_new_person(rec.location.continuous(),
+                                                     "receptionist",
+                                                     human_infection_cycle::STAGE::HEALTHY,
+                                                     is_immune());
+            _created_ids.push_back(agent->getId());
+        }
     }
 }
 
