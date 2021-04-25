@@ -28,6 +28,7 @@ class ScheduleRunner;
 
 namespace sti {
 class agent_factory;
+class staff_manager;
 class triage;
 class doctors;
 class icu;
@@ -110,6 +111,7 @@ private:
     std::unique_ptr<triage>        _triage {}; // Properly initialized in init()
     std::unique_ptr<doctors>       _doctors {}; // Properly initialized in init()
     std::unique_ptr<icu>           _icu {}; // Properly initialized in init()
+    std::unique_ptr<staff_manager> _staff_manager {};
 
     std::unique_ptr<hospital_entry> _entry {}; // Properly initalized in init()
     std::unique_ptr<hospital_exit>  _exit {}; // Properly initalized in init()

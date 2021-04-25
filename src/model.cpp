@@ -45,6 +45,7 @@
 #include "json_loader.hpp"
 #include "json_serialization.hpp"
 #include "model.hpp"
+#include "staff_manager.hpp"
 #include "triage.hpp"
 #include "patient.hpp"
 #include "reception.hpp"
@@ -338,6 +339,7 @@ sti::model::model(const std::string& props_file, int argc, char** argv, boost::m
           "icu",
       } } }
     , _stats { new statistics {} }
+    , _staff_manager{std::make_unique<decltype(_staff_manager)::element_type>(&_context)}
 {
     // Initialize the random generation
     repast::initializeRandom(*_props, comm);
@@ -406,19 +408,7 @@ void sti::model::init()
     }
 
     // Create medical personnel
-    const auto& doctors      = _hospital.doctors();
-    const auto& receptionits = _hospital.receptionists();
-
-    for (const auto& doctor : doctors) {
-        if (_spaces.local_dimensions().contains(doctor.location)) {
-            _agent_factory->insert_new_person(doctor.location.continuous(), doctor.type, human_infection_cycle::STAGE::HEALTHY, false);
-        }
-    }
-    for (const auto& receptionist : receptionits) {
-        if (_spaces.local_dimensions().contains(receptionist.location)) {
-            _agent_factory->insert_new_person(receptionist.location.continuous(), "receptionist", human_infection_cycle::STAGE::HEALTHY, false);
-        }
-    }
+    _staff_manager->create_staff(*_agent_factory, _hospital, _hospital_props);
 
     // Create the beds
     if (_icu->get_real_icu()) {
@@ -488,7 +478,6 @@ void sti::model::tick()
 
     // Iterate over all the agents
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
-        //
         (*it)->act();
 
         // Add the location to the log
@@ -512,6 +501,7 @@ void sti::model::finish()
     _triage->save(folderpath);
     _icu->save(folderpath);
     _chair_manager->save(folderpath, _communicator->rank());
+    _staff_manager->save(folderpath, _communicator->rank());
 
     if constexpr (sti::debug::track_movements) {
         _stats->save(folderpath, _communicator->rank());

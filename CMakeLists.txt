@@ -75,6 +75,7 @@ add_executable(sti-demo
                         "src/queue_manager/real_queue_manager.cpp"
                         "src/reception.cpp"
                         "src/space_wrapper.cpp"
+                        "src/staff_manager.cpp"
                         "src/triage.cpp"
                         "src/utils.cpp"
               )
