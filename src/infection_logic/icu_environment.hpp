@@ -39,9 +39,13 @@ public:
     // BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////
 
-    /// @brief Get a reference to the current number of patients
-    /// @return A reference to the current number of patients in the ICU
-    std::uint32_t& patients();
+    /// @brief Get the current number of patients
+    /// @return The number of patients currently in the ICU
+    std::uint32_t patients() const;
+
+    /// @brief Set the current number of patients
+    /// @param patients The number of patients currently in the ICU
+    void patients(std::uint32_t patients);
 
     /// @brief Get the probability of infecting
     /// @return A value in the range [0, 1), depending of the number of patients

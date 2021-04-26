@@ -25,7 +25,7 @@ namespace {
 
 ////////////////////////////////////////////////////////////////////////////////
 // HELPER EXCEPTIONS
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 /// @brief Error trying to serialize or deserialize an agent
 struct no_more_beds : public std::exception {
@@ -47,9 +47,9 @@ struct no_patient_with_that_id : public std::exception {
 
 } // namespace
 
-////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // STATISTICS
-////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 /// @brief Collect different statistics
 struct sti::real_icu::statistics {
@@ -69,9 +69,9 @@ struct sti::real_icu::statistics {
     std::vector<std::pair<repast::AgentId, datetime>> rejections;
 };
 
-////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
-////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 /// @brief Construct a real ICU keeping track of beds assigned
 /// @param communicator The MPI communicator
@@ -92,9 +92,10 @@ sti::real_icu::real_icu(communicator_ptr           communicator,
     , _space { space }
     , _clock { clock }
     , _icu_location { hospital_plan.icu().location }
-    , _stats { std::make_unique<statistics>() }
     , _reserved_beds { 0 }
-    , _capacity{static_cast<decltype(_capacity)>(hospital_props.at("parameters").at("icu").at("beds").as_int64())}
+    , _capacity { static_cast<decltype(_capacity)>(hospital_props.at("parameters").at("icu").at("beds").as_int64()) }
+    , _environment(hospital_props)
+    , _stats { std::make_unique<statistics>() }
 {
 }
 
@@ -105,32 +106,13 @@ sti::real_icu::~real_icu() = default;
 void sti::real_icu::create_beds(infection_factory& infection_factory)
 {
     for (auto i = 0U; i < _capacity; ++i) {
-        _bed_pool.push_back({infection_factory.make_object_infection("bed", object_infection::STAGE::CLEAN), nullptr});
+        _bed_pool.push_back({ infection_factory.make_object_infection("bed", object_infection::STAGE::CLEAN), nullptr });
     }
 }
 
-////////////////////////////////////////////////////////////////////////////
-// BEHAVIOUR
-////////////////////////////////////////////////////////////////////////////
-
-/// @brief Request a bed in the ICU
-/// @param id The ID of the requesting agent
-void sti::real_icu::request_bed(const repast::AgentId& id)
-{
-    // If the number of reserved beds is less than the total number of beds,
-    // increment the reserved counter and queue the response as true
-    if (_reserved_beds < _bed_pool.size()) {
-        _reserved_beds += 1;
-        _pending_responses.push_back({ id, true });
-    }
-
-    // Otherwise the ICU is full, store the rejection and queue the response as
-    // false
-    else {
-        _stats->rejections.push_back({ id, _clock->now() });
-        _pending_responses.push_back({ id, false });
-    }
-}
+////////////////////////////////////////////////////////////////////////////////
+// ADMISSION MANAGEMENT
+////////////////////////////////////////////////////////////////////////////////
 
 /// @brief Check if the request has been processed
 /// @return If the request was processed by the manager, True if there is a bed, false otherwise
@@ -219,7 +201,15 @@ void sti::real_icu::sync()
 /// @brief Execute periodic actions
 void sti::real_icu::tick()
 {
+    // Collect stats, count the number of beds that have a patient assigned
+    const auto beds_in_use = std::count_if(_bed_pool.begin(), _bed_pool.end(),
+                                           [&](const auto& pair) {
+                                               return pair.second != nullptr;
+                                           });
 
+    // Update the number of patients in the infection environment 
+    _environment.patients(static_cast<std::uint32_t>(beds_in_use));
+    
     // Run the infection logic
     for (auto& [bed, patient] : _bed_pool) {
         if (patient != nullptr) {
@@ -228,12 +218,6 @@ void sti::real_icu::tick()
         }
         bed.tick();
     }
-
-    // Collect stats, count the number of beds that are actually empty
-    const auto beds_in_use = std::count_if(_bed_pool.begin(), _bed_pool.end(),
-                                           [&](const auto& pair) {
-                                               return pair.second != nullptr;
-                                           });
 
     _stats->tick_status.push_back({ _clock->now(),
                                     _reserved_beds,
@@ -295,22 +279,22 @@ void sti::real_icu::save(const std::string& folderpath) const
     // Save the beds metrics
     auto beds = std::ostringstream {};
     beds << folderpath
-               << "/icu_beds.p"
-               << _communicator->rank()
-               << ".json";
+         << "/icu_beds.p"
+         << _communicator->rank()
+         << ".json";
     auto beds_file = std::ofstream { beds.str() };
 
-    auto data = boost::json::array{};
+    auto data = boost::json::array {};
     for (const auto& [bed, patient] : _bed_pool) {
         data.push_back(bed.stats());
     }
-    
+
     beds_file << data;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// HELPER FUNCTIONS
-///////////////////////////////////////////////////////////////////////////////
+// PATIENT INSERTION AND REMOVAL
+////////////////////////////////////////////////////////////////////////////////
 
 /// @brief Insert a patient into the ICU
 /// @throws no_more_beds If the bed_pool is full
@@ -326,7 +310,11 @@ void sti::real_icu::insert(sti::patient_agent* patient)
 
     if (it == _bed_pool.end()) throw no_more_beds {};
 
+    // And assign the patient to that bed
     it->second = patient;
+
+    // Set the icu environment, which infects
+    patient->get_infection_logic()->set_environment(&_environment);
 
     // And collect statistics
     _stats->agent_admission.push_back({ patient->getId(), _clock->now() });
@@ -335,7 +323,7 @@ void sti::real_icu::insert(sti::patient_agent* patient)
 /// @brief Remove a patient from the ICU
 /// @throws no_patient If the agent to remove is not in the bed pool
 /// @param patient_ptr A pointer to the patient to remove
-void sti::real_icu::remove(const sti::patient_agent* patient_ptr)
+void sti::real_icu::remove(sti::patient_agent* patient_ptr)
 {
     auto it = std::find_if(_bed_pool.begin(), _bed_pool.end(),
                            [&](const auto& pair) {
@@ -350,6 +338,32 @@ void sti::real_icu::remove(const sti::patient_agent* patient_ptr)
     // Decrease the number of beds in use
     _reserved_beds -= 1;
 
+    // Remove the icu environment from the patient
+    patient_ptr->get_infection_logic()->set_environment(nullptr);
+
     // Update stats
     _stats->agent_release.push_back({ patient_ptr->getId(), _clock->now() });
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// BEHAVIOUR
+////////////////////////////////////////////////////////////////////////////////
+
+/// @brief Request a bed in the ICU
+/// @param id The ID of the requesting agent
+void sti::real_icu::request_bed(const repast::AgentId& id)
+{
+    // If the number of reserved beds is less than the total number of beds,
+    // increment the reserved counter and queue the response as true
+    if (_reserved_beds < _bed_pool.size()) {
+        _reserved_beds += 1;
+        _pending_responses.push_back({ id, true });
+    }
+
+    // Otherwise the ICU is full, store the rejection and queue the response as
+    // false
+    else {
+        _stats->rejections.push_back({ id, _clock->now() });
+        _pending_responses.push_back({ id, false });
+    }
 }

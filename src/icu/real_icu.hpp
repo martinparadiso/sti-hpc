@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../coordinates.hpp"
+#include "../infection_logic/icu_environment.hpp"
 
 // Fw. declarations
 namespace boost {
@@ -104,7 +105,7 @@ public:
     /// @brief Remove a patient from the ICU
     /// @throws no_patient If the agent to remove is not in the bed pool
     /// @param patient_ptr A pointer to the patient to remove
-    void remove(const sti::patient_agent* patient_ptr);
+    void remove(sti::patient_agent* patient_ptr);
 
     ////////////////////////////////////////////////////////////////////////////
     // BEHAVIOUR
@@ -133,13 +134,14 @@ private:
 
     coordinates<int> _icu_location;
 
-    std::unique_ptr<statistics> _stats;
-
-    bed_counter_type                                           _reserved_beds;
-    bed_counter_type                                           _capacity;
+    bed_counter_type                                         _reserved_beds;
+    bed_counter_type                                         _capacity;
     std::vector<std::pair<object_infection, patient_agent*>> _bed_pool;
+    icu_environment                                          _environment;
 
     std::vector<response_message> _pending_responses;
+
+    std::unique_ptr<statistics> _stats;
 };
 
 } // namespace sti

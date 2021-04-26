@@ -332,6 +332,11 @@ class Hospital(object):
         }),
         Parameter('personnel', type={
             Parameter('immunity', type=float, prob=True)
+        }),
+        Parameter('environments', type={
+            Parameter('icu', type={
+                Parameter('infection_probability', type=float, prob=True)
+            })
         })
     })
 

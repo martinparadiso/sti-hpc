@@ -68,6 +68,13 @@ std::string sti::human_infection_cycle::get_id() const
     return "human." + std::to_string(_id.id()) + "." + std::to_string(_id.startingRank()) + "." + std::to_string(_id.agentType());
 }
 
+/// @brief Set the infection environment this human resides
+/// @param env_ptr A pointer to the environment
+void sti::human_infection_cycle::set_environment(const infection_environment* env_ptr)
+{
+    _environment = env_ptr;
+}
+
 /// @brief Get the probability of contaminating an object
 /// @return A value in the range [0, 1)
 sti::infection_cycle::precission sti::human_infection_cycle::get_contamination_probability() const

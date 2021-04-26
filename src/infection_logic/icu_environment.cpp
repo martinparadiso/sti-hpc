@@ -9,11 +9,11 @@
 /// @brief Construct an ICU infection environment
 /// @param hospital_params JSON parameters of the hospital
 /// @param name The name of the environment, by default is 'icu'
-sti::icu_environment::icu_environment(const boost::json::object& hospital_params, const std::string& name )
+sti::icu_environment::icu_environment(const boost::json::object& hospital_params, const std::string& name)
     : _name { name }
     , _current_patients { 0 }
-    , _icu_infection_chance { [&](){
-        return hospital_params.at("paremeters").at("icu").at("environment").at("infection_probability").as_double();
+    , _icu_infection_chance { [&]() {
+        return hospital_params.at("parameters").at("environments").at("icu").at("infection_probability").as_double();
     }() }
 {
 }
@@ -24,9 +24,16 @@ sti::icu_environment::icu_environment(const boost::json::object& hospital_params
 
 /// @brief Get a reference to the current number of patients
 /// @return A reference to the current number of patients in the ICU
-std::uint32_t& sti::icu_environment::patients()
+std::uint32_t sti::icu_environment::patients() const
 {
     return _current_patients;
+}
+
+/// @brief Set the current number of patients
+/// @param patients The number of patients currently in the ICU
+void sti::icu_environment::patients(std::uint32_t patients)
+{
+    _current_patients = patients;
 }
 
 /// @brief Get the probability of infecting
