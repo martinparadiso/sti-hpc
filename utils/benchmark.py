@@ -242,6 +242,11 @@ hospital.parameters = {
     },
     'personnel': {
         'immunity': 0.8
+    },
+    'environments': {
+        'icu': {
+            'infection_probability': 0.8
+        }
     }
 }
 
