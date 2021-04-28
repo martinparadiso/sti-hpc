@@ -59,7 +59,6 @@ public:
              int                        mpi_tag,
              const boost::json::object& hospital_props,
              const hospital_plan&       hospital_plan,
-             space_wrapper*             space,
              clock*                     clock);
 
     real_icu(const real_icu&) = delete;
@@ -129,7 +128,6 @@ private:
     communicator_ptr _communicator;
     int              _mpi_base_tag;
 
-    space_wrapper* _space;
     clock*         _clock;
 
     coordinates<int> _icu_location;

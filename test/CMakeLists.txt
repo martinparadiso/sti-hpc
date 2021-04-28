@@ -43,3 +43,15 @@ target_link_libraries(time_test_bin PUBLIC boost_system-mt-x64 boost_filesystem-
 target_compile_options(time_test_bin PRIVATE -Wall -Wextra -Wnarrowing -Wconversion -Wpedantic)
 tidy(time_test_bin)
 add_test(NAME time_test COMMAND time_test_bin)
+
+add_executable(pathfinding_test_bin pathfinding.cpp
+                                    "${PROJECT_SOURCE_DIR}/src/pathfinder.cpp"
+                                    "${PROJECT_SOURCE_DIR}/src/clock.cpp"
+)
+target_include_directories(pathfinding_test_bin SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}/src/")
+target_link_directories(pathfinding_test_bin PRIVATE "${PROJECT_SOURCE_DIR}/lib/repast/lib")
+target_include_directories(pathfinding_test_bin SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}/lib/repast/include/")
+target_link_directories(pathfinding_test_bin PRIVATE "${PROJECT_SOURCE_DIR}/lib/boost/lib")
+target_include_directories(pathfinding_test_bin SYSTEM PUBLIC "${PROJECT_SOURCE_DIR}/lib/boost/include/")
+tidy(pathfinding_test_bin)
+sanitize_address(pathfinding_test_bin)

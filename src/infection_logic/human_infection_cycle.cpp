@@ -22,8 +22,6 @@ sti::human_infection_cycle::human_infection_cycle(flyweight_ptr fw, environment_
     , _environment { env }
     , _stage { STAGE::HEALTHY }
     , _mode { MODE::NORMAL }
-    , _infection_time {}
-    , _infected_by {}
 {
 }
 

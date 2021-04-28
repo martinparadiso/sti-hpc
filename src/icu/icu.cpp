@@ -38,7 +38,7 @@ sti::icu::icu(boost::mpi::communicator*  communicator,
         // is set in the next construct.
         
         if (space->local_dimensions().contains(hospital_plan.icu().location)) {
-            return new real_icu { communicator, mpi_tag, hospital_props, hospital_plan, space, clock };
+            return new real_icu { communicator, mpi_tag, hospital_props, hospital_plan, clock };
         }
 
         return nullptr;

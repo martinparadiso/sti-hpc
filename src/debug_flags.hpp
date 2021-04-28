@@ -26,5 +26,8 @@ namespace debug {
     /// @brief Add a dummy line to use as breakpoint in the FSM logic, to monitor a specific patient
     constexpr auto fsm_debug_patient = false;
 
+    /// @brief Collect pathfinding statistics
+    constexpr auto pathfinder_statistics = false;
+
 } // namespace debug
 } // namespace sti

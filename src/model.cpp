@@ -328,9 +328,9 @@ sti::model::model(const std::string& props_file, int argc, char** argv, boost::m
     , _rank { repast::RepastProcess::instance()->rank() }
     , _stop_at { 0 }
     , _hospital_props { load_json(_props->getProperty("hospital.file")) }
-    , _hospital { _hospital_props }
-    , _spaces { _hospital, *_props, _context, comm }
     , _clock { std::make_unique<clock>(boost::lexical_cast<std::uint64_t>(_props->getProperty("seconds.per.tick"))) }
+    , _hospital { _hospital_props, _clock.get() }
+    , _spaces { _hospital, *_props, _context, comm }
     , _pmetrics { new process_metrics { {
           "chairs",
           "reception",
@@ -438,7 +438,7 @@ void sti::model::tick()
     _pmetrics->new_tick();
 
     // Sync the clock with the simulation tick
-    _clock->sync();
+    _clock->sync(repast::RepastProcess::instance()->getScheduleRunner().currentTick());
 
     _stats->new_tick(_clock->now());
 
@@ -502,10 +502,8 @@ void sti::model::finish()
     _icu->save(folderpath);
     _chair_manager->save(folderpath, _communicator->rank());
     _staff_manager->save(folderpath, _communicator->rank());
-
-    if constexpr (sti::debug::track_movements) {
-        _stats->save(folderpath, _communicator->rank());
-    }
+    _stats->save(folderpath, _communicator->rank());
+    _hospital.get_pathfinder()->save(folderpath, _communicator->rank());
 
     // Remove the remaining agents
     // Iterate over all the agents to perform their actions

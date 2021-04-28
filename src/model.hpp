@@ -43,7 +43,6 @@ class process_metrics;
 class model {
 
 public:
-
     /// @brief Collect misc. stats durning the execution
     class statistics;
 
@@ -92,14 +91,13 @@ private:
     const int                    _rank;
     int                          _stop_at;
 
-    boost::json::object _hospital_props;
-    sti::hospital_plan  _hospital;
+    boost::json::object    _hospital_props;
+    std::unique_ptr<clock> _clock;
+    sti::hospital_plan     _hospital;
 
     space_wrapper                   _spaces;
     std::unique_ptr<agent_provider> _provider;
     std::unique_ptr<agent_receiver> _receiver;
-
-    std::unique_ptr<clock> _clock;
 
     std::unique_ptr<process_metrics> _pmetrics;
     std::unique_ptr<statistics>      _stats;

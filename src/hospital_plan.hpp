@@ -7,30 +7,31 @@
 #include <vector>
 
 #include "coordinates.hpp"
+#include "pathfinder.hpp"
 #include "reception.hpp"
 
 // Fw. declarations
 namespace repast {
 class Properties;
-}
-
+} // namespace repast
 namespace boost {
 namespace mpi {
     class communicator;
-}
+} // namespace mpi
 namespace json {
     class value;
     class object;
-}
-}
-
+} // namespace json
+} // namespace boost
 namespace sti {
-
-// Fw. declarations
 class chair_manager;
 class hospital_entry;
 class hospital_exit;
 class hospital_plan;
+class clock;
+} // namespace sti
+
+namespace sti {
 
 namespace tiles {
 
@@ -48,7 +49,7 @@ namespace tiles {
         DOCTOR_PATIENT_CHAIR
     };
 
-    using grid = std::vector<std::vector<ENUMS>>;
+    using obstacles_map = std::vector<std::vector<bool>>;
 
     /// @brief Wall tile
     struct wall {
@@ -58,7 +59,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return The list of walls
-        static std::vector<wall> load(const boost::json::object& hospital, grid& map);
+        static std::vector<wall> load(const boost::json::object& hospital, obstacles_map& map);
     };
 
     /// @brief Chair tile, storing the chair location
@@ -69,7 +70,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return The list of chairs
-        static std::vector<chair> load(const boost::json::object& hospital, grid& map);
+        static std::vector<chair> load(const boost::json::object& hospital, obstacles_map& map);
     };
 
     /// @brief Entry tile, storing the entry location
@@ -80,7 +81,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return The entry
-        static entry load(const boost::json::object& hospital, grid& map);
+        static entry load(const boost::json::object& hospital, obstacles_map& map);
     };
 
     /// @brief Exit tile, storing the exit location
@@ -91,7 +92,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return exit
-        static exit load(const boost::json::object& hospital, grid& map);
+        static exit load(const boost::json::object& hospital, obstacles_map& map);
     };
 
     /// @brief Triage tile, storing the triage location
@@ -102,7 +103,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return The list of triages
-        static std::vector<triage> load(const boost::json::object& hospital, grid& map);
+        static std::vector<triage> load(const boost::json::object& hospital, obstacles_map& map);
     };
 
     /// @brief ICU tile, storing the icu location
@@ -113,7 +114,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return The ICU location
-        static icu load(const boost::json::object& hospital, grid& map);
+        static icu load(const boost::json::object& hospital, obstacles_map& map);
     };
 
     /// @brief Receptionist tile, storing the receptionist and patient location
@@ -125,7 +126,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return The list of receptionists
-        static std::vector<receptionist> load(const boost::json::object& hospital, grid& map);
+        static std::vector<receptionist> load(const boost::json::object& hospital, obstacles_map& map);
     };
 
     /// @brief Doctor tile, storing the location, type and patient location
@@ -138,7 +139,7 @@ namespace tiles {
         /// @param hospital The JSON containing the hospital information
         /// @param map The map to store the enum
         /// @return The list of doctors
-        static std::vector<doctor> load(const boost::json::object& hospital, grid& map);
+        static std::vector<doctor> load(const boost::json::object& hospital, obstacles_map& map);
     };
 
 } // namespace tiles
@@ -154,7 +155,16 @@ public:
 
     /// @brief Load a hospital from a JSON object
     /// @param json The JSON containing the hospital description
-    hospital_plan(const boost::json::object& json);
+    /// @param clock The simulation clock
+    hospital_plan(const boost::json::object& json, const clock* clock);
+
+    hospital_plan(const hospital_plan&) = delete;
+    hospital_plan& operator=(const hospital_plan&) = delete;
+
+    hospital_plan(hospital_plan&&) = delete;
+    hospital_plan& operator=(hospital_plan&&) = delete;
+
+    ~hospital_plan();
 
     ////////////////////////////////////////////////////////////////////////////
     // HOSPITAL PLAN
@@ -172,15 +182,13 @@ public:
         return _height;
     }
 
-    /// @brief Access the location
-    /// @param l The location
-    /// @return A reference to the tile
-    tiles::ENUMS& operator[](const coordinates<int>& l);
+    /// @brief A const reference to the obstacles
+    /// @return A vector of vectors of bools, True if the coordinate is walkable
+    const tiles::obstacles_map& obstacles() const;
 
-    /// @brief Access the location
-    /// @param l The location
-    /// @return A reference to the tile
-    const tiles::ENUMS& operator[](const coordinates<int>& l) const;
+    /// @brief Get the pathfinder
+    /// @return A pointer to the pathfinder
+    pathfinder* get_pathfinder();
 
     /// @brief Get all the walls
     const std::vector<tiles::wall>& walls() const;
@@ -210,7 +218,7 @@ private:
     length_t _width;
     length_t _height;
 
-    tiles::grid _grid;
+    tiles::obstacles_map _obstacles;
 
     std::vector<tiles::wall>         _walls;
     std::vector<tiles::chair>        _chairs;
@@ -220,6 +228,8 @@ private:
     tiles::icu                       _icu;
     std::vector<tiles::receptionist> _receptionists;
     std::vector<tiles::doctor>       _doctors;
+
+    pathfinder _pathfinder;
 };
 
 } // namespace sti

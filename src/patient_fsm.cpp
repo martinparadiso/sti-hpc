@@ -155,9 +155,13 @@ sti::patient_fsm::transition_table create_transition_table()
     };
 
     auto walk = [](fsm& m) {
+        // Ask the pathfinder for the next step towards the destination
+        const auto my_loc = m.patient_flyweight->space->get_discrete_location(m.patient->getId());
+        const auto next   = m.patient_flyweight->hospital->get_pathfinder()->next_step(my_loc, m.destination.discrete());
+
         m.patient_flyweight->space->move_towards(
             m.patient->getId(),
-            m.destination,
+            next.continuous(),
             m.patient_flyweight->walk_speed * m.patient_flyweight->clk->seconds_per_tick());
     };
 
@@ -222,21 +226,21 @@ sti::patient_fsm::transition_table create_transition_table()
         const auto& doctor_assigned      = boost::get<doc_diagnosis>(m.diagnosis).doctor_assigned;
         const auto& attention_time_limit = boost::get<doc_diagnosis>(m.diagnosis).attention_time_limit;
         m.patient_flyweight->doctors->queues()->enqueue(doctor_assigned,
-                                                m.patient->getId(),
-                                                attention_time_limit);
+                                                        m.patient->getId(),
+                                                        attention_time_limit);
     };
 
     auto doctor_turn = [](fsm& m) {
         const auto& doctor_assigned = boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).doctor_assigned;
         const auto  response        = m.patient_flyweight->doctors->queues()->is_my_turn(doctor_assigned,
-                                                                         m.patient->getId());
+                                                                                 m.patient->getId());
         return response.is_initialized();
     };
 
     auto set_doctor_destination = [](fsm& m) {
         const auto& doctor_assigned = boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).doctor_assigned;
         const auto  response        = m.patient_flyweight->doctors->queues()->is_my_turn(doctor_assigned,
-                                                                         m.patient->getId());
+                                                                                 m.patient->getId());
         m.destination               = response.get();
     };
 
@@ -559,7 +563,6 @@ sti::patient_fsm::patient_fsm(patient_flyweight_ptr fw, patient_agent* patient)
     , patient { patient }
     , current_state(STATE::ENTRY)
     , destination {}
-    , attention_end {}
 {
 }
 

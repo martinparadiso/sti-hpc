@@ -66,16 +66,16 @@ void sti::hospital_exit::tick()
 
 /// @brief Save the stadistics/metrics to a file
 /// @param filepath The path to the folder where
-    /// @param rank The rank of the process
+/// @param rank The rank of the process
 void sti::hospital_exit::save(const std::string& folderpath, int rank) const
 {
-    auto os = std::ostringstream{};
+    auto os = std::ostringstream {};
     os << folderpath
        << "/exit.p"
        << rank
        << ".json";
 
-    auto file = std::ofstream{os.str()};
+    auto file = std::ofstream { os.str() };
 
     file << _pimpl->agent_output_data;
 }

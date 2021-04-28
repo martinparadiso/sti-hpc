@@ -30,8 +30,6 @@ sti::real_doctors::real_doctors(communicator_ptr communicator, int mpi_tag, cons
             return queue;
         }()
     }
-    , _patients_queue {}
-    , _front {}
 {
 }
 

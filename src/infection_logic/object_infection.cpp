@@ -22,9 +22,7 @@
 /// @param type The object type, i.e. chair, bed
 sti::object_infection::object_infection(flyweights_ptr fw)
     : _flyweights { fw }
-    , _object_type {}
     , _stage { STAGE::CLEAN }
-    , _next_clean {}
 {
 }
 

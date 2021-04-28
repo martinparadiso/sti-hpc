@@ -85,11 +85,9 @@ sti::real_icu::real_icu(communicator_ptr           communicator,
                         int                        mpi_tag,
                         const boost::json::object& hospital_props,
                         const hospital_plan&       hospital_plan,
-                        space_wrapper*             space,
                         clock*                     clock)
     : _communicator { communicator }
     , _mpi_base_tag { mpi_tag }
-    , _space { space }
     , _clock { clock }
     , _icu_location { hospital_plan.icu().location }
     , _reserved_beds { 0 }

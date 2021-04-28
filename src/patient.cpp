@@ -39,7 +39,6 @@ sti::patient_agent::patient_agent(const id_t&                  id,
 sti::patient_agent::patient_agent(const id_t& id, flyweight_ptr fw)
     : contagious_agent { id }
     , _flyweight { fw }
-    , _entry_time {}
     , _infection_logic { fw->inf_factory->make_human_cycle() }
     , _fsm { _flyweight, this }
 {

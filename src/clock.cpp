@@ -3,8 +3,6 @@
 #include <iomanip>
 #include <sstream>
 
-#include <repast_hpc/RepastProcess.h>
-
 /// @brief Get the date in string format
 /// @details The format returned is [Day, Hours/Minutes/Seconds]
 std::string sti::timedelta::str() const
@@ -31,7 +29,8 @@ std::string sti::datetime::str() const
 }
 
 /// @brief Adjust time, must be executed every tick
-void sti::clock::sync()
+/// @param tick The current tick the simulation is running
+void sti::clock::sync(double tick)
 {
-    _tick = repast::RepastProcess::instance()->getScheduleRunner().currentTick();
+    _tick = tick;
 }

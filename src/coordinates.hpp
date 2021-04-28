@@ -63,6 +63,11 @@ struct coordinates {
     }
 };
 
+template <typename T>
+bool operator<(const coordinates<T>& lo, const coordinates<T>& ro)
+{
+    return (lo.x < ro.x) || ((lo.x == ro.x) && (lo.y < ro.y));
+}
 
 template <typename T>
 coordinates<T> operator+(const coordinates<T>& lo, const coordinates<T>& ro)

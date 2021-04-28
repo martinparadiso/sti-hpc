@@ -167,7 +167,8 @@ public:
     }
 
     /// @brief Adjust time, must be executed every tick
-    void sync();
+    /// @param tick The current tick
+    void sync(double tick);
 
     /// @brief Get the time inside the simulation
     /// @return A datetime object with this instant of time
@@ -178,7 +179,8 @@ public:
 
     /// @brief Get the 'length' of a tick, in seconds
     /// @return The span of a tick, in seconds
-    auto seconds_per_tick() const {
+    auto seconds_per_tick() const
+    {
         return _seconds_per_tick;
     }
 
@@ -222,6 +224,20 @@ constexpr bool operator<(const datetime& lho, const datetime& rho)
 constexpr bool operator<=(const datetime& lho, const datetime& rho)
 {
     return lho.epoch() <= rho.epoch();
+}
+
+/// @brief Compare two instants of time
+/// @return True if datetimes are equal, false otherwise
+constexpr bool operator==(const datetime& lho, const datetime& rho)
+{
+    return lho.epoch() == rho.epoch();
+}
+
+/// @brief Compare two instants of time
+/// @return True if datetimes are not equal, false otherwise
+constexpr bool operator!=(const datetime& lho, const datetime& rho)
+{
+    return !(lho.epoch() == rho.epoch());
 }
 
 } // namespace sti
