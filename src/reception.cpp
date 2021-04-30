@@ -23,8 +23,8 @@ sti::reception::reception(const properties_type& props,
             if (manager_rank == comm->rank()) {
                 const auto locations = [&]() {
                     auto ret = std::vector<coordinates<double>> {};
-                    for (const auto& triage : plan.triages()) {
-                        ret.push_back(triage.location.continuous());
+                    for (const auto& reception : plan.receptionists()) {
+                        ret.push_back(reception.patient_chair.continuous());
                     }
                     return ret;
                 }();

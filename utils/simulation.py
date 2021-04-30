@@ -435,6 +435,7 @@ class HospitalElement(object):
     store_key = None
     location = None
     char_art = None
+    plot_color = None
 
     def store(self, dictionary):
         """Store the element in a dictionary"""
@@ -497,6 +498,7 @@ class Wall(HospitalElement):
     unique = False
     store_key = 'walls'
     char_art = '#'
+    plot_color = 'black'
 
     def __init__(self, location):
         self.location = Point(*location)
@@ -513,6 +515,7 @@ class Chair(HospitalElement):
     unique = False
     store_key = 'chairs'
     char_art = 'h'
+    plot_color = 'grey'
 
     def __init__(self, location):
         self.location = Point(*location)
@@ -529,6 +532,7 @@ class Entry(HospitalElement):
     unique = True
     store_key = 'entry'
     char_art = 'E'
+    plot_color = 'green'
 
     def __init__(self, location):
         self.location = Point(*location)
@@ -545,6 +549,7 @@ class Exit(HospitalElement):
     unique = True
     store_key = 'exit'
     char_art = 'X'
+    plot_color = 'red'
 
     def __init__(self, location):
         self.location = Point(*location)

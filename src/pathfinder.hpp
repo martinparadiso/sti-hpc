@@ -2,15 +2,15 @@
 /// @brief The path finder that generates the paths for the patients
 #pragma once
 
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <utility>
 #include <vector>
 
+#include "coordinates.hpp"
+
 // Fw. declarations
 namespace sti {
-template <typename T>
-struct coordinates;
 class clock;
 class datetime;
 } // namespace sti
@@ -67,7 +67,7 @@ private:
     using destination_type = coordinates<int>;
     using from_type        = coordinates<int>;
     using next_step_type   = coordinates<int>;
-    std::map<destination_type, std::map<from_type, next_step_type>> _paths;
+    std::unordered_map<destination_type, std::unordered_map<from_type, next_step_type>> _paths;
 
     std::unique_ptr<statistics> _stats;
 }; // class pathfinder

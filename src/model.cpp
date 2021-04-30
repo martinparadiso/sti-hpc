@@ -286,15 +286,15 @@ public:
             filepath << folderpath << "/agents_locations.p" << rank << ".csv";
             auto file = std::ofstream { filepath.str() };
 
-            file << "epoch" << ','
-                 << "id" << ','
+            file << "datetime" << ','
+                 << "repast_id" << ','
                  << "x" << ','
                  << "y" << '\n';
 
             for (const auto& iteration : _agents_locations) {
                 for (const auto& agent : iteration.agents) {
                     file << iteration.time.epoch() << ","
-                         << agent.id << ","
+                         << to_string(agent.id) << ","
                          << agent.location.x << ','
                          << agent.location.y << '\n';
                 }

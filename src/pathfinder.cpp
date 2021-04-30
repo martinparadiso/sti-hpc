@@ -10,10 +10,18 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <chrono>
 
 #include "coordinates.hpp"
 #include "debug_flags.hpp"
 #include "clock.hpp"
+
+namespace {
+auto now_in_ns()
+{
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()).time_since_epoch()).count();
+}
+}
 
 /// @brief Collect pathfinding statistics
 class sti::pathfinder::statistics {
@@ -59,6 +67,22 @@ public:
         }
     } // void cache_miss()
 
+    /// @brief Indicate the start of a method call
+    void call_start()
+    {
+        if constexpr (sti::debug::pathfinder_statistics) {
+            _call_start = now_in_ns();
+        }
+    }
+
+    /// @brief Indicate the end of a method call
+    void call_end()
+    {
+        if constexpr (sti::debug::pathfinder_statistics) {
+            _time_spent_ns += now_in_ns() - _call_start;
+        }
+    }
+
     /// @brief Save the statistics to a file
     /// @param folderpath The folder to save the file to
     /// @param rank The rank of this process
@@ -66,26 +90,37 @@ public:
     {
         if constexpr (sti::debug::pathfinder_statistics) {
 
-            auto os = std::ostringstream {};
-            os << folderpath
-               << "/pathfinder.p"
-               << rank
-               << ".csv";
+            auto cache_os = std::ostringstream {};
+            cache_os << folderpath
+                     << "/pathfinder_cache_stats.p"
+                     << rank
+                     << ".csv";
 
-            auto file = std::ofstream { os.str() };
-            file << "datetime,hits,misses\n";
+            auto cache_file = std::ofstream { cache_os.str() };
+            cache_file << "datetime,hits,misses\n";
 
             for (const auto& entry : _cache) {
-                file << entry.datetime.epoch() << ','
-                     << entry.cache_hit << ','
-                     << entry.cache_miss << '\n';
+                cache_file << entry.datetime.epoch() << ','
+                           << entry.cache_hit << ','
+                           << entry.cache_miss << '\n';
             }
+            auto general_os = std::ostringstream {};
+            general_os << folderpath
+                       << "/pathfinder_global.p"
+                       << rank
+                       << ".csv";
+
+            auto general_file = std::ofstream { general_os.str() };
+            general_file << "time_spent" << '\n';
+            general_file << _time_spent_ns << '\n';
         }
     } // void save(...)
 
 private:
     const clock*       _clock;
     std::vector<entry> _cache;
+    long               _time_spent_ns {};
+    long               _call_start {};
 }; // struct sti::pathfinder::statistics
 
 /// @brief Construct a pathfinder
@@ -196,9 +231,9 @@ auto pop_heap(T& queue)
 /// @param came_from A map in the form of 'cell' -> 'previous_cell'
 /// @param goal The final cell of the path, to start the unwinging of came_from
 void save_path(
-    std::map<sti::coordinates<int>, sti::coordinates<int>>&       cache,
-    const std::map<sti::coordinates<int>, sti::coordinates<int>>& came_from,
-    const sti::coordinates<int>                                   goal)
+    std::unordered_map<sti::coordinates<int>, sti::coordinates<int>>&       cache,
+    const std::unordered_map<sti::coordinates<int>, sti::coordinates<int>>& came_from,
+    const sti::coordinates<int>                                             goal)
 {
     for (auto it = came_from.find(goal);
          it != came_from.end();
@@ -236,7 +271,7 @@ struct no_path : public std::exception {
 sti::coordinates<int> sti::pathfinder::next_step(const coordinates<int>& start,
                                                  const coordinates<int>& goal)
 {
-
+    _stats->call_start();
     /// @brief Check if a given path is cached
     /// @param paths The map of cached paths
     /// @param start_cell The starting point of the path
@@ -267,10 +302,10 @@ sti::coordinates<int> sti::pathfinder::next_step(const coordinates<int>& start,
     // Otherwise, the path start -> goal doesn't exists, perform the search
     auto open_set = std::vector<heap_element> {};
     push_heap(open_set, { start, 0 });
-    auto came_from = std::map<sti::coordinates<int>, sti::coordinates<int>> {};
-    auto g_score   = std::map<sti::coordinates<int>, double> {};
+    auto came_from = std::unordered_map<sti::coordinates<int>, sti::coordinates<int>> {};
+    auto g_score   = std::unordered_map<sti::coordinates<int>, double> {};
     g_score[start] = 0.0;
-    auto f_score   = std::map<sti::coordinates<int>, double> {};
+    auto f_score   = std::unordered_map<sti::coordinates<int>, double> {};
     f_score[start] = heuristic(start, goal);
 
     // Search the set of nodes until is empty or the optimal path is found
@@ -317,7 +352,9 @@ sti::coordinates<int> sti::pathfinder::next_step(const coordinates<int>& start,
 
     // Down here the element should be in the cache, find it and return it
     try {
-        return _paths.at(goal).at(start);
+        const auto ret = _paths.at(goal).at(start);
+        _stats->call_end();
+        return ret;
     } catch (const std::out_of_range& /*unused*/) {
         throw no_path { start, goal };
     }

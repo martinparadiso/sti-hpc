@@ -2,6 +2,7 @@
 /// @brief Represents discrete and continuous coordinates
 #pragma once
 
+#include <boost/container_hash/hash_fwd.hpp>
 #include <repast_hpc/Point.h>
 
 namespace sti {
@@ -105,3 +106,18 @@ std::ostream& operator<<(std::ostream& os, const coordinates<T>& c)
 }
 
 } // namespace sti
+
+namespace std {
+
+template<typename T>
+struct hash<sti::coordinates<T>>
+{
+    std::size_t operator()(const sti::coordinates<T>& c) const {
+        std::size_t seed = 0;
+        boost::hash_combine(seed, c.x);
+        boost::hash_combine(seed, c.y);
+        return seed;
+    }
+};
+
+} // namespace std
