@@ -29,6 +29,24 @@ class AgentLocations(object):
         self.dataframe = pd.concat(dfs)
 
 
+def rename_columns(df: pd.DataFrame):
+
+    prefixes = ('infection.', 'diagnosis.')
+    special_renames = {
+        'diagnosis.type': 'diagnosis_type',
+        'diagnosis.specialty': 'doctor_specialty',
+        'diagnosis.attention_datetime_limit.time': 'attention_datetime_limit',
+        'diagnosis.sleep_time.time' : 'sleep_time'
+    }
+
+    df = df.rename(columns=special_renames)
+    for col in df.columns:
+        for prefix in prefixes:
+            if col.startswith(prefix):
+                df = df.rename(columns={col: col[len(prefix):]})
+    return df
+
+
 class AgentsOutput(object):
     """Load the agents output from output files"""
 
@@ -42,9 +60,17 @@ class AgentsOutput(object):
                   'process',
                   'infection_id', 'infection_model', 'infection_mode',
                   'infection_stage', 'infection_time', 'infected_by']
+
+    patient_cols = [*human_cols,
+                    'diagnosis_type', 'doctor_specialty', 'triage_level',
+                    'attention_datetime_limit', 'sleep_time', 'survives']
+
     object_cols = ['process',
                    'infection_id', 'infection_stage', 'infection_model',
                    'infections']
+
+    time_cols = ['infection_time', 'entry_time', 'exit_time',
+                 'attention_datetime_limit', 'sleep_time']
 
     def __init__(self, folderpath):
 
@@ -57,26 +83,21 @@ class AgentsOutput(object):
             with open(path) as f:
                 data = json.load(f)
             df = pd.json_normalize(data)
-
-            # Remove the 'infection' prefix
-            for c in df.columns:
-                if c.startswith('infection.'):
-                    df = df.rename(columns={c: c[10:]})
-
+            df = rename_columns(df)
             df['process'] = int(re.match(r'.+\.p(\d+)\.json', path)[1])
             dfs.append(df)
 
         df = pd.concat(dfs)
 
-        # Fix the dtypes
-        for col in ('infection_time', 'entry_time', 'exit_time'):
+        for col in self.time_cols:
             df[col] = pd.to_timedelta(df[col], unit='seconds')
 
         # Add the dataframes to the object
         # Split the objects in humans and objects
         self.dataframe = df
-        self.humans = df[df['infection_model'] == 'human'][self.human_cols]
+        self.staff = df[(df['infection_model'] == 'human') & (df['type'] != 'patient')][self.human_cols]
         self.objects = df[df['infection_model'] == 'object'][self.object_cols]
+        self.patients = df[df['type'] == 'patient'][self.patient_cols]
 
 
 class AgentsLocations(object):
@@ -126,11 +147,12 @@ class AgentsLocations(object):
                     building[color] = np.full((2, 0), 0)
                 new_element = np.array([[elem.location.x + 0.5],
                                         [elem.location.y + 0.5]])
-                building[color] = np.append(building[color], new_element, axis=1)
-        
+                building[color] = np.append(
+                    building[color], new_element, axis=1)
+
         for color in building:
             ax.plot(building[color][0], building[color][1], 's',
-            markersize='4', color=color)
+                    markersize='4', color=color)
         l, = ax.plot([], [], 'bo')
         plt.title(f"Agent {agent_id} movement")
 

@@ -2,6 +2,7 @@
 /// @brief Represents discrete and continuous coordinates
 #pragma once
 
+#include <boost/json.hpp>
 #include <boost/container_hash/hash_fwd.hpp>
 #include <repast_hpc/Point.h>
 
@@ -103,6 +104,33 @@ std::ostream& operator<<(std::ostream& os, const coordinates<T>& c)
        << c.y
        << "]";
     return os;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// JSON DE/SERIALIZATION
+////////////////////////////////////////////////////////////////////////////////
+
+
+template <typename T>
+void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const coordinates<T>& c)
+{
+    jv = {
+        { "x", c.x },
+        { "y", c.y }
+    };
+}
+
+// From JSON
+
+template <typename T>
+coordinates<T> tag_invoke(const boost::json::value_to_tag<coordinates<T>>& /*unused*/, const boost::json::value& jv)
+{
+    const auto& obj = jv.as_object();
+    return coordinates<T> {
+        boost::json::value_to<T>(obj.at("x")),
+        boost::json::value_to<T>(obj.at("y")),
+    };
 }
 
 } // namespace sti

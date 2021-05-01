@@ -32,7 +32,7 @@ struct sti::triage::statistic {
     using counter_type = std::uint32_t;
 
     std::map<timedelta, counter_type>                                icu_diagnostics;
-    counter_type                                                     icu_deaths;
+    counter_type                                                     icu_deaths {};
     std::map<doctor_type, std::map<triage_level_type, counter_type>> doctors_diagnostics;
 };
 
@@ -130,7 +130,7 @@ sti::triage::triage(const properties_type&     execution_props,
 
     sti::validate_distribution(
         _levels_probabilities.begin(), _levels_probabilities.end(),
-        [](auto acc, const auto& val) { return acc + val.second; }, 
+        [](auto acc, const auto& val) { return acc + val.second; },
         "Triage level distribution");
 }
 
@@ -233,7 +233,7 @@ sti::triage::triage_diagnosis sti::triage::diagnose()
     _stats->doctors_diagnostics[doctor_assigned][severity_diagnosed] += 1;
 
     // Now we have all the information, return the doctor and the wait time
-    return doctor_diagnosis { doctor_assigned, attention_limit };
+    return doctor_diagnosis { doctor_assigned, severity_diagnosed, attention_limit };
 }
 
 /// @brief Save the stadistics/metrics to a file

@@ -2,6 +2,7 @@
 /// @brief Implements the triage queue
 #pragma once
 
+#include <boost/json/object.hpp>
 #include <boost/serialization/variant.hpp>
 #include <boost/mpi/communicator.hpp>
 #include <boost/variant.hpp>
@@ -16,9 +17,6 @@
 namespace boost {
 template <typename T>
 class optional;
-namespace json {
-    class object;
-} // namespace boost
 } // namespace boost
 
 namespace repast {
@@ -53,14 +51,27 @@ public:
     /// @brief Represents a doctor diagnosis, contains doctor assigned and priority
     struct doctor_diagnosis {
         doctor_type             doctor_assigned;
+        triage_level_type       level;
         attention_waittime_type attention_time_limit;
 
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int /*unused*/)
         {
             ar& doctor_assigned;
+            ar& level;
             ar& attention_time_limit;
         } // void serialize(...)
+
+        /// @brief Get a JSON object containing the information about this diagnosis
+        boost::json::object stats() const
+        {
+            return {
+                { "type", "doctor" },
+                { "specialty", doctor_assigned },
+                { "triage_level", level},
+                { "attention_datetime_limit", attention_time_limit }
+            };
+        }
 
     }; // struct doctor
 
@@ -74,6 +85,16 @@ public:
         {
             ar& sleep_time;
             ar& survives;
+        }
+
+        /// @brief Get a JSON object containing the information about this diagnosis
+        boost::json::object stats() const
+        {
+            return {
+                { "type", "icu" },
+                { "sleep_time", sleep_time },
+                { "survives", survives }
+            };
         }
 
     }; // struct icu

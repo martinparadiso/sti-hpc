@@ -11,7 +11,7 @@
 
 #include "infection_cycle.hpp"
 #include "../contagious_agent.hpp"
-#include "../json_serialization.hpp"
+#include "../coordinates.hpp"
 
 ////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION

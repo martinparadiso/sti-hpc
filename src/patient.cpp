@@ -1,5 +1,6 @@
 #include "patient.hpp"
 
+#include <boost/variant/detail/apply_visitor_delayed.hpp>
 #include <repast_hpc/Point.h>
 #include <boost/mpi/packed_iarchive.hpp>
 #include <boost/mpi/packed_oarchive.hpp>
@@ -97,7 +98,8 @@ boost::json::object sti::patient_agent::stats() const
         { "entry_time", _entry_time.epoch() },
         { "infection", _infection_logic.stats() },
         { "exit_time", _flyweight->clk->now().epoch() },
-        { "last_state", _fsm.last_state }
+        { "last_state", _fsm.last_state },
+        { "diagnosis", boost::apply_visitor([](const auto& v) { return v.stats();}, _fsm.diagnosis) }
     };
 }
 

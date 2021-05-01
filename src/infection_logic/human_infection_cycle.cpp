@@ -10,7 +10,8 @@
 
 #include "../contagious_agent.hpp"
 #include "environment.hpp"
-#include "../json_serialization.hpp"
+#include "../coordinates.hpp"
+#include "../space_wrapper.hpp"
 
 ////////////////////////////////////////////////////////////////////////////
 // CONSTRUCTION
@@ -44,7 +45,6 @@ sti::human_infection_cycle::human_infection_cycle(flyweight_ptr          fw,
     , _stage { stage }
     , _mode { mode }
     , _infection_time { infection_time }
-    , _infected_by {}
 {
 }
 
