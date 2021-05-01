@@ -36,7 +36,7 @@ def rename_columns(df: pd.DataFrame):
         'diagnosis.type': 'diagnosis_type',
         'diagnosis.specialty': 'doctor_specialty',
         'diagnosis.attention_datetime_limit.time': 'attention_datetime_limit',
-        'diagnosis.sleep_time.time' : 'sleep_time'
+        'diagnosis.sleep_time.time': 'sleep_time'
     }
 
     df = df.rename(columns=special_renames)
@@ -59,7 +59,8 @@ class AgentsOutput(object):
     human_cols = ['repast_id', 'type', 'entry_time', 'exit_time', 'last_state',
                   'process',
                   'infection_id', 'infection_model', 'infection_mode',
-                  'infection_stage', 'infection_time', 'infected_by']
+                  'infection_stage', 'infection_time', 'infected_by',
+                  'infect_location.x', 'infect_location.y']
 
     patient_cols = [*human_cols,
                     'diagnosis_type', 'doctor_specialty', 'triage_level',
@@ -95,7 +96,8 @@ class AgentsOutput(object):
         # Add the dataframes to the object
         # Split the objects in humans and objects
         self.dataframe = df
-        self.staff = df[(df['infection_model'] == 'human') & (df['type'] != 'patient')][self.human_cols]
+        self.staff = df[(df['infection_model'] == 'human') &
+                        (df['type'] != 'patient')][self.human_cols]
         self.objects = df[df['infection_model'] == 'object'][self.object_cols]
         self.patients = df[df['type'] == 'patient'][self.patient_cols]
 

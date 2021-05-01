@@ -10,6 +10,7 @@
 
 #include "../clock.hpp"
 #include "infection_cycle.hpp"
+#include "../coordinates.hpp"
 
 // Fw. declarations
 namespace boost {
@@ -150,17 +151,23 @@ private:
         ar& _stage;
         ar& _infection_time;
         ar& _infected_by;
+        ar& _infect_location;
         ar& _mode;
     }
+
+    /// @brief Indicate that the patient has been infected
+    /// @param infected_by Who infected the agent
+    void infected(const std::string& infected_by);
 
     flyweight_ptr   _flyweight;
     environment_ptr _environment;
 
-    repast::AgentId _id;
-    STAGE           _stage;
-    MODE            _mode;
-    datetime        _infection_time;
-    std::string     _infected_by;
+    repast::AgentId  _id;
+    STAGE            _stage;
+    MODE             _mode;
+    datetime         _infection_time;
+    std::string      _infected_by;
+    coordinates<int> _infect_location;
 
 }; // class human_infection_cycle
 

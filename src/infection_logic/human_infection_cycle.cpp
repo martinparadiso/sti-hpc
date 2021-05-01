@@ -10,7 +10,6 @@
 
 #include "../contagious_agent.hpp"
 #include "environment.hpp"
-#include "../coordinates.hpp"
 #include "../space_wrapper.hpp"
 
 ////////////////////////////////////////////////////////////////////////////
@@ -23,6 +22,7 @@ sti::human_infection_cycle::human_infection_cycle(flyweight_ptr fw, environment_
     , _environment { env }
     , _stage { STAGE::HEALTHY }
     , _mode { MODE::NORMAL }
+    , _infect_location {}
 {
 }
 
@@ -45,6 +45,7 @@ sti::human_infection_cycle::human_infection_cycle(flyweight_ptr          fw,
     , _stage { stage }
     , _mode { mode }
     , _infection_time { infection_time }
+    , _infect_location {}
 {
 }
 
@@ -115,9 +116,7 @@ void sti::human_infection_cycle::interact_with(const infection_cycle& other)
     const auto random_number = repast::Random::instance()->nextDouble();
     if (random_number < infect_probability) {
         // Got infected
-        _stage          = STAGE::INCUBATING;
-        _infection_time = _flyweight->clk->now();
-        _infected_by    = other.get_id();
+        infected(other.get_id());
     }
 }
 
@@ -133,9 +132,7 @@ void sti::human_infection_cycle::infect_with_environment()
     const auto random_number = repast::Random::instance()->nextDouble();
     if (random_number < _environment->get_probability()) {
         // The agent got infected, store the name
-        _stage          = STAGE::INCUBATING;
-        _infection_time = _flyweight->clk->now();
-        _infected_by    = _environment->name();
+        infected(_environment->name());
     }
 }
 
@@ -205,6 +202,18 @@ boost::json::value sti::human_infection_cycle::stats() const
         { "infection_mode", mtos(_mode) },
         { "infection_stage", stos(_stage) },
         { "infection_time", _infection_time.epoch() },
-        { "infected_by", _infected_by }
+        { "infected_by", _infected_by },
+        { "infect_location", _infect_location }
     };
+}
+
+/// @brief Indicate that the patient has been infected
+/// @param infected_by Who infected the agent
+void sti::human_infection_cycle::infected(const std::string& infected_by)
+{
+
+    _stage           = STAGE::INCUBATING;
+    _infection_time  = _flyweight->clk->now();
+    _infected_by     = infected_by;
+    _infect_location = _flyweight->space->get_discrete_location(_id);
 }
