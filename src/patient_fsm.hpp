@@ -52,6 +52,7 @@ struct patient_fsm {
         WALK_TO_ICU,
         SLEEP,
         RESOLVE,
+        LEAVE_ICU,
         MORGUE,
         WALK_TO_EXIT,
         AWAITING_DELETION,

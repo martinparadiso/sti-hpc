@@ -132,6 +132,10 @@ public:
     /// @return A pointer to the infection logic
     const human_infection_cycle* get_infection_logic() const override;
 
+    /// @brief Get status
+    /// @return The current state of the patient FSM
+    patient_fsm::STATE current_state() const;
+
     /// @brief Execute the patient logic, both infection and behaviour
     void act() final;
 
@@ -148,10 +152,10 @@ private:
         ar& _fsm;
     } // serialize(...)
 
-    flyweight_ptr                    _flyweight;
-    datetime                         _entry_time;
-    human_infection_cycle            _infection_logic;
-    patient_fsm                      _fsm;
+    flyweight_ptr         _flyweight;
+    datetime              _entry_time;
+    human_infection_cycle _infection_logic;
+    patient_fsm           _fsm;
 }; // patient_agent
 
 } // namespace sti

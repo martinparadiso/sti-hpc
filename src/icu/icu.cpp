@@ -21,24 +21,25 @@
 ////////////////////////////////////////////////////////////////////////////
 
 /// @brief Construct an ICU, let the construct figure out which one
+/// @param context A pointer to the repast context
 /// @param communicator The MPI communicator
 /// @param mpi_tag The MPI tag for the communication
 /// @param hospital_props The hospital properties stored in a JSON object
 /// @param hospital_plan The hospital plan.
 /// @param space The space_wrapper
 /// @param clock The simulation clock
-sti::icu::icu(boost::mpi::communicator*  communicator,
-              const repast::Properties&  execution_props,
-              const boost::json::object& hospital_props,
-              const hospital_plan&       hospital_plan,
-              space_wrapper*             space,
-              clock*                     clock)
+sti::icu::icu(repast::SharedContext<contagious_agent>* context,
+              boost::mpi::communicator*                communicator,
+              const boost::json::object&               hospital_props,
+              const hospital_plan&                     hospital_plan,
+              space_wrapper*                           space,
+              clock*                                   clock)
     : _real_icu { [&]() -> decltype(_real_icu) {
         // If the ICU is physically in this process create a real ICU. Ownership
         // is set in the next construct.
-        
+
         if (space->local_dimensions().contains(hospital_plan.icu().location)) {
-            return new real_icu { communicator, mpi_tag, hospital_props, hospital_plan, clock };
+            return new real_icu { context, communicator, mpi_tag, space, hospital_props, hospital_plan, clock };
         }
 
         return nullptr;
@@ -57,7 +58,7 @@ sti::icu::icu(boost::mpi::communicator*  communicator,
             }
             return _real_icu;
         }
-        
+
         // If the real_icu is not here, wait for the message containing the
         // real icu rank and create a proxy
         auto real_rank = 0;
@@ -65,7 +66,6 @@ sti::icu::icu(boost::mpi::communicator*  communicator,
         return new proxy_icu { communicator, mpi_tag, real_rank };
     }() }
 {
-
 }
 
 sti::icu::~icu() = default;

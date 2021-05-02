@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <cstdint>
+#include <repast_hpc/SharedContext.h>
 #include <vector>
 
 #include "../coordinates.hpp"
@@ -30,6 +31,7 @@ class hospital_plan;
 class clock;
 class space_wrapper;
 class object_infection;
+class contagious_agent;
 } // namespace sti
 
 namespace sti {
@@ -44,22 +46,28 @@ public:
     /// @brief Collect different statistics
     struct statistics;
 
+    /// @brief Store the data of the deseased patients
+    struct morgue;
+
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Construct a real ICU keeping track of beds assigned
+    /// @param context A pointer to the repast context
     /// @param communicator The MPI communicator
     /// @param mpi_tag The MPI tag for the communication
+    /// @param space The space_wrapper
     /// @param hospital_props The hospital properties stored in a JSON object
     /// @param hospital_plan The hospital plan.
-    /// @param space The space_wrapper
     /// @param clock The simulation clock
-    real_icu(communicator_ptr           communicator,
-             int                        mpi_tag,
-             const boost::json::object& hospital_props,
-             const hospital_plan&       hospital_plan,
-             clock*                     clock);
+    real_icu(repast::SharedContext<contagious_agent>* context,
+             communicator_ptr                         communicator,
+             int                                      mpi_tag,
+             space_wrapper*                           space,
+             const boost::json::object&               hospital_props,
+             const hospital_plan&                     hospital_plan,
+             clock*                                   clock);
 
     real_icu(const real_icu&) = delete;
     real_icu& operator=(const real_icu&) = delete;
@@ -110,6 +118,10 @@ public:
     // BEHAVIOUR
     ////////////////////////////////////////////////////////////////////////////
 
+    /// @brief Kill a patient, remove it from the simulation
+    /// @param patient_ptr A pointer to the patient being removed
+    void kill(sti::patient_agent* patient_ptr);
+
     /// @brief Absorb nearby agents into the ICU void
     /// @details The ICU is implemented as an spaceless entity, patients are
     /// absorbed into the ICU dimension and dissapear from space. They can
@@ -125,10 +137,11 @@ public:
     void save(const std::string& folderpath) const;
 
 private:
-    communicator_ptr _communicator;
-    int              _mpi_base_tag;
-
-    clock*         _clock;
+    repast::SharedContext<contagious_agent>* _context;
+    communicator_ptr                         _communicator;
+    int                                      _mpi_base_tag;
+    space_wrapper*                           _space;
+    clock*                                   _clock;
 
     coordinates<int> _icu_location;
 
@@ -138,6 +151,8 @@ private:
     icu_environment                                          _environment;
 
     std::vector<response_message> _pending_responses;
+
+    std::unique_ptr<morgue> _morgue;
 
     std::unique_ptr<statistics> _stats;
 };

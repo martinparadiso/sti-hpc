@@ -99,7 +99,7 @@ boost::json::object sti::patient_agent::stats() const
         { "infection", _infection_logic.stats() },
         { "exit_time", _flyweight->clk->now().epoch() },
         { "last_state", _fsm.last_state },
-        { "diagnosis", boost::apply_visitor([](const auto& v) { return v.stats();}, _fsm.diagnosis) }
+        { "diagnosis", boost::apply_visitor([](const auto& v) { return v.stats(); }, _fsm.diagnosis) }
     };
 }
 
@@ -122,6 +122,13 @@ sti::human_infection_cycle* sti::patient_agent::get_infection_logic()
 const sti::human_infection_cycle* sti::patient_agent::get_infection_logic() const
 {
     return &_infection_logic;
+}
+
+/// @brief Get status
+/// @return The current state of the patient FSM
+sti::patient_fsm::STATE sti::patient_agent::current_state() const
+{
+    return _fsm.current_state;
 }
 
 /// @brief Execute the patient logic, both infection and behaviour

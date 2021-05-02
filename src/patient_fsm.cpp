@@ -1,6 +1,5 @@
 #include "patient_fsm.hpp"
 
-#include <iostream>
 #include <repast_hpc/AgentId.h>
 #include <variant>
 
@@ -71,6 +70,8 @@ std::string state_2_string(sti::patient_fsm::STATE state)
         return "SLEEP";
     case STATE::RESOLVE:
         return "RESOLVE";
+    case STATE::LEAVE_ICU:
+        return "LEAVE_ICU";
     case STATE::MORGUE:
         return "MORGUE";
     case STATE::WALK_TO_EXIT:
@@ -313,6 +314,10 @@ sti::patient_fsm::transition_table create_transition_table()
         return !boost::get<sti::triage::icu_diagnosis>(m.diagnosis).survives;
     };
 
+    auto kill = [](fsm& m) {
+        m.last_state = state_2_string(m.current_state);
+    };
+
     ////////////////////////////////////////////////////////////////////////////
     // EXIT TRANSITION
     ////////////////////////////////////////////////////////////////////////////
@@ -463,19 +468,26 @@ sti::patient_fsm::transition_table create_transition_table()
     table[STATE::SLEEP] = {
     //    GUARD           ACTION              DESTINATION
     //  +---------------+-------------------+-------------------+
-        { time_elapsed  , leave_icu         , STATE::RESOLVE   },
+        { time_elapsed  , empty             , STATE::RESOLVE   },
     };
 
     table[STATE::RESOLVE] = {
     //    GUARD           ACTION                              DESTINATION
     //  +---------------+-----------------------------------+-----------------------+
-        { alive         , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT   },
+        { alive         , leave_icu                         , STATE::LEAVE_ICU      },
         { dead          , empty                             , STATE::MORGUE         }
     };
 
-    table[STATE::MORGUE] = {
-        // TODO: Implement properly
+    table[STATE::LEAVE_ICU] = {
+    //    GUARD           ACTION                              DESTINATION
+    //  +---------------+-----------------------------------+-----------------------+
         { always_true   , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT   }
+    };
+
+    table[STATE::MORGUE] = {
+    //    GUARD           ACTION      DESTINATION
+    //  +---------------+-----------+-----------------------+
+        { always_true   , kill     , STATE::AWAITING_DELETION   }
     };
 
     table[STATE::WALK_TO_EXIT] = {
@@ -486,7 +498,7 @@ sti::patient_fsm::transition_table create_transition_table()
     };
 
     table[STATE::AWAITING_DELETION] = {
-        { always_true, [&](fsm& m) { std::cout << m.patient->getId() << " NOT REMOVED\n";}, STATE::AWAITING_DELETION}
+        
     };
 
     // clang-format on

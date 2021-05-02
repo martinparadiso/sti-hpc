@@ -54,7 +54,8 @@ class AgentsOutput(object):
                    'exit.p*.json',
                    'icu_beds.p*.json',
                    'chairs.p*.json',
-                   'staff.p*.json')
+                   'staff.p*.json',
+                   'morgue.p*.json')
 
     human_cols = ['repast_id', 'type', 'entry_time', 'exit_time', 'last_state',
                   'process',

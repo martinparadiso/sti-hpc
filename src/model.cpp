@@ -357,7 +357,7 @@ void sti::model::init()
     _reception.reset(new reception { *_props, _communicator, _hospital });
     _triage.reset(new triage { *_props, _hospital_props, _communicator, _clock.get(), _hospital });
     _doctors = std::make_unique<doctors>(*_props, _hospital_props, _communicator, _hospital);
-    _icu.reset(new icu(_communicator, *_props, _hospital_props, _hospital, &_spaces, _clock.get()));
+    _icu.reset(new icu(&_context, _communicator, _hospital_props, _hospital, &_spaces, _clock.get()));
 
     // Create the agent factory
     _agent_factory.reset(new agent_factory { _communicator,

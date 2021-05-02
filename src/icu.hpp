@@ -2,6 +2,7 @@
 /// @brief ICU manager, keeps track of all the beds
 #pragma once
 
+#include <repast_hpc/SharedContext.h>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -55,18 +56,19 @@ public:
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief Construct an ICU, let the construct figure out which one
+    /// @param context A pointer to the repast context
     /// @param communicator The MPI communicator
     /// @param mpi_tag The MPI tag for the communication
     /// @param hospital_props The hospital properties stored in a JSON object
     /// @param hospital_plan The hospital plan.
     /// @param space The space_wrapper
     /// @param clock The simulation clock
-    icu(boost::mpi::communicator*  communicator,
-        const repast::Properties&  execution_props,
-        const boost::json::object& hospital_props,
-        const hospital_plan&       hospital_plan,
-        space_wrapper*             space,
-        clock*                     clock);
+    icu(repast::SharedContext<contagious_agent>* context,
+        boost::mpi::communicator*                communicator,
+        const boost::json::object&               hospital_props,
+        const hospital_plan&                     hospital_plan,
+        space_wrapper*                           space,
+        clock*                                   clock);
 
     icu(const icu&) = delete;
     icu& operator=(const icu&) = delete;
@@ -109,7 +111,6 @@ public:
     void save(const std::string& folderpath) const;
 
 private:
-
     // The wrapper stores an owning pointer to an abstract icu_admission and a
     // raw pointer to the real icu, in case the real_icu is in this process
     real_icu*                      _real_icu;

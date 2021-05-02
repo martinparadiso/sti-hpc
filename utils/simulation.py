@@ -932,6 +932,7 @@ class Simulation(object):
 
         if print_command:
             print(' '.join(command))
-        result = subprocess.run(command, stdout=subprocess.PIPE)
-
-        return result
+        result = subprocess.run(command, capture_output=True, text=True)
+        
+        print(result.stdout)
+        print(result.stderr)
