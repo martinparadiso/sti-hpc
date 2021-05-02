@@ -100,7 +100,7 @@ public:
             cache_file << "datetime,hits,misses\n";
 
             for (const auto& entry : _cache) {
-                cache_file << entry.datetime.epoch() << ','
+                cache_file << entry.datetime.seconds_since_epoch() << ','
                            << entry.cache_hit << ','
                            << entry.cache_miss << '\n';
             }

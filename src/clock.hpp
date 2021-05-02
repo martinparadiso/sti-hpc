@@ -125,7 +125,7 @@ public:
 
     /// @brief Get the length of this timedelta, in seconds
     /// @return The number of seconds
-    constexpr auto epoch() const
+    constexpr auto seconds_since_epoch() const
     {
         return _timedelta.length();
     }
@@ -210,35 +210,35 @@ constexpr timedelta operator+(const timedelta& lho, const timedelta& rho)
 /// @brief Add a timedelta to a datetime
 constexpr datetime operator+(const datetime& lho, const timedelta& rho)
 {
-    return datetime { lho.epoch() + rho.length() };
+    return datetime { lho.seconds_since_epoch() + rho.length() };
 }
 
 /// @brief Compare two instants of time
 /// @return True if right time is older, false otherwise
 constexpr bool operator<(const datetime& lho, const datetime& rho)
 {
-    return lho.epoch() < rho.epoch();
+    return lho.seconds_since_epoch() < rho.seconds_since_epoch();
 }
 
 /// @brief Compare two instants of time
 /// @return True if right time is older or equal, false otherwise
 constexpr bool operator<=(const datetime& lho, const datetime& rho)
 {
-    return lho.epoch() <= rho.epoch();
+    return lho.seconds_since_epoch() <= rho.seconds_since_epoch();
 }
 
 /// @brief Compare two instants of time
 /// @return True if datetimes are equal, false otherwise
 constexpr bool operator==(const datetime& lho, const datetime& rho)
 {
-    return lho.epoch() == rho.epoch();
+    return lho.seconds_since_epoch() == rho.seconds_since_epoch();
 }
 
 /// @brief Compare two instants of time
 /// @return True if datetimes are not equal, false otherwise
 constexpr bool operator!=(const datetime& lho, const datetime& rho)
 {
-    return !(lho.epoch() == rho.epoch());
+    return !(lho.seconds_since_epoch() == rho.seconds_since_epoch());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -255,7 +255,7 @@ inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::valu
 inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const datetime& td)
 {
     jv = {
-        { "time", td.epoch() }
+        { "time", td.seconds_since_epoch() }
     };
 }
 

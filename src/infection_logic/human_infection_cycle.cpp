@@ -201,7 +201,7 @@ boost::json::value sti::human_infection_cycle::stats() const
         { "infection_model", "human" },
         { "infection_mode", mtos(_mode) },
         { "infection_stage", stos(_stage) },
-        { "infection_time", _infection_time.epoch() },
+        { "infection_time", _infection_time.seconds_since_epoch() },
         { "infected_by", _infected_by },
         { "infect_location", _infect_location }
     };

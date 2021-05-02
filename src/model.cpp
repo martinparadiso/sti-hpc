@@ -293,7 +293,7 @@ public:
 
             for (const auto& iteration : _agents_locations) {
                 for (const auto& agent : iteration.agents) {
-                    file << iteration.time.epoch() << ","
+                    file << iteration.time.seconds_since_epoch() << ","
                          << to_string(agent.id) << ","
                          << agent.location.x << ','
                          << agent.location.y << '\n';

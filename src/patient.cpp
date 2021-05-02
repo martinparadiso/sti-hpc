@@ -95,9 +95,9 @@ boost::json::object sti::patient_agent::stats() const
     return {
         { "repast_id", to_string(getId()) },
         { "type", "patient" },
-        { "entry_time", _entry_time.epoch() },
+        { "entry_time", _entry_time.seconds_since_epoch() },
         { "infection", _infection_logic.stats() },
-        { "exit_time", _flyweight->clk->now().epoch() },
+        { "exit_time", _flyweight->clk->now().seconds_since_epoch() },
         { "last_state", _fsm.last_state },
         { "diagnosis", boost::apply_visitor([](const auto& v) { return v.stats(); }, _fsm.diagnosis) }
     };

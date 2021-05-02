@@ -262,7 +262,7 @@ void sti::real_icu::save(const std::string& folderpath) const
     file << "time,beds_reserved,beds_in_use\n";
 
     for (const auto& status : _stats->tick_status) {
-        file << status.time.epoch() << ","
+        file << status.time.seconds_since_epoch() << ","
              << status.beds_reserved << ","
              << status.beds_in_use << "\n";
     }
@@ -278,14 +278,14 @@ void sti::real_icu::save(const std::string& folderpath) const
     inout_file << "time,agent,type\n";
 
     for (const auto& admission : _stats->agent_admission) {
-        inout_file << admission.second.epoch() << ","
+        inout_file << admission.second.seconds_since_epoch() << ","
                    << to_string(admission.first) << ","
                    << "admission"
                    << "\n";
     }
 
     for (const auto& release : _stats->agent_release) {
-        inout_file << release.second.epoch() << ","
+        inout_file << release.second.seconds_since_epoch() << ","
                    << to_string(release.first) << ","
                    << "release"
                    << "\n";
@@ -293,7 +293,7 @@ void sti::real_icu::save(const std::string& folderpath) const
 
     for (const auto& rejection : _stats->rejections) {
         inout_file << to_string(rejection.first) << ","
-                   << rejection.second.epoch() << ","
+                   << rejection.second.seconds_since_epoch() << ","
                    << "rejection"
                    << "\n";
     }
