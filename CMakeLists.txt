@@ -89,7 +89,7 @@ sanitize_address(sti-demo)
 # Boost
 target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/boost/lib")
 target_include_directories(sti-demo SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/lib/boost/include/)
-target_link_libraries(sti-demo PUBLIC boost_system-mt-x64 boost_filesystem-mt-x64 boost_serialization-mt-x64 boost_mpi-mt-x64)
+target_link_libraries(sti-demo PUBLIC boost_system-mt-x64 boost_filesystem-mt-x64 boost_serialization-mt-x64 boost_mpi-mt-x64 boost_json-mt-x64)
 
 # MPICH
 target_link_directories(sti-demo PRIVATE "${PROJECT_SOURCE_DIR}/lib/mpich/lib")

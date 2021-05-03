@@ -29,6 +29,16 @@ def check_run(program_return, report):
 
 class Library(object):
 
+    download_folder = None
+    install_folder = None
+    name = None
+    filename = None
+    version = None
+    requires = ()
+    debug = None
+    jobs = None
+
+
     def download(self):
         """Download the given Library"""
 
@@ -208,6 +218,7 @@ class Boost(Library):
 
     name = 'boost'
     requires = ('mpich')
+    boost_libs = ('system', 'filesystem', 'mpi', 'serialization', 'json')
 
     def __init__(self, version, download_folder, install_folder, args):
         self.version = version.split('.')
@@ -230,7 +241,7 @@ class Boost(Library):
 
         bootstrap = subprocess.run(['./bootstrap.sh',
                                     f"--prefix={self.install_folder}/boost/",
-                                    '--with-libraries=system,filesystem,mpi,serialization'],
+                                    f"--with-libraries={','.join(self.boost_libs)}"],
                                    cwd=workdir)
 
         if bootstrap.returncode != 0:
