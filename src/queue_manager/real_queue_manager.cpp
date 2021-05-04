@@ -15,7 +15,6 @@ sti::real_queue_manager::real_queue_manager(communicator_ptr                    
                                             const std::vector<coordinates<double>>& boxes)
     : _communicator { comm }
     , _tag { tag }
-    , _queue {}
     , _boxes { boxes }
 {
 }

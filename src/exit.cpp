@@ -53,7 +53,8 @@ void sti::hospital_exit::tick()
 
     // Remove all the agents in the exit position
     for (const auto& agent : agents) {
-        const auto& data = agent->stats();
+        auto data         = agent->stats();
+        data["exit_time"] = _clock->now().seconds_since_epoch();
         _pimpl->agent_output_data.push_back(data);
         _space->remove_agent(agent);
         _context->removeAgent(agent);

@@ -521,7 +521,8 @@ void sti::model::remove_remnants(const std::string& folderpath)
 
     auto output = boost::json::array {};
     for (auto it = _context.localBegin(); it != _context.localEnd(); ++it) {
-        output.push_back((**it).stats());
+        auto stats = (**it).stats();
+        output.push_back(stats);
         to_remove.push_back((**it).getId());
     }
 

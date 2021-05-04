@@ -13,9 +13,6 @@ sti::proxy_queue_manager::proxy_queue_manager(communicator_ptr comm, int tag, in
     : _communicator(comm)
     , _tag { tag }
     , _real_rank { real_rank }
-    , _front {}
-    , _to_enqueue {}
-    , _to_dequeue {}
 {
 }
 

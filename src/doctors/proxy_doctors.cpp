@@ -16,7 +16,6 @@ sti::proxy_doctors::proxy_doctors(communicator_ptr communicator, int real_rank, 
     : _communicator { communicator }
     , _real_rank(real_rank)
     , _base_tag { mpi_tag }
-    , _front {}
 {
 }
 

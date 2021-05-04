@@ -400,7 +400,9 @@ void sti::real_icu::kill(sti::patient_agent* patient_ptr)
     // Update stats
     _stats->agent_release.push_back({ patient_ptr->getId(), _clock->now() });
 
-    _morgue->agent_output_data.push_back(patient_ptr->stats());
+    auto stats         = patient_ptr->stats();
+    stats["exit_time"] = _clock->now().seconds_since_epoch();
+    _morgue->agent_output_data.push_back(stats);
     _space->remove_agent(patient_ptr);
     _context->removeAgent(patient_ptr);
 
