@@ -317,10 +317,6 @@ class Hospital(object):
         Parameter('icu', type={
             Parameter('beds', type=int,
                       validate=lambda x: (x >= 0, 'Must be >= 0')),
-            Parameter('environment', {
-                Parameter('infection_probability', float, prob=True)
-            }),
-            Parameter('death_probability', float, prob=True),
             Parameter('sleep_times', islist=True, type={
                 Parameter('time', TimePeriod),
                 Parameter('probability', float, pgroup='icu_sleep_times')

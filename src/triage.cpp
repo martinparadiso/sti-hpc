@@ -118,7 +118,7 @@ sti::triage::triage(const properties_type&     execution_props,
         return times;
     }() }
     , _icu_death_probability { [&]() {
-        return hospital_props.at("parameters").at("icu").at("death_probability").as_double();
+        return hospital_props.at("parameters").at("triage").at("icu").at("death_probability").as_double();
     }() }
 {
     // Make sure all probabilities sum 1
