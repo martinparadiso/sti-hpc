@@ -17,7 +17,7 @@ namespace debug {
     constexpr auto per_tick_performance = false;
 
     /// @brief Record the patients locations/movement
-    constexpr auto track_movements = false;
+    constexpr auto track_movements = true;
 
     /// @brief Disable any cross-process synchronization
     /// @warning The simulation must run in only one process, otherwise it will crash
