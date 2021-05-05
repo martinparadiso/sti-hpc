@@ -270,7 +270,10 @@ class Hospital(object):
             Parameter('infect_distance', float,
                       validate=lambda v: (v >= 0, 'Must be >= 0')),
             Parameter('contamination_probability', float, prob=True),
-            Parameter('incubation_time', TimePeriod),
+            Parameter('incubation_time', {
+                Parameter('min', TimePeriod),
+                Parameter('max', TimePeriod)
+            }),
         }),
         Parameter('objects', {
             Parameter('chair', {

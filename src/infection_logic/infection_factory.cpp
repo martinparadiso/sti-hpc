@@ -26,7 +26,8 @@ sti::infection_factory::infection_factory(const boost::json::object& hospital_pr
         hospital_props.at("parameters").at("human").at("infect_probability").as_double(),
         hospital_props.at("parameters").at("human").at("infect_distance").as_double(),
         hospital_props.at("parameters").at("human").at("contamination_probability").as_double(),
-        boost::json::value_to<sti::timedelta>(hospital_props.at("parameters").at("human").at("incubation_time"))
+        boost::json::value_to<sti::timedelta>(hospital_props.at("parameters").at("human").at("incubation_time").at("min")),
+        boost::json::value_to<sti::timedelta>(hospital_props.at("parameters").at("human").at("incubation_time").at("max"))
     }
     , _object_flyweights { [&]() {
         auto map = decltype(_object_flyweights) {};

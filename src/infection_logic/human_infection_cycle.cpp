@@ -160,7 +160,7 @@ void sti::human_infection_cycle::tick()
     // The infection cycle must go from INCUBATING to SICK if the correpsonding
     // time has elapsed
     if (_stage == STAGE::INCUBATING) {
-        if (_infection_time + _flyweight->incubation_time < _flyweight->clk->now()) {
+        if (_incubation_end < _flyweight->clk->now()) {
             _stage = STAGE::SICK;
         }
     }
@@ -202,6 +202,7 @@ boost::json::value sti::human_infection_cycle::stats() const
         { "infection_mode", mtos(_mode) },
         { "infection_stage", stos(_stage) },
         { "infection_time", _infection_time.seconds_since_epoch() },
+        { "incubation_end", _incubation_end.seconds_since_epoch() },
         { "infected_by", _infected_by },
         { "infect_location", _infect_location }
     };
@@ -212,8 +213,14 @@ boost::json::value sti::human_infection_cycle::stats() const
 void sti::human_infection_cycle::infected(const std::string& infected_by)
 {
 
-    _stage           = STAGE::INCUBATING;
-    _infection_time  = _flyweight->clk->now();
-    _infected_by     = infected_by;
-    _infect_location = _flyweight->space->get_discrete_location(_id);
+    _stage = STAGE::INCUBATING;
+    // The infection time is a uniform distribution in the range [min, max],
+    // generate a random integer in the range [0, max - min], then offset it
+    const auto range           = _flyweight->max_incubation_time.length() - _flyweight->min_incubation_time.length();
+    const auto random          = static_cast<timedelta::resolution>(repast::Random::instance()->nextDouble() * static_cast<double>(range));
+    const auto incubation_time = timedelta { _flyweight->min_incubation_time.length() + random };
+    _infection_time            = _flyweight->clk->now();
+    _incubation_end            = _infection_time + incubation_time;
+    _infected_by               = infected_by;
+    _infect_location           = _flyweight->space->get_discrete_location(_id);
 }
