@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
+import postprocess as pp
+import simulation as sim
+import numpy as np
+import random
 from pathlib import Path
 import sys
 sys.path.append(Path(__file__).parent)
-import random
-import numpy as np
-import simulation as sim
-import postprocess as pp
 
 
 width = 53
@@ -101,8 +101,12 @@ hospital.parameters = {
                 'probability': 0.088623115
             },
             {
-                'time': sim.TimePeriod(3, 7, 60, 0),
+                'time': sim.TimePeriod(3, 7, 12, 0),
                 'probability': 0.017333166
+            },
+            {
+                'time': sim.TimePeriod(3, 16, 48, 0),
+                'probability': 0.032968386
             },
             {
                 'time': sim.TimePeriod(4, 4, 48, 0),
@@ -129,8 +133,36 @@ hospital.parameters = {
                 'probability': 0.100224175
             },
             {
-                'time': sim.TimePeriod(4, 9, 36, 0),
-                'probability': 0.100335789
+                'time': sim.TimePeriod(6, 12, 0, 0),
+                'probability': 0.084432757
+            },
+            {
+                'time': sim.TimePeriod(6, 16, 48, 0),
+                'probability': 0.117953925
+            },
+            {
+                'time': sim.TimePeriod(7, 9, 36, 0),
+                'probability': 0.053206605
+            },
+            {
+                'time': sim.TimePeriod(8, 0, 0, 0),
+                'probability': 0.026187069
+            },
+            {
+                'time': sim.TimePeriod(9, 4, 48, 0),
+                'probability': 0.122177398
+            },
+            {
+                'time': sim.TimePeriod(9, 7, 12, 0),
+                'probability': 0.033379033
+            },
+            {
+                'time': sim.TimePeriod(10, 4, 48, 0),
+                'probability': 0.037753818
+            },
+            {
+                'time': sim.TimePeriod(29, 16, 48, 0),
+                'probability': 0.094000000
             }
         ]
     },
@@ -225,13 +257,16 @@ hospital.parameters = {
     ],
     'patient': {
         'walk_speed': 0.2,
-        'influx': np.array([[random.randint(1, 10) for i in range(12)] for j in range(365)]),
-        'infected_probability': 0.3
+        'infected_probability': np.array([0.3 for d in range(365)]),
+        'influx': np.array([[random.randint(1, 10) for i in range(12)] for j in range(365)])
     },
     'human': {
         'infect_distance': 2.0,
         'contamination_probability': 0.1,
-        'incubation_time': sim.TimePeriod(0, 2, 0, 0),
+        'incubation_time': {
+            'min': sim.TimePeriod(0, 14, 0, 0),
+            'max': sim.TimePeriod(6, 0,  0, 0)
+        },
         'infect_probability': 0.5
     },
     'personnel': {
