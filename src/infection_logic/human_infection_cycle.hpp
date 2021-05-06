@@ -44,7 +44,8 @@ public:
         precission infect_probability {};
         precission infect_distance {};
         precission contamination_probability {};
-        timedelta  incubation_time;
+        timedelta  min_incubation_time;
+        timedelta  max_incubation_time;
     };
 
     using flyweight_ptr   = const flyweight*;
@@ -152,6 +153,7 @@ private:
         ar& _infection_time;
         ar& _infected_by;
         ar& _infect_location;
+        ar& _incubation_end;
         ar& _mode;
     }
 
@@ -166,6 +168,7 @@ private:
     STAGE            _stage;
     MODE             _mode;
     datetime         _infection_time;
+    datetime         _incubation_end;
     std::string      _infected_by;
     coordinates<int> _infect_location;
 

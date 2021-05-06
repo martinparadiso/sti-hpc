@@ -61,7 +61,7 @@ class AgentsOutput(object):
                   'process',
                   'infection_id', 'infection_model', 'infection_mode',
                   'infection_stage', 'infection_time', 'infected_by',
-                  'infect_location.x', 'infect_location.y']
+                  'infect_location.x', 'infect_location.y', 'incubation_end']
 
     patient_cols = [*human_cols,
                     'diagnosis_type', 'doctor_specialty', 'triage_level',
@@ -72,7 +72,7 @@ class AgentsOutput(object):
                    'infections']
 
     time_cols = ['infection_time', 'entry_time', 'exit_time',
-                 'attention_datetime_limit', 'sleep_time']
+                 'attention_datetime_limit', 'sleep_time', 'incubation_end']
 
     def __init__(self, folderpath):
 

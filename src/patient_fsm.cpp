@@ -1,5 +1,6 @@
 #include "patient_fsm.hpp"
 
+#include <algorithm>
 #include <repast_hpc/AgentId.h>
 #include <variant>
 
@@ -156,14 +157,19 @@ sti::patient_fsm::transition_table create_transition_table()
     };
 
     auto walk = [](fsm& m) {
-        // Ask the pathfinder for the next step towards the destination
-        const auto my_loc = m.patient_flyweight->space->get_discrete_location(m.patient->getId());
-        const auto next   = m.patient_flyweight->hospital->get_pathfinder()->next_step(my_loc, m.destination.discrete());
+        auto movement_left    = m.patient_flyweight->walk_speed * m.patient_flyweight->clk->seconds_per_tick();
+        auto current_location = m.patient_flyweight->space->get_continuous_location(m.patient->getId());
 
-        m.patient_flyweight->space->move_towards(
-            m.patient->getId(),
-            next.continuous(),
-            m.patient_flyweight->walk_speed * m.patient_flyweight->clk->seconds_per_tick());
+        while (movement_left > 0.0 && current_location != m.destination) {
+            const auto next_cell         = m.patient_flyweight->hospital->get_pathfinder()->next_step(current_location.discrete(),
+                                                                                              m.destination.discrete());
+            const auto new_location      = m.patient_flyweight->space->move_towards(m.patient->getId(),
+                                                                               next_cell.continuous(),
+                                                                               movement_left);
+            const auto distance_traveled = sti::sq_distance(new_location, current_location);
+            current_location             = new_location;
+            movement_left -= distance_traveled;
+        }
     };
 
     ////////////////////////////////////////////////////////////////////////////
