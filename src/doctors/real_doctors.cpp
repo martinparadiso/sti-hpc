@@ -7,6 +7,7 @@
 #include <boost/serialization/list.hpp>
 #include <boost/serialization/utility.hpp>
 #include <boost/mpi/communicator.hpp>
+#include <sstream>
 #include <vector>
 #include <iostream>
 
@@ -30,6 +31,20 @@ sti::real_doctors::real_doctors(communicator_ptr communicator, int mpi_tag, cons
             return queue;
         }()
     }
+    , _patients_queue{ [&]() {
+        auto pq = decltype(_patients_queue) {};
+        for (const auto& [doc_spec, q] : _doctors) {
+            pq[doc_spec];
+        }
+        return pq;
+    }() }
+    , _front { [&]() {
+        auto front = decltype(_front) {};
+        for (const auto& [doc_spec, q] : _doctors) {
+            front[doc_spec];
+        }
+        return front;
+    }() }
 {
 }
 
@@ -136,15 +151,19 @@ void sti::real_doctors::sync()
 
     // If the print flag is true, print the front
     if constexpr (sti::debug::doctors_print_front) {
-        std::cout << "Current doctors: \n";
+        auto os = std::ostringstream {};
+        os << "Current doctors: \n";
         for (const auto& [doc_type, queue] : _front) {
-            std::cout << "-> " << doc_type << "\n";
+            os << "-> " << doc_type << "\n";
             for (const auto& turn : queue) {
-                std::cout << "   -> "
-                          << turn.first << " "
-                          << turn.second
-                          << "\n";
+                os << "   -> "
+                   << turn.first << " "
+                   << turn.second
+                   << "\n";
             }
+        }
+        if (os.str().size() > 18) {
+            std::cout << os.str();
         }
     } // if constexpr
 
@@ -178,7 +197,7 @@ void sti::real_doctors::insert_in_order(const doctor_type& type, const patient_t
 
     // std::list doesn't suport random access, (queue.begin() + P), must iterate P
     // times incrementing the iterator
-    const auto front_size  = _doctors[type].size();
+    const auto front_size  = _doctors.at(type).size();
     const auto queue_begin = [&]() {
         auto begin = queue.begin();
         for (auto p = 0UL; p < front_size; ++p) {
@@ -209,7 +228,7 @@ void sti::real_doctors::insert_in_order(const doctor_type& type, const patient_t
 /// @param id The agent id
 void sti::real_doctors::remove_patient(const doctor_type& type, const agent_id& id)
 {
-    _patients_queue[type].remove_if([&](const auto& turn) {
+    _patients_queue.at(type).remove_if([&](const auto& turn) {
         return turn.id == id;
     });
 }
