@@ -3,8 +3,10 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/serialization/optional.hpp>
 #include <boost/serialization/vector.hpp>
+#include <cstdint>
 #include <fstream>
 #include <memory>
+#include <repast_hpc/Random.h>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -23,7 +25,7 @@
 /// @brief Construct a chair manager
 /// @param space A pointer to the space wrapper
 sti::chair_manager::chair_manager(const space_wrapper* space)
-: _space{space}
+    : _space { space }
 {
 }
 
@@ -201,20 +203,32 @@ void release(std::vector<sti::real_chair_manager::chair>& chair_pool,
 /// @param chair_pool The pool of chairs
 sti::chair_response_msg search_chair(std::vector<sti::real_chair_manager::chair>& chair_pool)
 {
+    // Chairs assigned need to be random otherwise the first chair will be
+    // constantly in use, and infection rate goes to hell.
+    // To pick a random chair, generate a random number in the range
+    // [0, number_of_chairs), and start looking for an empty chair at that point
+    // If after number_of_chairs iterations none is found, there are no chairs
+    // available.
+    // FIXME: it will be easier to keep a counter with the number of empty
+    // chairs, to determine if there are chairs available in O(1) instead of 
+    // this horrible O(N)
 
-    auto cp_it = chair_pool.begin();
+    auto c          = static_cast<std::uint32_t>(repast::Random::instance()->nextDouble() * static_cast<double>(chair_pool.size()));
+    auto iterations = 0U;
 
-    while (cp_it != chair_pool.end() && cp_it->in_use) {
-        ++cp_it;
+    while (iterations < chair_pool.size()) {
+
+        if (!chair_pool.at(c).in_use) {
+            chair_pool.at(c).in_use = true;
+            return sti::chair_response_msg { {}, chair_pool.at(c).location };
+        }
+
+        ++c;
+        c = c >= chair_pool.size() ? 0 : c;
+        ++iterations;
     }
-
-    if (cp_it == chair_pool.end()) {
-        return sti::chair_response_msg { {}, boost::none };
-    }
-
-    // Mark the chair as used and return
-    cp_it->in_use = true;
-    return sti::chair_response_msg { {}, cp_it->location };
+    
+    return sti::chair_response_msg { {}, boost::none };
 }
 
 } // namespace
