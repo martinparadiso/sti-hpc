@@ -93,24 +93,44 @@ hospital.parameters = {
         'beds': 90,
         'sleep_times': [
             {
-                'time': sim.TimePeriod(1, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(2, 14, 24, 0),
+                'probability': 0.004748328
             },
             {
-                'time': sim.TimePeriod(2, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(3, 0, 0, 0),
+                'probability': 0.088623115
             },
             {
-                'time': sim.TimePeriod(4, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(3, 7, 60, 0),
+                'probability': 0.017333166
             },
             {
-                'time': sim.TimePeriod(8, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(4, 4, 48, 0),
+                'probability': 0.013086353
             },
             {
-                'time': sim.TimePeriod(16, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(4, 9, 36, 0),
+                'probability': 0.100335789
+            },
+            {
+                'time': sim.TimePeriod(4, 16, 48, 0),
+                'probability': 0.066380434
+            },
+            {
+                'time': sim.TimePeriod(4, 21, 36, 0),
+                'probability': 0.000017555
+            },
+            {
+                'time': sim.TimePeriod(6, 7, 12, 0),
+                'probability': 0.007899849
+            },
+            {
+                'time': sim.TimePeriod(6, 9, 36, 0),
+                'probability': 0.100224175
+            },
+            {
+                'time': sim.TimePeriod(4, 9, 36, 0),
+                'probability': 0.100335789
             }
         ]
     },
