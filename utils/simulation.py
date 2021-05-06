@@ -292,7 +292,9 @@ class Hospital(object):
         Parameter('patient', {
             Parameter('walk_speed', float,
                       validate=lambda x: (x >= 0, 'Must be >= 0')),
-            Parameter('infected_probability', float, prob=True),
+            Parameter('infected_probability', np.ndarray,
+                      validate=lambda v: (len(v.shape) == 1 and v.dtype == 'float64',
+                                          'Must be a vector of doubles')),
             Parameter('influx', np.ndarray,
                       validate=lambda v: (len(v.shape) == 2 and v.dtype == 'int64',
                                           'Must be a matrix of ints'))
@@ -304,7 +306,8 @@ class Hospital(object):
             Parameter('attention_time', TimePeriod),
             Parameter('icu', {
                 Parameter('death_probability', float, prob=True),
-                Parameter('probability', float, prob=True, pgroup='triage_diagnosis'),
+                Parameter('probability', float, prob=True,
+                          pgroup='triage_diagnosis'),
             }),
             Parameter('doctors_probabilities', islist=True, type={
                 Parameter('specialty', str),
@@ -409,16 +412,16 @@ class HospitalPlotter(object):
     """Render a hospital plan"""
 
     def __init__(self, hospital: Hospital):
-        
+
         self.plan = [[' ' for y in range(hospital.dimensions[1])]
-                    for x in range(hospital.dimensions[0])]
+                     for x in range(hospital.dimensions[0])]
         self.elements = hospital.elements
-        
+
     def to_console(self):
         """Print the hospital to console"""
         for element in self.elements:
             element.put_char_art(self.plan)
-        
+
         for y in range(len(self.plan[0]) - 1, -1, -1):
             for x in range(len(self.plan)):
                 print(self.plan[x][y], end='')
@@ -485,6 +488,7 @@ class DoctorOffice(HospitalElement):
     def put_char_art(self, plan):
         plan[self.doctor_location.x][self.doctor_location.y] = 'D'
         plan[self.patient_location.x][self.patient_location.y] = 'P'
+
 
 class Wall(HospitalElement):
     """
@@ -594,7 +598,7 @@ class Triage(HospitalElement):
             dictionary['building'][self.store_key].append(data)
         except:
             dictionary['building'][self.store_key] = [data]
-    
+
     def put_char_art(self, plan):
         plan[self.patient_location.x][self.patient_location.y] = self.char_art
 
@@ -628,6 +632,7 @@ class Receptionist(HospitalElement):
     def put_char_art(self, plan):
         plan[self.receptionist_location.x][self.receptionist_location.y] = 'R'
         plan[self.patient_location.x][self.patient_location.y] = 'P'
+
 
 class SimulationProperties(object):
     """
@@ -896,7 +901,7 @@ class Simulation(object):
         if value is not None:
             if not 0 <= value < self.props.number_of_processes:
                 raise Exception(('wait_for_debugger should be in the range '
-                                f"[0, {self.props.number_of_processes})"))
+                                 f"[0, {self.props.number_of_processes})"))
         self._wait_for_debugger = value
 
     def run(self, print_command=False):
@@ -914,7 +919,7 @@ class Simulation(object):
             if symlink.exists() and symlink.is_symlink():
                 symlink.unlink()
             symlink.symlink_to(self.folder)
-            
+
         self.props.save(self.folder, self.id)
         self.hospital.save(self.folder)
 
@@ -932,6 +937,6 @@ class Simulation(object):
         if print_command:
             print(' '.join(command))
         result = subprocess.run(command, capture_output=True, text=True)
-        
+
         print(result.stdout)
         print(result.stderr)

@@ -9,7 +9,37 @@
 
 #include "agent_factory.hpp"
 #include "infection_logic/human_infection_cycle.hpp"
+#include "utils.hpp"
 
+namespace {
+struct inconsistent_distribution : public std::exception {
+    const char* what() const noexcept override
+    {
+        return "Exception: Wrong number of bins for a given day in the patient distribution";
+    }
+};
+
+struct negative_patients : public std::exception {
+    const char* what() const noexcept override
+    {
+        return "Exception: Negative number of patients entering the hospital in file";
+    }
+};
+
+struct inconsistent_bins_in_file : public std::exception {
+    const char* what() const noexcept override
+    {
+        return "Exception: Wrong number of bins for a given day in the patient distribution file";
+    }
+};
+
+struct influx_and_infected_probability_differ : public std::exception {
+    const char* what() const noexcept override
+    {
+        return "Exception: Number of days in the influx distribution and the infected probability differ";
+    }
+};
+}
 /// @brief Create a hospital entry
 /// @details The hospital entry is in charge of creating the patients
 /// @param location The location of the entry
@@ -31,9 +61,6 @@ sti::hospital_entry::hospital_entry(sti::coordinates<int>                 locati
     // by the number of intervals
     , _interval_length { (24 * 60 * 60) / _patient_distribution->intervals() }
     , _agent_factory { factory }
-    , _infected_chance {
-        props.at("parameters").at("patient").at("infected_probability").as_double()
-    }
 {
 }
 
@@ -83,13 +110,13 @@ std::uint64_t sti::hospital_entry::patients_waiting()
 /// @param rank The rank of the process
 void sti::hospital_entry::save(const std::string& folderpath, int rank) const
 {
-    auto os = std::ostringstream{};
+    auto os = std::ostringstream {};
     os << folderpath
        << "/entry.p"
        << rank
        << ".csv";
-    
-    auto file = std::ofstream{os.str()};
+
+    auto file = std::ofstream { os.str() };
 
     file << "day,period,patients_generated\n";
 
@@ -101,7 +128,6 @@ void sti::hospital_entry::save(const std::string& folderpath, int rank) const
                  << gen << '\n';
         }
     }
-
 }
 
 /// @brief Generate the pending patients
@@ -114,7 +140,7 @@ void sti::hospital_entry::generate_patients()
         using STAGES = human_infection_cycle::STAGE;
 
         const auto random = repast::Random::instance()->nextDouble();
-        const auto stage  = _infected_chance > random ? STAGES::SICK : STAGES::HEALTHY;
+        const auto stage  = _patient_distribution->get_infected_probability(_clock->now().human().days) > random ? STAGES::SICK : STAGES::HEALTHY;
         _agent_factory->insert_new_patient(_location.continuous(), stage);
     }
 }
@@ -132,5 +158,16 @@ std::unique_ptr<sti::patient_distribution> sti::load_patient_distribution(const 
         data.push_back(day_vec);
     }
 
-    return std::make_unique<patient_distribution>(std::move(data));
+    const auto& infected_chance_data = json.at("parameters").at("patient").at("infected_probability").as_array();
+    auto        infected_chance      = patient_distribution::infected_probability_type {};
+    for (const auto& v : infected_chance_data) {
+        validate_probability(v.as_double(), "Patient infected probabilty");
+        infected_chance.push_back(v.as_double());
+    }
+
+    if (data.size() != infected_chance.size()) {
+        throw influx_and_infected_probability_differ {};
+    }
+
+    return std::make_unique<patient_distribution>(std::move(data), std::move(infected_chance));
 }
