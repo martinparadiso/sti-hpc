@@ -78,74 +78,138 @@ for y in range(23, 28):
 
 hospital.add_element(sim.Entry((width-9, height-1)))
 hospital.add_element(sim.Exit((width-8, height-1)))
-hospital.add_element(sim.ICU((14, 5)))
+hospital.add_element(sim.ICU((20, 5)))
 
-for y in (13, 19, 25, 31):
+for y in (25, 31):
     hospital.add_element(sim.DoctorOffice(
-        'general_practitioner', (3, y), (5, y)))
-hospital.add_element(sim.DoctorOffice('psychiatrist', (3, 5), (5, 5)))
-hospital.add_element(sim.DoctorOffice('surgeon', (18, 13), (18, 15)))
-hospital.add_element(sim.DoctorOffice('pediatry', (27, 13), (27, 15)))
-hospital.add_element(sim.DoctorOffice('gynecologist', (36, 13), (36, 15)))
-hospital.add_element(sim.DoctorOffice('geriatrics', (45, 13), (45, 15)))
+        'general_practitioner', (3, y), (4, y)))
+hospital.add_element(sim.DoctorOffice('psychiatrist', (3, 5), (4, 5)))
+hospital.add_element(sim.DoctorOffice('surgeon', (18, 13), (18, 14)))
+hospital.add_element(sim.DoctorOffice('pediatry', (27, 13), (27, 14)))
+hospital.add_element(sim.DoctorOffice('gynecologist', (36, 13), (36, 14)))
+hospital.add_element(sim.DoctorOffice('geriatrics', (45, 13), (45, 14)))
 
 hospital.add_element(sim.Receptionist((45, 25), (45, 27)))
-hospital.add_element(sim.Receptionist((48, 25), (48, 27)))
 
-hospital.add_element(sim.Triage((35, 26)))
+
+hospital.add_element(sim.Triage((32, 25)))
+hospital.add_element(sim.Triage((34, 25)))
+hospital.add_element(sim.Triage((36, 25)))
 
 for x in range(14, 28, 2):
     for y in range(22, 31, 2):
         hospital.add_element(sim.Chair((x, y)))
 
+original_probability = 0.00099225
+objects_probability = original_probability / 10
+patient_sum = 67000
+
+# Load the reference admission distribution
+adm_ref = pd.read_csv('admission_reference.csv')
+day_distribution_reference = pd.read_csv('day_distribution_reference.csv')
+day_influx = (adm_ref['general_admissions'] * (patient_sum) / adm_ref['general_admissions'].sum()).round().to_numpy()
+influx = np.array([[0 for i in range(12)] for d in range(365)])
+for d in range(365):
+    influx[d] = day_distribution_reference['percentage'].to_numpy() * day_influx[i]
+infected_percentage = adm_ref['percentage'].to_numpy()
+
+
 hospital.parameters = {
     'objects': {
         'chair': {
-            'infect_probability': 0.1,
-            'cleaning_interval': sim.TimePeriod(0, 2, 0, 0),
+            'infect_probability': objects_probability,
+            'cleaning_interval': sim.TimePeriod(1, 0, 0, 0),
             'radius': 0.1
         },
         'bed': {
-            'infect_probability': 0.0,
+            'infect_probability': original_probability,
             'radius': 0.0,
-            'cleaning_interval': sim.TimePeriod(0, 2, 0, 0)
+            'cleaning_interval': sim.TimePeriod(1, 0, 0, 0)
         }
     },
     'icu': {
-        'environment': {
-            'infection_probability': 0.1
-        },
-        'beds': 5,
-        'death_probability': 0.05,
+        'beds': 90,
         'sleep_times': [
             {
-                'time': sim.TimePeriod(1, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(2, 14, 24, 0),
+                'probability': 0.004748328
             },
             {
-                'time': sim.TimePeriod(2, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(3, 0, 0, 0),
+                'probability': 0.088623115
             },
             {
-                'time': sim.TimePeriod(4, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(3, 7, 12, 0),
+                'probability': 0.017333166
+            },
+            {
+                'time': sim.TimePeriod(3, 16, 48, 0),
+                'probability': 0.032968386
+            },
+            {
+                'time': sim.TimePeriod(4, 4, 48, 0),
+                'probability': 0.013086353
+            },
+            {
+                'time': sim.TimePeriod(4, 9, 36, 0),
+                'probability': 0.100335789
+            },
+            {
+                'time': sim.TimePeriod(4, 16, 48, 0),
+                'probability': 0.066380434
+            },
+            {
+                'time': sim.TimePeriod(4, 21, 36, 0),
+                'probability': 0.000017555
+            },
+            {
+                'time': sim.TimePeriod(6, 7, 12, 0),
+                'probability': 0.007899849
+            },
+            {
+                'time': sim.TimePeriod(6, 9, 36, 0),
+                'probability': 0.100224175
+            },
+            {
+                'time': sim.TimePeriod(6, 12, 0, 0),
+                'probability': 0.084432757
+            },
+            {
+                'time': sim.TimePeriod(6, 16, 48, 0),
+                'probability': 0.117953925
+            },
+            {
+                'time': sim.TimePeriod(7, 9, 36, 0),
+                'probability': 0.053206605
             },
             {
                 'time': sim.TimePeriod(8, 0, 0, 0),
-                'probability': 0.2
+                'probability': 0.026187069
             },
             {
-                'time': sim.TimePeriod(16, 0, 0, 0),
-                'probability': 0.2
+                'time': sim.TimePeriod(9, 4, 48, 0),
+                'probability': 0.122177398
+            },
+            {
+                'time': sim.TimePeriod(9, 7, 12, 0),
+                'probability': 0.033379033
+            },
+            {
+                'time': sim.TimePeriod(10, 4, 48, 0),
+                'probability': 0.037753818
+            },
+            {
+                'time': sim.TimePeriod(29, 16, 48, 0),
+                'probability': 0.094000000
             }
         ]
     },
     'reception': {
-        'attention_time': sim.TimePeriod(0, 0, 15, 0)
+        'attention_time': sim.TimePeriod(0, 0, 1, 0)
     },
     'triage': {
         'icu': {
-            'death_probability': 0.2,
+            'death_probability': 0.255,
             'probability': 0.070724557
         },
         'doctors_probabilities': [
@@ -177,28 +241,28 @@ hospital.parameters = {
         'levels': [
             {
                 'level': 1,
-                'probability': 0.2,
+                'probability': 0.0418719,
                 'wait_time': sim.TimePeriod(0, 0, 0, 0)
             },
             {
                 'level': 2,
-                'probability': 0.2,
-                'wait_time': sim.TimePeriod(0, 0, 0, 15)
+                'probability': 0.0862069,
+                'wait_time': sim.TimePeriod(0, 0, 15, 0)
             },
             {
                 'level': 3,
-                'probability': 0.2,
-                'wait_time': sim.TimePeriod(0, 0, 0, 30)
+                'probability': 0.6305419,
+                'wait_time': sim.TimePeriod(0, 1, 0, 0)
             },
             {
                 'level': 4,
-                'probability': 0.2,
-                'wait_time': sim.TimePeriod(0, 0, 1, 0)
+                'probability': 0.2266010,
+                'wait_time': sim.TimePeriod(0, 2, 0, 0)
             },
             {
                 'level': 5,
-                'probability': 0.2,
-                'wait_time': sim.TimePeriod(0, 0, 2, 0)
+                'probability': 0.0147783,
+                'wait_time': sim.TimePeriod(0, 4, 0, 0)
             }
         ],
         'attention_time': sim.TimePeriod(0, 0, 15, 0)
@@ -230,22 +294,25 @@ hospital.parameters = {
         },
     ],
     'patient': {
-        'walk_speed': 0.2,
-        'influx': np.array([[random.randrange(1, 15) for i in range(12)] for j in range(365)]),
-        'infected_probability': 0.3
+        'walk_speed': 0.5,
+        'infected_probability': infected_percentage,
+        'influx': influx
     },
     'human': {
         'infect_distance': 2.0,
-        'contamination_probability': 0.1,
-        'incubation_time': sim.TimePeriod(0, 2, 0, 0),
-        'infect_probability': 0.5
+        'contamination_probability': original_probability,
+        'incubation_time': {
+            'min': sim.TimePeriod(0, 14, 0, 0),
+            'max': sim.TimePeriod(6, 0,  0, 0)
+        },
+        'infect_probability': original_probability
     },
     'personnel': {
-        'immunity': 0.8
+        'immunity': 0.81
     },
     'environments': {
         'icu': {
-            'infection_probability': 0.8
+            'infection_probability': 0.00135
         }
     }
 }
@@ -279,7 +346,7 @@ logging.info(f"Layouts: {ps_layout}")
 
 for layout in ps_layout:
 
-    props = sim.SimulationProperties(*layout)
+    props = sim.SimulationProperties(*layout, seconds_per_tick=10)
     simulations = [sim.Simulation(props, hospital)
                    for i in range(args.iterations)]
 

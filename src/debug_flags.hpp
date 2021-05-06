@@ -14,7 +14,7 @@ namespace debug {
     constexpr auto doctors_print_front = false;
 
     /// @brief Record performance metrics of the main loop
-    constexpr auto per_tick_performance = false;
+    constexpr auto per_tick_performance = true;
 
     /// @brief Record the patients locations/movement
     constexpr auto track_movements = false;
