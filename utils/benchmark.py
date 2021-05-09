@@ -14,17 +14,33 @@ import numpy as np
 from pathlib import Path
 import subprocess
 import logging
+import traceback
+
+ps_layout = [(1, 1), (1, 2), (2, 1), (2, 2)]
 
 parser = argparse.ArgumentParser(
-    description='Run the simulation N times, print the execution time')
+    description=('Run the simulation several times, '
+                 'storing the times in a CSV file. '
+                 'The benchmark goes through the predefined process layout '
+                 f"{ps_layout} I times."))
+parser.add_argument('file', help='Output CSV file')
 parser.add_argument('-i', '--iterations', type=int, default=16,
-                    help='Number of times the simulation will run')
-parser.add_argument('-c', '--max-cores', type=int, default=os.cpu_count(),
+                    help='Number of iterations in each layout')
+parser.add_argument('--max-cores', type=int, default=os.cpu_count(),
                     help='Maximum number of CPU cores used for the benchmark')
-parser.add_argument('-l', '--log', type=str, default=Path(__file__).parent/'benchmark.log',
+parser.add_argument('-l', '--log', type=str,
+                    default=Path(__file__).parent/'benchmark.log',
                     help='Log file')
-parser.add_argument('-r', '--remove-runs', action='store_true',
-                    help='Cleanup run folder')
+parser.add_argument('-k', '--keep-runs', action='store_true',
+                    help='Don not remove run folders after upon finish')
+parser.add_argument('-c', '--continue', action='store_true',
+                    dest='continue_',
+                    help=('Continue an existing benchmark.'
+                          'Note: the number of iterations will be the one '
+                          'indicated in this invocation'))
+parser.add_argument('-s', '--skip', type=int, default=0,
+                    help=('Skip the first N process layouts. Ignored if '
+                          '-c/--continue is specified'))
 args = parser.parse_args()
 
 logging.basicConfig(filename=args.log,
@@ -107,10 +123,12 @@ patient_sum = 67000
 # Load the reference admission distribution
 adm_ref = pd.read_csv('admission_reference.csv')
 day_distribution_reference = pd.read_csv('day_distribution_reference.csv')
-day_influx = (adm_ref['general_admissions'] * (patient_sum) / adm_ref['general_admissions'].sum()).round().to_numpy()
+day_influx = (adm_ref['general_admissions'] * (patient_sum) /
+              adm_ref['general_admissions'].sum()).round().to_numpy()
 influx = np.array([[0 for i in range(12)] for d in range(365)])
 for d in range(365):
-    influx[d] = day_distribution_reference['percentage'].to_numpy() * day_influx[i]
+    influx[d] = day_distribution_reference['percentage'].to_numpy() * \
+        day_influx[i]
 infected_percentage = adm_ref['percentage'].to_numpy()
 
 
@@ -324,11 +342,6 @@ def worker(simulation):
     simulation.run()
 
 
-ps_layout = ((1, 1),
-             (1, 2),
-             (2, 1),
-             (2, 2))
-
 git_clean = subprocess.run(['git', 'status', '--porcelain'],
                            capture_output=True, text=True).stdout
 
@@ -344,31 +357,48 @@ logging.info(f"Iterations: {args.iterations}")
 logging.info(f"Max cores: {args.max_cores}")
 logging.info(f"Layouts: {ps_layout}")
 
-for layout in ps_layout:
+if args.continue_:
+    df = pd.read_csv(args.file)
+    t = (df.iloc[-1].x_processes, df.iloc[-1].y_processes)
+    ps_layout = ps_layout[ps_layout.index(t)+1:]
+else:
+    df = pd.DataFrame(columns=['run_id', 'x_processes', 'y_processes', 'time'])
+    ps_layout = ps_layout[args.skip:]
 
-    props = sim.SimulationProperties(*layout, seconds_per_tick=10)
-    simulations = [sim.Simulation(props, hospital)
-                   for i in range(args.iterations)]
+try:
+    for layout in ps_layout:
 
-    cores_per_run = props.number_of_processes
-    simultaneous = min(args.iterations,
-                       int(args.max_cores/props.number_of_processes))
-    cores_used = cores_per_run * simultaneous
+        props = sim.SimulationProperties(*layout, seconds_per_tick=10)
+        simulations = [sim.Simulation(props, hospital)
+                       for i in range(args.iterations)]
 
-    logging.info((f"Benchmarking {layout} process layout, running "
-                  f"{simultaneous} instances at a time "
-                  f"across {cores_used} cores"))
+        cores_per_run = props.number_of_processes
+        simultaneous = min(args.iterations,
+                           int(args.max_cores/props.number_of_processes))
+        cores_used = cores_per_run * simultaneous
 
-    with Pool(simultaneous) as pool:
-        pool.map(worker, simulations)
+        logging.info((f"Benchmarking {layout} process layout, running "
+                      f"{simultaneous} instances at a time "
+                      f"across {cores_used} cores"))
 
-    logging.info(f"Runs IDs: {' '.join([s.id for s in simulations])}")
+        with Pool(simultaneous) as pool:
+            pool.map(worker, simulations)
 
-    times = pd.Series(
-        [perf.Metrics(run.folder).total_time for run in simulations])
-    logging.info(times.describe())
-    logging.info('')
+        logging.info(f"Runs IDs: {' '.join([s.id for s in simulations])}")
 
-    if args.remove_runs:
-        for run in simulations:
-            subprocess.run(['rm', '-r', str(run.folder)], capture_output=True)
+        new_data = pd.DataFrame([{
+            'run_id': run.id,
+            'x_processes': layout[0],
+            'y_processes': layout[1],
+            'time': perf.Metrics(run.folder).total_time
+        }
+            for run in simulations])
+        df = pd.concat([df, new_data])
+        df.to_csv(str(args.file), index=False)
+
+        if not args.keep_runs:
+            for run in simulations:
+                subprocess.run(['rm', '-r', str(run.folder)],
+                               capture_output=True)
+except Exception as e:
+    logging.info(traceback.format_exc())

@@ -904,7 +904,7 @@ class Simulation(object):
                                  f"[0, {self.props.number_of_processes})"))
         self._wait_for_debugger = value
 
-    def run(self, print_command=False):
+    def run(self, print_command=False, silent=True):
         """Execute the simulation, return the subprocess result"""
 
         # Create root folder
@@ -938,5 +938,6 @@ class Simulation(object):
             print(' '.join(command))
         result = subprocess.run(command, capture_output=True, text=True)
 
-        print(result.stdout)
-        print(result.stderr)
+        if not silent:
+            print(result.stdout)
+            print(result.stderr)

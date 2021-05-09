@@ -177,7 +177,7 @@ class Plots(object):
         # Timedeltas must be converted to integers so plt doesn't complain
 
         df.T.plot.pie(
-            subplots=True, layout=self.layout_map[int(df.index.max() + 1)])
+            subplots=True, layout=self.layout_map[int(df.index.max() + 1)], legend=False)
         plt.show()
 
 
