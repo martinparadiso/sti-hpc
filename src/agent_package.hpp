@@ -33,12 +33,14 @@ struct agent_package {
     agent_package() = default;
 
     /// @brief Create a new package, passing id and the contagious agent data
-    /// @param id The repast ID
-    /// @param data The serialized data of the contagious agent
-    agent_package(const repast::AgentId& id, sti::serial_data&& data)
-        : id { id }
-        , data { std::move(data) }
+    /// @param agent A pointer to the agent being serialized
+    /// @param comm The MPI communicator
+    agent_package(sti::contagious_agent* agent, boost::mpi::communicator* comm)
+        : id { agent->getId() }
+        , data {}
     {
+        data.reserve(150);
+        agent->serialize(data, comm);
     }
 
     template <class Archive>
@@ -87,10 +89,10 @@ public:
     /// @param out The vector to insert the package into
     void providePackage(sti::contagious_agent* agent, std::vector<agent_package>& out)
     {
-        const auto id      = agent->getId();
-        auto       data    = agent->serialize(_communicator);
-        auto       package = agent_package { id, std::move(data) };
-        out.push_back(package);
+        // const auto id      = agent->getId();
+        // auto       data    = agent->serialize(_communicator);
+        // auto       package = agent_package { id, std::move(data) };
+        out.push_back(agent_package { agent, _communicator });
     }
 
     /// @brief Serialize a group of agents and add it to a vector

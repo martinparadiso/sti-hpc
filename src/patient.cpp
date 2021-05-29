@@ -53,14 +53,11 @@ sti::patient_agent::~patient_agent() = default;
 
 /// @brief Serialize the agent state into a string using Boost.Serialization
 /// @return A string with the serialized data
-sti::serial_data sti::patient_agent::serialize(boost::mpi::communicator* communicator)
+void sti::patient_agent::serialize(serial_data& data, boost::mpi::communicator* communicator)
 {
-    auto buffer = serial_data {};
-    { // Used to make sure the stream is flushed
-        auto pa = boost::mpi::packed_oarchive { *communicator, buffer };
-        pa << (*this);
-    }
-    return buffer;
+    // Used to make sure the stream is flushed
+    auto pa = boost::mpi::packed_oarchive { *communicator, data };
+    pa << (*this);
 }
 
 /// @brief Reconstruct the agent state from a string using Boost.Serialization

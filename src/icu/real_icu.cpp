@@ -65,7 +65,6 @@ struct sti::real_icu::statistics {
     };
 
     /// @brief Keeps track of the number of patients currently in the ICU
-    std::vector<status>                               tick_status;
     std::vector<std::pair<repast::AgentId, datetime>> agent_admission;
     std::vector<std::pair<repast::AgentId, datetime>> agent_release;
     std::vector<std::pair<repast::AgentId, datetime>> rejections;
@@ -240,10 +239,6 @@ void sti::real_icu::tick()
         }
         bed.tick();
     }
-
-    _stats->tick_status.push_back({ _clock->now(),
-                                    _reserved_beds,
-                                    static_cast<statistics::counter_type>(beds_in_use) });
 }
 
 /// @brief Save the ICU stats into a file
@@ -258,14 +253,6 @@ void sti::real_icu::save(const std::string& folderpath) const
                 << ".csv";
 
     auto file = std::ofstream { tick_status.str() };
-
-    file << "time,beds_reserved,beds_in_use\n";
-
-    for (const auto& status : _stats->tick_status) {
-        file << status.time.seconds_since_epoch() << ","
-             << status.beds_reserved << ","
-             << status.beds_in_use << "\n";
-    }
 
     // Write the admissions, releases and rejections
     auto inout_path = std::ostringstream {};

@@ -338,172 +338,172 @@ sti::patient_fsm::transition_table create_transition_table()
     ////////////////////////////////////////////////////////////////////////////
     // clang-format off
     
-    table[STATE::ENTRY] = {
+    table[static_cast<std::size_t>(STATE::ENTRY)] = {
     //    GUARD           ACTION          DESTINATION
     //  +---------------+---------------+-----------------------+
         { always_true   , request_chair , STATE::WAIT_CHAIR_1   },
     };
 
-    table[STATE::WAIT_CHAIR_1] = {
+    table[static_cast<std::size_t>(STATE::WAIT_CHAIR_1)] = {
     //    GUARD                   ACTION                              DESTINATION
     //  +-----------------------+-----------------------------------+---------------------------+
         { no_chair_available    , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
         { got_chair             , set_destination_chair             , STATE::WALK_TO_CHAIR_1    },
     };
 
-    table[STATE::WALK_TO_CHAIR_1] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_CHAIR_1)] = {
     //    GUARD           ACTION                  DESTINATION
     //  +---------------+-----------------------+-------------------------------+
         { not_arrived   , walk                  , STATE::WALK_TO_CHAIR_1        },
         { arrived       , enqueue_in_reception  , STATE::WAIT_RECEPTION_TURN    },
     };
 
-    table[STATE::WAIT_RECEPTION_TURN] = {
+    table[static_cast<std::size_t>(STATE::WAIT_RECEPTION_TURN)] = {
     //    GUARD                   ACTION                      DESTINATION
     //  +-----------------------+---------------------------+-------------------------------+
         { reception_turn        , set_destination_reception , STATE::WALK_TO_RECEPTION      },
     };
 
-    table[STATE::WALK_TO_RECEPTION] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_RECEPTION)] = {
     //    GUARD           ACTION                  DESTINATION
     //  +---------------+-----------------------+-------------------------------+
         { not_arrived   , walk                  , STATE::WALK_TO_RECEPTION      },
         { arrived       , set_reception_time    , STATE::WAIT_IN_RECEPTION      },
     }; 
 
-    table[STATE::WAIT_IN_RECEPTION] = {
+    table[static_cast<std::size_t>(STATE::WAIT_IN_RECEPTION)] = {
     //    GUARD               ACTION          DESTINATION
     //  +-------------------+---------------+---------------------------+
         { time_elapsed      , request_chair , STATE::WAIT_CHAIR_2       },
     };
 
-    table[STATE::WAIT_CHAIR_2] = {
+    table[static_cast<std::size_t>(STATE::WAIT_CHAIR_2)] = {
     //    GUARD                   ACTION                              DESTINATION
     //  +-----------------------+-----------------------------------+---------------------------+
         { no_chair_available    , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
         { got_chair             , set_destination_chair             , STATE::WALK_TO_CHAIR_2    },
     };
 
-    table[STATE::WALK_TO_CHAIR_2] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_CHAIR_2)] = {
     //    GUARD           ACTION             DESTINATION
     //  +---------------+-------------------+---------------------------+
         { not_arrived   , walk              , STATE::WALK_TO_CHAIR_2    },
         { arrived       , enqueue_in_triage , STATE::WAIT_TRIAGE_TURN   },
     };
 
-    table[STATE::WAIT_TRIAGE_TURN] = {
+    table[static_cast<std::size_t>(STATE::WAIT_TRIAGE_TURN)] = {
     //    GUARD               ACTION                      DESTINATION
     //  +-------------------+---------------------------+---------------------------+
         { triage_turn       , set_destination_triage    , STATE::WALK_TO_TRIAGE     },
     };
 
-    table[STATE::WALK_TO_TRIAGE] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_TRIAGE)] = {
     //    GUARD           ACTION                  DESTINATION
     //  +---------------+-----------------------+-----------------------+
         { not_arrived   , walk                  , STATE::WALK_TO_TRIAGE },
         { arrived       , set_triage_time       , STATE::WAIT_IN_TRIAGE },
     }; 
 
-    table[STATE::WAIT_IN_TRIAGE] = {
+    table[static_cast<std::size_t>(STATE::WAIT_IN_TRIAGE)] = {
     //    GUARD               ACTION              DESTINATION
     //  +-------------------+-------------------+---------------------------+
         { time_elapsed      , get_diagnosis     , STATE::DISPATCH       },
     };
 
-    table[STATE::DISPATCH] = {
+    table[static_cast<std::size_t>(STATE::DISPATCH)] = {
     //    GUARD           ACTION              DESTINATION
     //  +---------------+-------------------+-----------------------+
         { to_doctor     , request_chair     , STATE::WAIT_CHAIR_3   },
         { to_icu        , request_icu       , STATE::WAIT_ICU       }
     };
 
-    table[STATE::WAIT_CHAIR_3] = {
+    table[static_cast<std::size_t>(STATE::WAIT_CHAIR_3)] = {
     //    GUARD                   ACTION                              DESTINATION
     //  +-----------------------+-----------------------------------+---------------------------+
         { no_chair_available    , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
         { got_chair             , set_destination_chair             , STATE::WALK_TO_CHAIR_3    },
     };
 
-    table[STATE::WALK_TO_CHAIR_3] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_CHAIR_3)] = {
     //    GUARD           ACTION             DESTINATION
     //  +---------------+-------------------+---------------------------+
         { not_arrived   , walk              , STATE::WALK_TO_CHAIR_3    },
         { arrived       , enqueue_in_doctor , STATE::WAIT_FOR_DOCTOR    },
     };
 
-    table[STATE::WAIT_FOR_DOCTOR] = {
+    table[static_cast<std::size_t>(STATE::WAIT_FOR_DOCTOR)] = {
     //    GUARD               ACTION                      DESTINATION
     //  +-------------------+---------------------------+---------------------------+
         { doctor_turn       , set_doctor_destination    , STATE::WALK_TO_DOCTOR      },
         { doctor_timeout    , empty                     , STATE::NO_ATTENTION        }
     };
 
-    table[STATE::WALK_TO_DOCTOR] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_DOCTOR)] = {
     //    GUARD           ACTION                  DESTINATION
     //  +---------------+-----------------------+-----------------------+
         { not_arrived   , walk                  , STATE::WALK_TO_DOCTOR },
         { arrived       , set_doctor_time       , STATE::WAIT_IN_DOCTOR },
     }; 
 
-    table[STATE::WAIT_IN_DOCTOR] = {
+    table[static_cast<std::size_t>(STATE::WAIT_IN_DOCTOR)] = {
     //    GUARD               ACTION                              DESTINATION
     //  +-------------------+-----------------------------------+---------------------------+
         { time_elapsed      , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
     };
 
-    table[STATE::NO_ATTENTION] = {
+    table[static_cast<std::size_t>(STATE::NO_ATTENTION)] = {
     //    GUARD           ACTION                              DESTINATION
     //  +---------------+-----------------------------------+---------------------------+
         { always_true   , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT       },
     };
 
-    table[STATE::WAIT_ICU] = {
+    table[static_cast<std::size_t>(STATE::WAIT_ICU)] = {
     //    GUARD           ACTION                              DESTINATION
     //  +---------------+-----------------------------------+-----------------------+
         { icu_available , set_icu_destination               , STATE::WALK_TO_ICU    },
         { icu_full      , set_exit_motive_and_destination   , STATE::WALK_TO_ICU    },
     };
 
-    table[STATE::WALK_TO_ICU] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_ICU)] = {
     //    GUARD           ACTION              DESTINATION
     //  +---------------+-------------------+-----------------------+
         { not_arrived   , walk              , STATE::WALK_TO_ICU    },
         { arrived       , enter_icu         , STATE::SLEEP          },
     };
 
-    table[STATE::SLEEP] = {
+    table[static_cast<std::size_t>(STATE::SLEEP)] = {
     //    GUARD           ACTION              DESTINATION
     //  +---------------+-------------------+-------------------+
         { time_elapsed  , empty             , STATE::RESOLVE   },
     };
 
-    table[STATE::RESOLVE] = {
+    table[static_cast<std::size_t>(STATE::RESOLVE)] = {
     //    GUARD           ACTION                              DESTINATION
     //  +---------------+-----------------------------------+-----------------------+
         { alive         , leave_icu                         , STATE::LEAVE_ICU      },
         { dead          , empty                             , STATE::MORGUE         }
     };
 
-    table[STATE::LEAVE_ICU] = {
+    table[static_cast<std::size_t>(STATE::LEAVE_ICU)] = {
     //    GUARD           ACTION                              DESTINATION
     //  +---------------+-----------------------------------+-----------------------+
         { always_true   , set_exit_motive_and_destination   , STATE::WALK_TO_EXIT   }
     };
 
-    table[STATE::MORGUE] = {
+    table[static_cast<std::size_t>(STATE::MORGUE)] = {
     //    GUARD           ACTION      DESTINATION
     //  +---------------+-----------+-----------------------+
         { always_true   , kill     , STATE::AWAITING_DELETION   }
     };
 
-    table[STATE::WALK_TO_EXIT] = {
+    table[static_cast<std::size_t>(STATE::WALK_TO_EXIT)] = {
     //    GUARD           ACTION      DESTINATION
     //  +---------------+-----------+---------------------------+
         { not_arrived   , walk      , STATE::WALK_TO_EXIT       },
         { arrived       , empty     , STATE::AWAITING_DELETION  },
     };
 
-    table[STATE::AWAITING_DELETION] = {
+    table[static_cast<std::size_t>(STATE::AWAITING_DELETION)] = {
         
     };
 
@@ -597,7 +597,7 @@ void sti::patient_fsm::tick()
     // The logic is: iterate over the current state looking for a guard
     // returning true, when found, execute the exit action (if any), then
     // execute the transition action, and finally update the state and return
-    for (const auto& transition : patient_flyweight->fsm.transitions.at(current_state)) {
+    for (const auto& transition : patient_flyweight->fsm.transitions.at(static_cast<std::size_t>(current_state))) {
 
         // Guard triggered, execute the plan
         if (transition.guard(*this)) {

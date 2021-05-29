@@ -15,6 +15,7 @@ from pathlib import Path
 import subprocess
 import logging
 import traceback
+import re
 
 ps_layout = [(1, 1), (1, 2), (2, 1), (2, 2)]
 
@@ -22,13 +23,15 @@ parser = argparse.ArgumentParser(
     description=('Run the simulation several times, '
                  'storing the times in a CSV file. '
                  'The benchmark goes through the predefined process layout '
-                 f"{ps_layout} I times."))
+                 f"{ps_layout} I times."
+                 "Or the specified layout if the --layout flag is used"))
 parser.add_argument('file', help='Output CSV file')
+parser.add_argument('label', help='Label/tag for the benchmark')
 parser.add_argument('-i', '--iterations', type=int, default=16,
                     help='Number of iterations in each layout')
 parser.add_argument('--max-cores', type=int, default=os.cpu_count(),
                     help='Maximum number of CPU cores used for the benchmark')
-parser.add_argument('-l', '--log', type=str,
+parser.add_argument('--log', type=str,
                     default=Path(__file__).parent/'benchmark.log',
                     help='Log file')
 parser.add_argument('-k', '--keep-runs', action='store_true',
@@ -38,6 +41,8 @@ parser.add_argument('-c', '--continue', action='store_true',
                     help=('Continue an existing benchmark.'
                           'Note: the number of iterations will be the one '
                           'indicated in this invocation'))
+parser.add_argument('-l', '--layout', type=str, action='append',
+                    help='An NxM layout to run instead of the predefined layouts')
 parser.add_argument('-s', '--skip', type=int, default=0,
                     help=('Skip the first N process layouts. Ignored if '
                           '-c/--continue is specified'))
@@ -339,7 +344,8 @@ hospital.validate()
 
 
 def worker(simulation):
-    simulation.run()
+    print(f"Starting {simulation.id}")
+    return simulation.run()
 
 
 git_clean = subprocess.run(['git', 'status', '--porcelain'],
@@ -351,24 +357,50 @@ if git_clean == '':
                                capture_output=True, text=True).stdout.strip()
     logging.info(f"Commit: {commit_id}")
 else:
+    commit_id = None
     logging.info(f"Dirty tree, cannot determine commit")
 
-logging.info(f"Iterations: {args.iterations}")
-logging.info(f"Max cores: {args.max_cores}")
-logging.info(f"Layouts: {ps_layout}")
+if args.layout is not None:
+    ps_layout = []
+    for l in args.layout:
+        print(args.layout)
+        r = re.match(r'(?P<x>\d+)x(?P<y>\d+)', l)
+        if r is None:
+            raise Exception('--layout must be NxM')
+        if int(r['x']) < 1 or int(r['y']) < 1:
+            raise Exception('--layout N and M must be >=1')
+        ps_layout.append((int(r['x']), int(r['y'])))
+
+for f in (print, logging.info):
+    f(f"Iterations: {args.iterations}")
+    f(f"Max cores: {args.max_cores}")
+    f(f"Layouts: {ps_layout}")
 
 if args.continue_:
     df = pd.read_csv(args.file)
     t = (df.iloc[-1].x_processes, df.iloc[-1].y_processes)
     ps_layout = ps_layout[ps_layout.index(t)+1:]
 else:
-    df = pd.DataFrame(columns=['run_id', 'x_processes', 'y_processes', 'time'])
-    ps_layout = ps_layout[args.skip:]
+    try:
+        df = pd.read_csv(args.file)
+    except:
+        df = pd.DataFrame(columns=['run_id', 'label', 'commit',
+                                   'x_processes', 'y_processes', 'time'])
+    if args.layout is not None:
+        ps_layout = ps_layout[args.skip:]
 
 try:
-    for layout in ps_layout:
+    i = 1
 
-        props = sim.SimulationProperties(*layout, seconds_per_tick=10)
+    for layout in ps_layout:
+        print(f"Layout {i}/{len(ps_layout)}")
+
+        props = sim.SimulationProperties(*layout, seconds_per_tick=10,
+                                         chair_manager_process=1,
+                                         reception_manager_process=1,
+                                        #  triage_manager_process=1,
+                                        #  doctors_manager_process=1
+                                         )
         simulations = [sim.Simulation(props, hospital)
                        for i in range(args.iterations)]
 
@@ -382,12 +414,18 @@ try:
                       f"across {cores_used} cores"))
 
         with Pool(simultaneous) as pool:
-            pool.map(worker, simulations)
+            res = pool.map(worker, simulations)
+
+        for ret, cmd in res:
+            if ret.returncode != 0:
+                raise Exception(f"{cmd} finished with exit code {ret.returncode}")
 
         logging.info(f"Runs IDs: {' '.join([s.id for s in simulations])}")
 
         new_data = pd.DataFrame([{
             'run_id': run.id,
+            'label': args.label,
+            'commit': commit_id,
             'x_processes': layout[0],
             'y_processes': layout[1],
             'time': perf.Metrics(run.folder).total_time
@@ -402,3 +440,4 @@ try:
                                capture_output=True)
 except Exception as e:
     logging.info(traceback.format_exc())
+    print(traceback.format_exc())

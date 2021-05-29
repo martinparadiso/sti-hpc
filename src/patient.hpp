@@ -98,7 +98,7 @@ public:
     /// @brief Serialize the agent state into a string using Boost.Serialization
     /// @param communicator The MPI communicator over which this archive will be sent
     /// @return A string with the serialized data
-    serial_data serialize(boost::mpi::communicator* communicator) override;
+    void serialize(serial_data& data, boost::mpi::communicator* communicator) override;
 
     /// @brief Reconstruct the agent state from a string using Boost.Serialization
     /// @param id The new AgentId

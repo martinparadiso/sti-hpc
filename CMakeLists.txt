@@ -12,6 +12,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Export compile commands (for clangd)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Disable autoremoval of implicit includes, it removes neccesary includes
+unset(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
+unset(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES)
 
 # Debug and utils ==============================================================
 

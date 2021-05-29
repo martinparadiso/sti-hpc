@@ -286,7 +286,7 @@ sti::real_chair_manager::real_chair_manager(communicator*        comm,
                                             const space_wrapper* space)
     : chair_manager { space }
     , _world { comm }
-    , _stats { std::make_unique<statistics>() }
+    , _stats { /*std::make_unique<statistics>()*/ }
 {
     for (const auto& chair : building.chairs()) {
         _chair_pool.push_back({ chair.location.continuous(), false });
