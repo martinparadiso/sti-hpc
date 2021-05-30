@@ -196,3 +196,9 @@ private:
 }; // class triage
 
 } // namespace sti
+
+BOOST_CLASS_IMPLEMENTATION(sti::triage::doctor_diagnosis, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::triage::doctor_diagnosis, boost::serialization::track_never)
+
+BOOST_CLASS_IMPLEMENTATION(sti::triage::icu_diagnosis, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::triage::icu_diagnosis, boost::serialization::track_never)

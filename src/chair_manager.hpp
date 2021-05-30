@@ -41,6 +41,7 @@ struct chair_request_msg {
     }
 };
 
+
 /// @brief A indication that a chair has been released
 struct chair_release_msg {
     sti::coordinates<double> chair_location;
@@ -269,3 +270,12 @@ std::unique_ptr<chair_manager> make_chair_manager(repast::Properties&       exec
                                                   const space_wrapper*      space);
 
 } // namespace sti
+
+BOOST_CLASS_IMPLEMENTATION(sti::chair_request_msg, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::chair_request_msg, boost::serialization::track_never)
+
+BOOST_CLASS_IMPLEMENTATION(sti::chair_release_msg, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::chair_release_msg, boost::serialization::track_never)
+
+BOOST_CLASS_IMPLEMENTATION(sti::chair_response_msg, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::chair_response_msg, boost::serialization::track_never)

@@ -96,3 +96,6 @@ public:
 }; // class doctors_queue
 
 } // namespace sti
+
+BOOST_CLASS_IMPLEMENTATION(sti::doctors_queue, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::doctors_queue, boost::serialization::track_never)

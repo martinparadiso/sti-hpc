@@ -4,6 +4,9 @@
 
 #include <boost/json.hpp>
 #include <boost/container_hash/hash_fwd.hpp>
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/level.hpp>
+#include <boost/serialization/tracking.hpp>
 #include <repast_hpc/Point.h>
 
 namespace sti {
@@ -149,3 +152,9 @@ struct hash<sti::coordinates<T>>
 };
 
 } // namespace std
+
+BOOST_CLASS_IMPLEMENTATION(sti::coordinates<int>, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::coordinates<int>, boost::serialization::track_never)
+
+BOOST_CLASS_IMPLEMENTATION(sti::coordinates<double>, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::coordinates<double>, boost::serialization::track_never)

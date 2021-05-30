@@ -65,6 +65,9 @@ struct agent_package {
 
 }; // class agent_package
 
+BOOST_CLASS_IMPLEMENTATION(agent_package, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(agent_package, boost::serialization::track_never)
+
 ////////////////////////////////////////////////////////////////////////////////
 // Package receiver and provider
 ////////////////////////////////////////////////////////////////////////////////

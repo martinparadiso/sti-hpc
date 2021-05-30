@@ -105,3 +105,6 @@ private:
 }; // class person_agent
 
 } // namespace sti
+
+BOOST_CLASS_IMPLEMENTATION(sti::person_agent, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::person_agent, boost::serialization::track_never)

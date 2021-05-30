@@ -149,3 +149,6 @@ namespace serialization {
 
 } // namespace serialization
 } // namespaces boost
+
+BOOST_CLASS_IMPLEMENTATION(sti::patient_fsm, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::patient_fsm, boost::serialization::track_never)

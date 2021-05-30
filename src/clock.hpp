@@ -3,6 +3,9 @@
 
 #include <boost/json.hpp>
 #include <boost/serialization/access.hpp>
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/level.hpp>
+#include <boost/serialization/tracking.hpp>
 #include <cstdint>
 #include <string>
 
@@ -282,3 +285,9 @@ inline timedelta tag_invoke(const boost::json::value_to_tag<timedelta>& /*unused
 }
 
 } // namespace sti
+
+BOOST_CLASS_IMPLEMENTATION(sti::timedelta, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::timedelta, boost::serialization::track_never)
+
+BOOST_CLASS_IMPLEMENTATION(sti::datetime, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::datetime, boost::serialization::track_never)

@@ -159,3 +159,6 @@ private:
 }; // patient_agent
 
 } // namespace sti
+
+BOOST_CLASS_IMPLEMENTATION(sti::patient_agent, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::patient_agent, boost::serialization::track_never)

@@ -194,3 +194,6 @@ namespace serialization {
 
 } // namespace serialization
 } // namespaces boost
+
+BOOST_CLASS_IMPLEMENTATION(sti::human_infection_cycle, boost::serialization::object_serializable);
+BOOST_CLASS_TRACKING(sti::human_infection_cycle, boost::serialization::track_never)
