@@ -5,6 +5,7 @@
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/list.hpp>
+#include <boost/serialization/optional.hpp>
 #include <boost/serialization/utility.hpp>
 #include <boost/mpi/communicator.hpp>
 #include <sstream>
@@ -22,28 +23,28 @@ sti::real_doctors::real_doctors(communicator_ptr communicator, int mpi_tag, cons
     : _communicator { communicator }
     , _my_rank { _communicator->rank() }
     , _base_tag { mpi_tag }
-    , _doctors {
-        [&]() {
-            auto queue = decltype(_doctors) {};
-            for (const auto& doctor : hospital.doctors()) {
-                queue[doctor.type].push_back(doctor.patient_chair.continuous());
-            }
-            return queue;
-        }()
-    }
-    , _patients_queue{ [&]() {
-        auto pq = decltype(_patients_queue) {};
-        for (const auto& [doc_spec, q] : _doctors) {
-            pq[doc_spec];
-        }
-        return pq;
-    }() }
+    // , _doctors {
+    //     [&]() {
+    //         auto queue = decltype(_doctors) {};
+    //         for (const auto& doctor : hospital.doctors()) {
+    //             queue[doctor.type].push_back(doctor.patient_chair.continuous());
+    //         }
+    //         return queue;
+    //     }()
+    // }
     , _front { [&]() {
         auto front = decltype(_front) {};
-        for (const auto& [doc_spec, q] : _doctors) {
-            front[doc_spec];
+        for (const auto& doctor : hospital.doctors()) {
+            front[doctor.type][doctor.patient_chair.continuous()] = boost::none;
         }
         return front;
+    }() }
+    , _patients_queue { [&]() {
+        auto pq = decltype(_patients_queue) {};
+        for (const auto& [specialty, boxes] : _front) {
+            pq[specialty] = {};
+        }
+        return pq;
     }() }
 {
 }
@@ -56,7 +57,7 @@ sti::real_doctors::real_doctors(communicator_ptr communicator, int mpi_tag, cons
 /// @param type The doctor specialization to enqueue in
 /// @param id The agent id
 /// @param timeout Instant of time that the patient will leave if doesn't receive attention
-void sti::real_doctors::enqueue(const doctor_type& type, const repast::AgentId& id, const datetime& timeout)
+void sti::real_doctors::enqueue(const specialty_type& type, const repast::AgentId& id, const datetime& timeout)
 {
     insert_in_order(type, { id, timeout });
 }
@@ -64,7 +65,7 @@ void sti::real_doctors::enqueue(const doctor_type& type, const repast::AgentId& 
 /// @brief Remove an agent from the queues
 /// @param type The doctor type/specialty to dequeue from
 /// @param id The agent id to dequeue
-void sti::real_doctors::dequeue(const doctor_type& type, const agent_id& id)
+void sti::real_doctors::dequeue(const specialty_type& type, const agent_id& id)
 {
     remove_patient(type, id);
 }
@@ -73,7 +74,7 @@ void sti::real_doctors::dequeue(const doctor_type& type, const agent_id& id)
 /// @param type The doctor type/specialty to check
 /// @param id The agent ID to check
 /// @return If the agent has a doctor assigned, the destination
-boost::optional<sti::doctors_queue::position> sti::real_doctors::is_my_turn(const doctor_type& type, const agent_id& id)
+boost::optional<sti::doctors_queue::position> sti::real_doctors::is_my_turn(const specialty_type& type, const agent_id& id)
 {
     const auto& queue = _front[type];
     const auto  it    = std::find_if(queue.begin(), queue.end(),
@@ -93,8 +94,8 @@ void sti::real_doctors::sync()
 {
     const auto my_rank    = _communicator->rank();
     const auto world_size = _communicator->size();
-    auto       to_enqueue = std::vector(static_cast<std::size_t>(world_size), std::vector<std::pair<doctor_type, patient_turn>> {});
-    auto       to_dequeue = std::vector(static_cast<std::size_t>(world_size), std::vector<std::pair<doctor_type, repast::AgentId>> {});
+    auto       to_enqueue = std::vector(static_cast<std::size_t>(world_size), std::vector<std::pair<specialty_type, patient_turn>> {});
+    auto       to_dequeue = std::vector(static_cast<std::size_t>(world_size), std::vector<std::pair<specialty_type, repast::AgentId>> {});
     auto       mpi_tag    = _base_tag;
 
     // Receive the new enqueue
@@ -127,25 +128,14 @@ void sti::real_doctors::sync()
         }
     }
 
-    // Construct the new front
-    for (auto& [doc_type, queue] : _front) {
-
-        queue.clear(); // Remove the existing patients
-
-        const auto& doctors  = _doctors.at(doc_type);
-        const auto& patients = _patients_queue.at(doc_type);
-
-        auto doctor  = doctors.begin();
-        auto patient = patients.begin();
-
-        // Insert patients in the queue until there are no more doctors or
-        // patients, whatever happens first
-        while (doctor != doctors.end() && patient != patients.end()) {
-
-            queue.push_back({ *doctor, patient->id });
-
-            ++doctor;
-            ++patient;
+    // Update the front, poping patients from the queues
+    for (auto& [specialty, doctors] : _front) {
+        auto& patients = _patients_queue.at(specialty);
+        for (auto& doctor_location : doctors) {
+            if (!doctor_location.second.is_initialized() && !patients.empty()) {
+                doctor_location.second = patients.front().id;
+                patients.pop_front();
+            }
         }
     }
 
@@ -178,42 +168,14 @@ void sti::real_doctors::sync()
 /// @brief Insert a new patient turn in order
 /// @param type The doctor type/specialty to enqueue in
 /// @param turn The patient turn, containing id and timeout/priority
-void sti::real_doctors::insert_in_order(const doctor_type& type, const patient_turn& turn)
+void sti::real_doctors::insert_in_order(const specialty_type& type, const patient_turn& turn)
 {
-    auto& queue = _patients_queue[type];
-
     // The patients must be inserted according to the assigned priority, which
     // is implemented with a timeout/'wait_until <timeout> before leaving'. The
     // queue must remain sorted, where queue[i].timeout < queue[i+1].timeout.
 
-    // The first P positions are the 'current turns', those are ignored durning
-    // the insertion lookup because they represent patients that are either
-    // walking to the assigned doctor, or are currently in the doctor. Modifying
-    // this positions will break the logic, because the new patient will think
-    // is his turn.
-    // P is in the range [0, number_of_doctors], depending of the number of
-    // patients enqueued in the doctor type. If there are more patients than
-    // doctors, the value will be number_of_doctors.
-
-    // std::list doesn't suport random access, (queue.begin() + P), must iterate P
-    // times incrementing the iterator
-    const auto front_size  = _doctors.at(type).size();
-    const auto queue_begin = [&]() {
-        auto begin = queue.begin();
-        for (auto p = 0UL; p < front_size; ++p) {
-            ++begin;
-        }
-        return begin;
-    }();
-
-    // The iteration lookup begins in position D, where D is the number of
-    // doctors for the specified type. If there are less patients
-    // (queue.size()) than doctors, the first iterator will be 'after' the last
-    // iterator. In this scenario find_if() will return the last iterator, so
-    // the insertion should be correct. If there are more patients than doctors,
-    // the insertion will follow the criteria described in the firsts comments,
-    // using the timeout to determine 'more urgent' patients.
-    const auto insert_it = std::find_if(queue_begin, queue.end(),
+    auto&      queue     = _patients_queue[type];
+    const auto insert_it = std::find_if(queue.begin(), queue.end(),
                                         [&](const auto& queue_turn) {
                                             // Returns true when the turn-in-queue
                                             // timeouts after the inserting turn
@@ -226,9 +188,18 @@ void sti::real_doctors::insert_in_order(const doctor_type& type, const patient_t
 /// @brief Remove an agent from a queue
 /// @param type The doctor type to dequeue from
 /// @param id The agent id
-void sti::real_doctors::remove_patient(const doctor_type& type, const agent_id& id)
+void sti::real_doctors::remove_patient(const specialty_type& type, const agent_id& id)
 {
-    _patients_queue.at(type).remove_if([&](const auto& turn) {
-        return turn.id == id;
-    });
+    // Check if the patient is in the front
+    auto& boxes  = _front.at(type);
+    auto  box_it = std::find_if(boxes.begin(), boxes.end(),
+                               [&](const auto& kv) { return kv.second == id; });
+
+    if (box_it != boxes.end()) {
+        box_it->second = boost::none;
+    } else {
+        _patients_queue.at(type).remove_if([&](const auto& turn) {
+            return turn.id == id;
+        });
+    }
 }
