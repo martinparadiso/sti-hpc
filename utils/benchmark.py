@@ -141,12 +141,10 @@ hospital.parameters = {
     'objects': {
         'chair': {
             'infect_probability': objects_probability,
-            'cleaning_interval': sim.TimePeriod(1, 0, 0, 0),
-            'radius': 0.1
+            'cleaning_interval': sim.TimePeriod(1, 0, 0, 0)
         },
         'bed': {
             'infect_probability': original_probability,
-            'radius': 0.0,
             'cleaning_interval': sim.TimePeriod(1, 0, 0, 0)
         }
     },

@@ -278,14 +278,10 @@ class Hospital(object):
         Parameter('objects', {
             Parameter('chair', {
                 Parameter('infect_probability', float, prob=True),
-                Parameter('radius', float,
-                          validate=lambda v: (v >= 0, 'Must be >=  0')),
                 Parameter('cleaning_interval', TimePeriod)
             }),
             Parameter('bed', {
                 Parameter('infect_probability', float, prob=True),
-                Parameter('radius', float,
-                          validate=lambda v: (v >= 0, 'Must be at least 0')),
                 Parameter('cleaning_interval', TimePeriod)
             })
         }),

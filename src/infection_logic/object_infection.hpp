@@ -38,7 +38,6 @@ public:
         const sti::clock*         clock {};
 
         precission infect_chance {};
-        precission object_radius {};
         timedelta  cleaning_interval;
     };
 
