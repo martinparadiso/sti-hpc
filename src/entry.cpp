@@ -89,8 +89,11 @@ std::uint64_t sti::hospital_entry::patients_waiting()
 
         // The number of patients that were already admitted durning this
         // interval should be at least the time passed since the start of the
-        // interval divided by the rate
-        const auto rate = _interval_length / interval_admission_target;
+        // interval divided by the rate.
+        // Note: this is equivalent to ceil(_interval_lenght / interval_admission_target).
+        // If normal division (floor()) is used, it generates more patients than
+        // it should due to rounding
+        const auto rate = (_interval_length + interval_admission_target - 1) / interval_admission_target;
         return 1 + bin_offset / rate;
     }();
 
