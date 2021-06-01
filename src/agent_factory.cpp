@@ -22,6 +22,19 @@
 #include "triage.hpp"
 #include "patient_fsm.hpp"
 
+namespace {
+
+/// @brief Exception thrown when a probability is wrong
+struct human_incubating : public std::exception {
+    human_incubating() {};
+
+    const char* what() const noexcept override
+    {
+        return "Can not create an incubating human";
+    }
+};
+} // namespace
+
 /// @brief Create a new patient factory
 /// @param comm The MPI communicator
 /// @param context A pointer to the repast context, to insert the agent
@@ -146,6 +159,10 @@ sti::agent_factory::person_ptr sti::agent_factory::insert_new_person(
     human_infection_cycle::STAGE     st,
     bool                             immune)
 {
+    // Stage can't be incubating for new patients
+    if (st == human_infection_cycle::STAGE::INCUBATING) {
+        throw human_incubating{};
+    }
     const auto rank        = repast::RepastProcess::instance()->rank();
     const auto repast_type = to_int(contagious_agent::type::FIXED_PERSON);
     const auto i           = static_cast<int>(_agents_created++);
