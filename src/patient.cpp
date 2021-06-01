@@ -130,8 +130,6 @@ sti::patient_fsm::STATE sti::patient_agent::current_state() const
 /// @brief Execute the patient logic, both infection and behaviour
 void sti::patient_agent::act()
 {
-    _infection_logic.infect_with_environment();
-    _infection_logic.infect_with_nearby();
     _infection_logic.tick();
     _fsm.tick();
 }

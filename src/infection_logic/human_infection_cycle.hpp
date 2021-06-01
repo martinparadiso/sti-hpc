@@ -124,12 +124,6 @@ public:
     /// @param other The other infection cycle
     void interact_with(const infection_cycle& other) override;
 
-    /// @brief Try to get infected via the environment
-    void infect_with_environment();
-
-    /// @brief Try go get infected with nearby agents
-    void infect_with_nearby();
-
     /// @brief The infection has time-based stages, this method performs the changes
     void tick();
 
@@ -142,6 +136,13 @@ public:
     boost::json::value stats() const;
 
 private:
+
+    /// @brief Try to get infected via the environment
+    void infect_with_environment();
+
+    /// @brief Try go get infected with nearby agents
+    void infect_with_nearby();
+    
     friend class boost::serialization::access;
 
     // Private serialization, for security

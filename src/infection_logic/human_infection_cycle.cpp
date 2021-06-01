@@ -164,6 +164,9 @@ void sti::human_infection_cycle::tick()
             _stage = STAGE::SICK;
         }
     }
+
+    this->infect_with_environment();
+    this->infect_with_nearby();
 }
 
 ////////////////////////////////////////////////////////////////////////////

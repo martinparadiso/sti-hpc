@@ -76,8 +76,6 @@ sti::person_agent::type sti::person_agent::get_type() const
 /// @brief Perform the actions this agent is supposed to
 void sti::person_agent::act()
 {
-    _infection_logic.infect_with_environment();
-    _infection_logic.infect_with_nearby();
     _infection_logic.tick();
 }
 
