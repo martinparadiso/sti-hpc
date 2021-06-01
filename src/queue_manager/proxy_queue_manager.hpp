@@ -45,7 +45,7 @@ private:
     communicator_ptr _communicator;
     int              _tag;
     int              _real_rank;
-    front_type       _front;
+    front_type       _boxes;
 
     std::vector<agent_id> _to_enqueue;
     std::vector<agent_id> _to_dequeue;

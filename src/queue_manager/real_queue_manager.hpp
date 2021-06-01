@@ -4,6 +4,8 @@
 
 #include <boost/mpi/communicator.hpp>
 #include <list>
+#include <map>
+#include <optional>
 
 #include "../queue_manager.hpp"
 #include "../hospital_plan.hpp"
@@ -43,10 +45,11 @@ public:
     void sync() override;
 
 private:
-    communicator_ptr                 _communicator;
-    int                              _tag;
-    std::list<agent_id>              _queue;
-    std::vector<coordinates<double>> _boxes;
+    communicator_ptr                                       _communicator;
+    int                                                    _tag;
+    std::list<agent_id>                                    _queue;
+    std::map<coordinates<double>, boost::optional<agent_id>> _boxes;
+    // std::vector<coordinates<double>> _boxes;
 };
 
 } // namespace sti

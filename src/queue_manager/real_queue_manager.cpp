@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/utility.hpp>
+#include <boost/serialization/optional.hpp>
+#include <boost/serialization/map.hpp>
 #include <repast_hpc/AgentId.h>
 #include <vector>
 
@@ -15,7 +17,13 @@ sti::real_queue_manager::real_queue_manager(communicator_ptr                    
                                             const std::vector<coordinates<double>>& boxes)
     : _communicator { comm }
     , _tag { tag }
-    , _boxes { boxes }
+    , _boxes { [&]() {
+        auto tmp_boxes = decltype(_boxes) {};
+        for (const auto& box : boxes) {
+            tmp_boxes[box] = boost::none;
+        }
+        return tmp_boxes;
+    }() }
 {
 }
 
@@ -34,7 +42,18 @@ void sti::real_queue_manager::enqueue(const agent_id& id)
 /// @param id The id to remove from the queue
 void sti::real_queue_manager::dequeue(const agent_id& id)
 {
-    _queue.remove(id);
+    // Search  for the patient in the assigned boxes
+    auto box_it = std::find_if(_boxes.begin(), _boxes.end(), [&](const auto& pair) {
+        return pair.second == id;
+    });
+
+    if (box_it != _boxes.end()) {
+        // If the patient is in a box, remove it
+        box_it->second = {};
+    } else {
+        // The patient is not in the boxes, is in the queue
+        _queue.remove(id);
+    }
 }
 
 /// @brief Check if the given agent is next in the attention
@@ -42,15 +61,13 @@ void sti::real_queue_manager::dequeue(const agent_id& id)
 /// @return If the agent is in the front of the queue, the coordinates
 boost::optional<sti::coordinates<double>> sti::real_queue_manager::is_my_turn(const agent_id& id)
 {
-    // Iterate over the queue and the list of boxes at the same time. Stop if
-    // there are no more boxes or no more patients
-    auto queue_it = _queue.begin();
-    for (auto i = 0U; i < _boxes.size() && queue_it != _queue.end(); ++i) {
+    // Search for the patient in the box list
+    auto box_it = std::find_if(_boxes.begin(), _boxes.end(), [&](const auto& pair) {
+        return pair.second == id;
+    });
 
-        // If the position i is the agent, return the box in the position i
-        if ((*queue_it) == id) {
-            return _boxes[i];
-        }
+    if (box_it != _boxes.end()) {
+        return box_it->first;
     }
 
     return boost::none;
@@ -102,22 +119,14 @@ void sti::real_queue_manager::sync()
         }
     }
 
-    // Construct the new front and broadcast it
-    auto bit       = _boxes.begin();
-    auto qit       = _queue.begin();
-    auto new_front = front_type {};
-    while (bit != _boxes.end() && qit != _queue.end()) {
-        const auto& box = *bit;
-        const auto& pid = *qit;
-        new_front.push_back({ box, pid });
-
-        ++bit;
-        ++qit;
-    }
-
-    for (auto p = 0; p < world_size; ++p) {
-        if (p != my_rank) {
-            _communicator->send(p, mpi_tag, new_front);
+    // Update the front
+    for (auto& [box, patient] : _boxes) {
+        if (!patient.is_initialized() && !_queue.empty()) {
+            patient = _queue.front();
+            _queue.pop_front();
         }
     }
+
+    // Broadcast the new front
+    boost::mpi::broadcast(*_communicator, _boxes, _communicator->rank());
 }

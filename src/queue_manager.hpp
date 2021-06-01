@@ -25,7 +25,7 @@ public:
 
     // The front of the queue, containing the next agents/patients to be
     // attended and their assigned location
-    using front_type = std::vector<std::pair<sti::coordinates<double>, agent_id>>;
+    using front_type = std::map<coordinates<double>, boost::optional<agent_id>>;
 
     ////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTION
