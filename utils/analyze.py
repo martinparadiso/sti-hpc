@@ -4,20 +4,26 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
+import argparse
 
-exclude = ['28-triage_manager_rank_1']
+parser = argparse.ArgumentParser(description='Plot performance')
+parser.add_argument('-i', '--include', action='append',
+                    help='Regular expression of the labels to plot')
+args = parser.parse_args()
 
 df = pd.read_csv('/home/martin/Repositories/sti-hpc/utils/benchmark.csv')
 
-# df = df[(df['label'].isin(('reference', '20200528'))) | (df['label'].str.startswith('29-'))]
-df = df[~(df['label'].isin(exclude))]
+plot_df = pd.DataFrame()
 
-df['time'] = pd.to_timedelta(df['time'])
-res = df[['label', 'time']].groupby('label').apply(lambda x: np.mean(x))
-res['std'] = df[['label', 'time']].groupby('label').apply(lambda x: np.std(x))
+for regex in args.include:
+    plot_df = plot_df.append(df[df['label'].str.match(regex)])
 
-df['time'] = df['time'].dt.total_seconds()
-ax = df.boxplot(by='label', column='time', rot='90')
+plot_df['time'] = pd.to_timedelta(plot_df['time'])
+res = plot_df[['label', 'time']].groupby('label').apply(lambda x: np.mean(x))
+res['std'] = plot_df[['label', 'time']].groupby('label').apply(lambda x: np.std(x))
+
+plot_df['time'] = plot_df['time'].dt.total_seconds()
+ax = plot_df.boxplot(by='label', column='time', rot='90')
 
 ax.set_ylim(0)
 plt.show()
