@@ -5,6 +5,7 @@
 #include <boost/json/detail/value_to.hpp>
 #include <cstdint>
 #include <fstream>
+#include <numeric>
 #include <sstream>
 
 #include "agent_factory.hpp"
@@ -40,26 +41,91 @@ struct influx_and_infected_probability_differ : public std::exception {
     }
 };
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// PATIENT_DISTRIBUTION
+////////////////////////////////////////////////////////////////////////////////
+
+/// @brief Construct a patient influx distribution
+/// @param patient_rate The influx of patients, a matrix where the first dimension is the day, and the second a fixed interval in the day
+/// @param infected_chance A vector containing the probability per day of a patient being infected
+sti::patient_distribution::patient_distribution(entry_rate_type&&           patient_rate,
+                                                infected_probability_type&& infected_chance)
+    : _data { std::move(patient_rate) }
+    , _infected_chance { std::move(infected_chance) }
+{
+}
+
+/// @brief Get the total number of patients that will enter the hospital
+std::uint32_t sti::patient_distribution::total_patients() const
+{
+#include <iostream>
+
+    // const auto total = _data.
+    const auto acc = std::accumulate(_data.begin(), _data.end(), 0U,
+                                     [](const auto& acc, const auto& val) {
+                                         return acc + std::accumulate(val.begin(), val.end(), 0U, [](const auto& acc_day, const auto& val_day) {
+                                                    return acc_day + val_day;
+                                                });
+                                     });
+
+    return acc;
+}
+
+/// @brief Get the number of days the distribution cover
+/// @return The number of days for which data is available
+std::uint32_t sti::patient_distribution::days() const
+{
+    return static_cast<std::uint32_t>(_data.size());
+}
+
+/// @brief Get the number of bins/intervals in a day
+/// @return The number of intervals in a day
+std::uint32_t sti::patient_distribution::intervals() const
+{
+    return static_cast<std::uint32_t>(_data.at(0).size());
+}
+
+/// @brief Get the number of patients entering the hospital in a given interval
+/// @param day The day
+/// @param interval The interval of the day
+/// @return The number of patients entering the hospital in the specified interval
+std::uint32_t sti::patient_distribution::get(std::uint32_t day, std::uint32_t interval) const
+{
+    return static_cast<std::uint32_t>(_data.at(day).at(interval));
+}
+
+/// @brief Get the probability of a patient being infected in a given day
+/// @param day The day for which the probability is required
+/// @return A double in the range [0, 1), indicating the chance of a patient being infected
+sti::probability_precission sti::patient_distribution::get_infected_probability(std::uint32_t day) const
+{
+    return _infected_chance.at(day);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// HOSPITAL_ENTRY
+////////////////////////////////////////////////////////////////////////////////
+
 /// @brief Create a hospital entry
 /// @details The hospital entry is in charge of creating the patients
 /// @param location The location of the entry
 /// @param clock The simulation clock
 /// @param patient_admissions The patient admission histogram
 /// @param factory The agent factory, for patient creation
-sti::hospital_entry::hospital_entry(sti::coordinates<int>                 location,
-                                    sti::clock*                           clock,
-                                    std::unique_ptr<patient_distribution> patient_admissions,
-                                    agent_factory*                        factory,
-                                    const boost::json::object&            props)
+sti::hospital_entry::hospital_entry(sti::coordinates<int>  location,
+                                    sti::clock*            clock,
+                                    patient_distribution&& patient_admissions,
+                                    agent_factory*         factory)
     : _location { location }
     , _clock { clock }
     , _patient_distribution(std::move(patient_admissions))
-    , _generated_patients { boost::histogram::make_histogram(
-          patient_distribution::axis_t(0, static_cast<unsigned>(_patient_distribution->days()), "day"),
-          patient_distribution::axis_t(0, _patient_distribution->intervals(), "interval")) }
+    , _generated_patients (
+        _patient_distribution.days(), std::vector<std::uint32_t> (_patient_distribution.intervals(), 0U )
+    )
     // The length of the interval is the number of seconds in a day divided
     // by the number of intervals
-    , _interval_length { (24 * 60 * 60) / _patient_distribution->intervals() }
+    , _interval_length { (24 * 60 * 60) / _patient_distribution.intervals() }
     , _agent_factory { factory }
 {
 }
@@ -79,12 +145,12 @@ std::uint64_t sti::hospital_entry::patients_waiting()
 
     // Get the number of patients expected for this interval and the rate of
     // admission
-    const auto interval_admission_target = _patient_distribution->get(day, bin);
+    const auto interval_admission_target = _patient_distribution.get(day, bin);
 
     const auto expected = [&]() {
         // Guard to make sure we don't divide by zero
         if (interval_admission_target == 0) {
-            return 0UL;
+            return 0U;
         }
 
         // The number of patients that were already admitted durning this
@@ -97,10 +163,10 @@ std::uint64_t sti::hospital_entry::patients_waiting()
         return 1 + bin_offset / rate;
     }();
 
-    const auto agents_waiting = expected - static_cast<std::uint64_t>(_generated_patients.at(static_cast<int>(day), bin));
+    const auto agents_waiting = expected - _generated_patients.at(day).at(bin);
 
     // Increase the number of agents created and return the value
-    _generated_patients(day, bin, boost::histogram::weight(agents_waiting));
+    _generated_patients.at(day).at(bin) += agents_waiting;
     return agents_waiting;
 }
 
@@ -123,12 +189,11 @@ void sti::hospital_entry::save(const std::string& folderpath, int rank) const
 
     file << "day,period,patients_generated\n";
 
-    for (auto day = 0; day < _generated_patients.axis(0).size(); ++day) {
-        for (auto bin = 0; bin < _generated_patients.axis(1).size(); ++bin) {
-            const auto gen = static_cast<int>(_generated_patients.at(day, bin));
+    for (auto day = 0UL; day < _generated_patients.size(); ++day) {
+        for (auto bin = 0UL; bin < _generated_patients.at(day).size(); ++bin) {
             file << day << ','
                  << bin << ','
-                 << gen << '\n';
+                 << _generated_patients.at(day).at(bin) << '\n';
         }
     }
 }
@@ -143,7 +208,7 @@ void sti::hospital_entry::generate_patients()
         using STAGES = human_infection_cycle::STAGE;
 
         const auto random = repast::Random::instance()->nextDouble();
-        const auto stage  = _patient_distribution->get_infected_probability(_clock->now().human().days) > random ? STAGES::SICK : STAGES::HEALTHY;
+        const auto stage  = _patient_distribution.get_infected_probability(_clock->now().human().days) > random ? STAGES::SICK : STAGES::HEALTHY;
         _agent_factory->insert_new_patient(_location.continuous(), stage);
     }
 }
@@ -151,7 +216,7 @@ void sti::hospital_entry::generate_patients()
 /// @brief Load the patient distribution curve from a file
 /// @param json The json object containing the influx
 /// @details File format is described in the documentation
-std::unique_ptr<sti::patient_distribution> sti::load_patient_distribution(const boost::json::object& json)
+sti::patient_distribution sti::load_patient_distribution(const boost::json::object& json)
 {
     const auto& days = boost::json::value_to<boost::json::array>(json.at("parameters").at("patient").at("influx"));
     auto        data = std::vector<std::vector<std::uint32_t>> {};
@@ -172,5 +237,5 @@ std::unique_ptr<sti::patient_distribution> sti::load_patient_distribution(const 
         throw influx_and_infected_probability_differ {};
     }
 
-    return std::make_unique<patient_distribution>(std::move(data), std::move(infected_chance));
+    return patient_distribution { std::move(data), std::move(infected_chance) };
 }

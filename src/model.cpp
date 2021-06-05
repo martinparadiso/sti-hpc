@@ -381,13 +381,13 @@ void sti::model::init()
     const auto en = _hospital.entry();
     if (_spaces.local_dimensions().contains(std::vector { en.location.x, en.location.y })) {
         auto       patient_distribution = load_patient_distribution(_hospital_props);
-        const auto days                 = patient_distribution->days();
-        _entry.reset(new sti::hospital_entry { en.location, _clock.get(), std::move(patient_distribution), _agent_factory.get(), _hospital_props });
+        const auto days                 = patient_distribution.days();
+        _entry.reset(new sti::hospital_entry { en.location, _clock.get(), std::move(patient_distribution), _agent_factory.get() });
 
         // Calculate how many ticks and broadcast to the rest
-        const auto seconds_per_tick = boost::lexical_cast<int>(_props->getProperty("seconds.per.tick"));
+        const auto seconds_per_tick = boost::lexical_cast<std::uint32_t>(_props->getProperty("seconds.per.tick"));
         const auto ticks            = (days * 86400) / seconds_per_tick;
-        _stop_at                    = ticks - 1;
+        _stop_at                    = static_cast<int>(ticks - 1);
 
         // Note: can't use broadcast because it requires the "root" process
         // sending the message, which is unknown

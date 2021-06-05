@@ -37,6 +37,7 @@ sti::hospital_exit::hospital_exit(repast_context_ptr    context,
     , _location { location }
     , _pimpl { std::make_unique<sti::hospital_exit::impl>() }
 {
+    _pimpl->agent_output_data.reserve(70000);
 }
 
 sti::hospital_exit::~hospital_exit() = default;
