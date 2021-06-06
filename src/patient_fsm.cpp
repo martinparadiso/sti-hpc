@@ -551,7 +551,7 @@ sti::patient_fsm::exit_list create_exit_actions()
         m.patient_flyweight->triage->dequeue(m.patient->getId());
     };
 
-    // Dequeue form the doctor
+    // Dequeue from the doctor
     auto dequeue_from_doctor = [](fsm& m) {
         const auto doctor_assigned = boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).doctor_assigned;
         m.patient_flyweight->doctors->queues()->dequeue(doctor_assigned, m.patient->getId());
