@@ -120,9 +120,8 @@ sti::hospital_entry::hospital_entry(sti::coordinates<int>  location,
     : _location { location }
     , _clock { clock }
     , _patient_distribution(std::move(patient_admissions))
-    , _generated_patients (
-        _patient_distribution.days(), std::vector<std::uint32_t> (_patient_distribution.intervals(), 0U )
-    )
+    , _generated_patients(
+          _patient_distribution.days(), std::vector<std::uint32_t>(_patient_distribution.intervals(), 0U))
     // The length of the interval is the number of seconds in a day divided
     // by the number of intervals
     , _interval_length { (24 * 60 * 60) / _patient_distribution.intervals() }
@@ -196,6 +195,13 @@ void sti::hospital_entry::save(const std::string& folderpath, int rank) const
                  << _generated_patients.at(day).at(bin) << '\n';
         }
     }
+}
+
+/// @brief Get the total number of patients that will enter the hospital
+/// @return The number of patients
+std::uint32_t sti::hospital_entry::total_patients() const
+{
+    return _patient_distribution.total_patients();
 }
 
 /// @brief Generate the pending patients

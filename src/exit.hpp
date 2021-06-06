@@ -41,10 +41,12 @@ public:
     /// @param space Space wrapper
     /// @param clk The world clock
     /// @param location The tile the exit is located
+    /// @param entry The hospital entry, to determine how many patients will enter
     hospital_exit(repast_context_ptr    context,
                   space_ptr             space,
                   clock_ptr             clk,
-                  sti::coordinates<int> location);
+                  sti::coordinates<int> location,
+                  const hospital_entry& entry);
 
     hospital_exit(const hospital_exit&) = delete;
     hospital_exit& operator=(const hospital_exit&) = delete;

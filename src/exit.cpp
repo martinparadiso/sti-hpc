@@ -9,7 +9,9 @@
 #include <utility>
 #include <vector>
 
+#include "entry.hpp"
 #include "contagious_agent.hpp"
+#include "hospital_plan.hpp"
 #include "space_wrapper.hpp"
 
 /// @brief Pointer to implementation struct
@@ -26,10 +28,12 @@ struct sti::hospital_exit::impl {
 /// @param space Space wrapper
 /// @param clk The world clock
 /// @param location The tile the exit is located
+/// @param entry The hospital entry, to determine how many patients will enter
 sti::hospital_exit::hospital_exit(repast_context_ptr    context,
                                   space_ptr             space,
                                   clock_ptr             clk,
-                                  sti::coordinates<int> location)
+                                  sti::coordinates<int> location,
+                                  const hospital_entry& entry)
 
     : _context { context }
     , _space { space }
@@ -37,7 +41,7 @@ sti::hospital_exit::hospital_exit(repast_context_ptr    context,
     , _location { location }
     , _pimpl { std::make_unique<sti::hospital_exit::impl>() }
 {
-    _pimpl->agent_output_data.reserve(70000);
+    _pimpl->agent_output_data.reserve(entry.total_patients());
 }
 
 sti::hospital_exit::~hospital_exit() = default;

@@ -90,6 +90,10 @@ public:
                    patient_distribution&&     patient_admissions,
                    agent_factory*             factory);
 
+    /// @brief Get the total number of patients that will enter the hospital
+    /// @return The number of patients 
+    std::uint32_t total_patients() const;
+
     /// @brief Generate the pending patients
     void generate_patients();
 

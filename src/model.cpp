@@ -404,7 +404,7 @@ void sti::model::init()
     // Create the exit, if the exit is in this process
     const auto ex = _hospital.exit();
     if (_spaces.local_dimensions().contains(std::vector { ex.location.x, ex.location.y })) {
-        _exit.reset(new sti::hospital_exit(&_context, &_spaces, _clock.get(), ex.location));
+        _exit.reset(new sti::hospital_exit(&_context, &_spaces, _clock.get(), ex.location, *_entry));
     }
 
     // Create medical personnel
