@@ -5,7 +5,6 @@
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/variant.hpp>
 #include <functional>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <utility>
@@ -30,8 +29,8 @@ struct patient_fsm {
     ////////////////////////////////////////////////////////////////////////////
 
     /// @brief The states of the FSM
-    enum class STATE : std::size_t {
-        ENTRY = 0UL,
+    enum class STATE {
+        ENTRY,
         WAIT_CHAIR_1,
         WALK_TO_CHAIR_1,
         WAIT_RECEPTION_TURN,
@@ -70,7 +69,7 @@ struct patient_fsm {
         action_signature action;
         STATE            destination;
     };
-    using transition_table = std::array<std::vector<transition_type>, static_cast<std::size_t>(STATE::AWAITING_DELETION) + 1>;
+    using transition_table = std::map<STATE, std::vector<transition_type>>;
 
     using entry_signature = std::function<void(patient_fsm&)>;
     using exit_signature  = std::function<void(patient_fsm&)>;
