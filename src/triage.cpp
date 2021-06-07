@@ -242,7 +242,7 @@ void sti::triage::save(const std::string& folderpath) const
 {
     // Generate the JSON
     auto jv = boost::json::value {
-        { "icu", { { "deaths", _stats->icu_deaths }, { "times", _stats->icu_diagnostics } } },
+        { "icu", { { "deaths", _stats->icu_deaths }, { "sleep_times", _stats->icu_diagnostics } } },
         { "doctors", _stats->doctors_diagnostics }
     };
 

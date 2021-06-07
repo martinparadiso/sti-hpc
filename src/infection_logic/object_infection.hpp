@@ -44,6 +44,16 @@ public:
     using flyweights_ptr = const std::map<object_type, flyweight>*;
 
     ////////////////////////////////////////////////////////////////////////////
+    // INFECTION STATS
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @brief Struct used to store the infection statistics
+    struct infection_stat {
+        std::string infected_by;
+        datetime    time;
+    }; // struct infection_state
+
+    ////////////////////////////////////////////////////////////////////////////
     // STAGE
     ////////////////////////////////////////////////////////////////////////////
 
@@ -114,8 +124,17 @@ private:
     object_type                                   _object_type;
     STAGE                                         _stage;
     datetime                                      _next_clean;
-    std::vector<std::pair<std::string, datetime>> _infected_by;
+    std::vector<infection_stat> _infected_by;
 
-}; // class ghost_object_cycle
+}; // class object_cycle
+
+
+inline void tag_invoke(boost::json::value_from_tag /*unused*/, boost::json::value& jv, const object_infection::infection_stat& td)
+{
+    jv = {
+        { "infected_by", td.infected_by },
+        { "time", td.time.seconds_since_epoch() }
+    };
+}
 
 } // namespace sti

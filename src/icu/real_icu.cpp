@@ -245,15 +245,6 @@ void sti::real_icu::tick()
 /// @param filepath The path to the folder where
 void sti::real_icu::save(const std::string& folderpath) const
 {
-    // Write per-tick stats
-    auto tick_status = std::ostringstream {};
-    tick_status << folderpath
-                << "/icu_status.p"
-                << _communicator->rank()
-                << ".csv";
-
-    auto file = std::ofstream { tick_status.str() };
-
     // Write the admissions, releases and rejections
     auto inout_path = std::ostringstream {};
     inout_path << folderpath
