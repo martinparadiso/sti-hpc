@@ -22,6 +22,8 @@ parser.add_argument('--iterations', required=True, type=int,
                     help='Number of time each diff will be run')
 parser.add_argument('--human-infection', type=float,
                     help='Human infection probability test')
+parser.add_argument('--human-contamination', type=float,
+                    help='Human -> object contamination probability')
 parser.add_argument('--chair-infection', type=float,
                     help='Chair infection probability')
 parser.add_argument('--bed-infection', type=float,
@@ -31,7 +33,7 @@ parser.add_argument('--icu-chance', type=float,
 args = parser.parse_args()
 
 
-def worker(infection_chance, icu_chance):
+def worker(human_infection, human_contamination, chair_infection, bed_infection, icu_chance):
     width = 53
     height = 36
     hospital = sim.Hospital(width, height)
@@ -116,20 +118,20 @@ def worker(infection_chance, icu_chance):
     hospital.parameters = {
         'human': {
             'infect_distance': 2.0,
-            'contamination_probability': infection_chance,
+            'contamination_probability': human_contamination,
             'incubation_time': {
                 'min': sim.TimePeriod(0, 14, 0, 0),
                 'max': sim.TimePeriod(6, 0,  0, 0)
             },
-            'infect_probability': infection_chance
+            'infect_probability': human_infection
         },
         'objects': {
             'chair': {
-                'infect_probability': infection_chance,
+                'infect_probability': chair_infection,
                 'cleaning_interval': sim.TimePeriod(1, 0, 0, 0)
             },
             'bed': {
-                'infect_probability': infection_chance,
+                'infect_probability': bed_infection,
                 'cleaning_interval': sim.TimePeriod(1, 0, 0, 0)
             }
         },
@@ -300,7 +302,7 @@ def worker(infection_chance, icu_chance):
             },
         ],
         'patient': {
-            'walk_speed': 0.5,
+            'walk_speed': 2.0,
             'infected_probability': infected_percentage,
             'influx': influx
         },
@@ -329,43 +331,79 @@ def worker(infection_chance, icu_chance):
     # Extract the relevant data
     agents = pp.AgentsOutput(str(simulation.folder))
     df = pd.concat((agents.staff, agents.patients))
-    icu_sick = len(df[(df['infected_by'].str.startswith('bed'))
-                      | (df['infected_by'] == 'icu_environment')])
-    nonicu_sick = len(df[(df['infected_by'].str.startswith('human')) | (
-        df['infected_by'].str.startswith('chair'))])
-    patients_derived_to_icu = len(df[df['diagnosis_type'] == 'icu'])
 
-    icu_pp = (icu_sick / patients_derived_to_icu) * 100
-    nonicu_pp = (nonicu_sick / (patient_sum - patients_derived_to_icu)) * 100
+    total_patients = len(df[df['type'] == 'patient'])
+    infected_patients = len(df[(df['type'] == 'patient') & (df['infected_by'] != '')])
+    punctual_prevalence = (infected_patients / len(df[df['type'] == 'patient']))
+    icu_total_patients = len(df[df['diagnosis_type'] == 'icu'])
+    icu_infected_patients =  len(df[(df['diagnosis_type'] == 'icu') & (df['infected_by'] != '')])
+    icu_punctual_prevalence = (icu_infected_patients / icu_total_patients)
+    infected_patients_deaths_at_icu = len(df[(df['diagnosis_type'] == 'icu') & (df['infected_by'] != '') & (df['last_state'] == 'MORGUE')])
+    icu_mortality_of_infected_patients = (infected_patients_deaths_at_icu / icu_infected_patients)
+    total_infected_patients_by_personal = len(df[(df['type'] == 'patient') & (df['infected_by'].isin(df[df['type'] != 'patient']['infection_id']))])
+    percentage_infected_patients_by_personal = (total_infected_patients_by_personal / infected_patients)
+    total_infected_objects = agents.objects['infections'].apply(lambda o: len(o)).sum()
+    total_infected_patients_by_objects = len(df[(df['type'] == 'patient') & (df['infected_by'].isin(agents.objects['infection_id']))])
+    percentage_infected_patients_by_objects = (total_infected_patients_by_objects / infected_patients)
+    total_infected_patients_by_patients = len(df[(df['type'] == 'patient') & (df['infected_by'].isin(df[df['type'] == 'patient']['infection_id']))])
+    percentage_infected_patients_by_patients = (total_infected_patients_by_patients / infected_patients)
+    icu_rejected_patients = len(df[(df['type'] == 'patient') & (df['last_state'] == 'WAIT_ICU')])
+    percentage_of_rejections_at_icu = (icu_rejected_patients / icu_total_patients)
+    waiting_room_rejected_patients = len(df[(df['type'] == 'patient') & (df['last_state'].str.startswith('WAIT_CHAIR'))])
+    percentage_of_rejections_at_waiting_room = (waiting_room_rejected_patients / total_patients)
+    out_of_time_patients = len(df[(df['type'] == 'patient') & (df['last_state'] == 'NO_ATTENTION')])
+    percentage_of_out_of_time_patients = (out_of_time_patients / len(df[(df['type'] == 'patient') & (df['diagnosis_type'] == 'doctor')]))
 
     return {
         'run_id': simulation.id,
-        'infection_chance': infection_chance,
+        'human_infection': human_infection,
+        'human_contamination': human_contamination,
+        'chair_infection': chair_infection,
+        'bed_infection': bed_infection,
         'icu_chance': icu_chance,
-        'icu_infected': icu_sick,
-        'icu_pp': icu_pp,
-        'nonicu_infected': nonicu_sick,
-        'nonicu_pp': nonicu_pp
+
+        'total_patients': total_patients,
+        'infected_patients': infected_patients,
+        'punctual_prevalence': punctual_prevalence,
+        'icu_total_patients': icu_total_patients,
+        'icu_infected_patients': icu_infected_patients,
+        'icu_punctual_prevalence': icu_punctual_prevalence,
+        'infected_patients_deaths_at_icu': infected_patients_deaths_at_icu,
+        'icu_mortality_of_infected_patients': icu_mortality_of_infected_patients,
+        'total_infected_patients_by_personal': total_infected_patients_by_personal,
+        'percentage_infected_patients_by_personal': percentage_infected_patients_by_personal,
+        'total_infected_objects': total_infected_objects,
+        'total_infected_patients_by_objects': total_infected_patients_by_objects,
+        'percentage_infected_patients_by_objects': percentage_infected_patients_by_objects,
+        'total_infected_patients_by_patients': total_infected_patients_by_patients,
+        'percentage_infected_patients_by_patients': percentage_infected_patients_by_patients,
+        'icu_rejected_patients': icu_rejected_patients,
+        'percentage_of_rejections_at_icu': percentage_of_rejections_at_icu,
+        'waiting_room_rejected_patients': waiting_room_rejected_patients,
+        'percentage_of_rejections_at_waiting_room': percentage_of_rejections_at_waiting_room,
+        'out_of_time_patients': out_of_time_patients,
+        'percentage_of_out_of_time_patients': percentage_of_out_of_time_patients
     }
 
 
 try:
     df = pd.read_csv(args.output_file)
 except:
-    df = pd.DataFrame(columns=['run_id',
-                               'infection_chance',
-                               'icu_chance',
-                               'icu_infected',
-                               'icu_pp',
-                               'nonicu_infected',
-                               'nonicu_pp'])
+    df = pd.DataFrame()
 
-
+try:
+    label = df['label'].max() + 1
+except:
+    label = 0
 with Pool(args.simultaneous) as pool:
     res = pool.starmap(worker, args.iterations * [(args.human_infection,
+                                                   args.human_contamination,
                                                    args.chair_infection,
                                                    args.bed_infection,
-                                                   args.icu_chance)])
+                                                   args.icu_chance)],
+                                                   chunksize=1)
 
+for result in res:
+    result['label'] = label
 df = pd.concat([df, pd.DataFrame(data=res)])
 df.to_csv(str(args.output_file), index=False)

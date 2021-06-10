@@ -310,12 +310,21 @@ void sti::real_icu::save(const std::string& folderpath) const
 /// @param patient_ptr A pointer to the patient to remove
 void sti::real_icu::insert(sti::patient_agent* patient)
 {
-    // Find an empty bed
-    auto it = std::find_if(_bed_pool.begin(),
-                           _bed_pool.end(),
-                           [](const auto& pair) {
-                               return pair.second == nullptr;
-                           });
+
+    // Randomly select a bed
+    auto it = [&]() {
+        const auto start = static_cast<std::uint32_t>(repast::Random::instance()->nextDouble() * static_cast<double>(_bed_pool.size()));
+        auto aux_it = _bed_pool.begin() + start;
+
+        for (auto i = 0U; i < _bed_pool.size(); ++i, ++aux_it) {
+            // If the end is reached, start over
+            if (aux_it == _bed_pool.end()) aux_it = _bed_pool.begin();
+            
+            if (aux_it->second == nullptr) return aux_it;
+        }
+
+        return _bed_pool.end();
+    }();
 
     if (it == _bed_pool.end()) throw no_more_beds {};
 
