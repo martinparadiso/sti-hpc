@@ -102,18 +102,18 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
         for y in range(22, 31, 2):
             hospital.add_element(sim.Chair((x, y)))
 
-    patient_sum = 65713
+    total = 65713
+    year = pd.read_csv('admission_reference.csv')
+    day = pd.read_csv('day_distribution_reference.csv').to_numpy()
 
-    # Load the reference admission distribution
-    adm_ref = pd.read_csv('admission_reference.csv')
-    day_distribution_reference = pd.read_csv('day_distribution_reference.csv')
-    day_influx = (adm_ref['general_admissions'] * (patient_sum) /
-                  adm_ref['general_admissions'].sum()).round().to_numpy()
-    influx = np.array([[0 for i in range(12)] for d in range(365)])
-    for d in range(365):
-        influx[d] = day_distribution_reference['percentage'].to_numpy() * \
-            day_influx[i]
-    infected_percentage = adm_ref['percentage'].to_numpy()
+    influx = pd.DataFrame()
+    influx['day'] = year['admission_distribution'] * total
+    influx['day'] = influx['day'].round()
+
+    for interval in range(12):
+        influx[f"{interval}"] = influx['day'] * day[interval]
+    influx = influx.drop('day', axis='columns').round().astype('int64').to_numpy()
+    infected_percentage = year['pneumonia_probability'].to_numpy()
 
     hospital.parameters = {
         'human': {

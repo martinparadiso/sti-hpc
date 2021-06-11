@@ -12,7 +12,7 @@ parser.add_argument('file', help='CSV file containing the statistics')
 parser.add_argument('--print', help='Print only, no plot', action='store_true')
 args = parser.parse_args()
 
-ignore_labels = [i for i in range(3)]
+ignore_labels = [i for i in range(5)]
 
 
 reference = {
