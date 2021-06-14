@@ -117,7 +117,7 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
 
     hospital.parameters = {
         'human': {
-            'infect_distance': 2.0,
+            'infect_distance': 2.05,
             'contamination_probability': human_contamination,
             'incubation_time': {
                 'min': sim.TimePeriod(0, 14, 0, 0),
@@ -302,7 +302,7 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
             },
         ],
         'patient': {
-            'walk_speed': 2.0,
+            'walk_speed': 0.2,
             'infected_probability': infected_percentage,
             'influx': influx
         },
@@ -347,6 +347,8 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
     percentage_infected_patients_by_objects = (total_infected_patients_by_objects / infected_patients)
     total_infected_patients_by_patients = len(df[(df['type'] == 'patient') & (df['infected_by'].isin(df[df['type'] == 'patient']['infection_id']))])
     percentage_infected_patients_by_patients = (total_infected_patients_by_patients / infected_patients)
+    total_infected_patients_by_icu = len(df[df['infected_by'] == 'icu_environment'])
+    percentage_infected_patients_by_icu = total_infected_patients_by_icu / infected_patients
     icu_rejected_patients = len(df[(df['type'] == 'patient') & (df['last_state'] == 'WAIT_ICU')])
     percentage_of_rejections_at_icu = (icu_rejected_patients / icu_total_patients)
     waiting_room_rejected_patients = len(df[(df['type'] == 'patient') & (df['last_state'].str.startswith('WAIT_CHAIR'))])
@@ -377,6 +379,8 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
         'percentage_infected_patients_by_objects': percentage_infected_patients_by_objects,
         'total_infected_patients_by_patients': total_infected_patients_by_patients,
         'percentage_infected_patients_by_patients': percentage_infected_patients_by_patients,
+        'total_infected_patients_by_icu': total_infected_patients_by_icu,
+        'percentage_infected_patients_by_icu': percentage_infected_patients_by_icu,
         'icu_rejected_patients': icu_rejected_patients,
         'percentage_of_rejections_at_icu': percentage_of_rejections_at_icu,
         'waiting_room_rejected_patients': waiting_room_rejected_patients,

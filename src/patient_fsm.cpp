@@ -9,6 +9,7 @@
 #include "coordinates.hpp"
 #include "doctors_queue.hpp"
 #include "hospital_plan.hpp"
+#include "infection_logic/human_infection_cycle.hpp"
 #include "json_serialization.hpp"
 #include "patient.hpp"
 #include "reception.hpp"
@@ -305,11 +306,13 @@ sti::patient_fsm::transition_table create_transition_table()
 
     auto enter_icu = [](fsm& m) {
         m.patient_flyweight->icu->get_real_icu()->get().insert(m.patient);
+        m.patient->get_infection_logic()->mode(sti::human_infection_cycle::MODE::COMA);
         m.attention_end = m.patient_flyweight->clk->now() + boost::get<sti::triage::icu_diagnosis>(m.diagnosis).sleep_time;
     };
 
     auto leave_icu = [](fsm& m) {
         m.patient_flyweight->icu->get_real_icu()->get().remove(m.patient);
+        m.patient->get_infection_logic()->mode(sti::human_infection_cycle::MODE::NORMAL);
     };
 
     auto alive = [](fsm& m) {

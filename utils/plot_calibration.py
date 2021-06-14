@@ -12,8 +12,7 @@ parser.add_argument('file', help='CSV file containing the statistics')
 parser.add_argument('--print', help='Print only, no plot', action='store_true')
 args = parser.parse_args()
 
-ignore_labels = [i for i in range(5)]
-
+max_plot = 1
 
 reference = {
     'total_patients': 65713,
@@ -64,7 +63,9 @@ plot = [
     'waiting_room_rejected_patients',
     'percentage_of_rejections_at_waiting_room',
     'out_of_time_patients',
-    'percentage_of_out_of_time_patients'
+    'percentage_of_out_of_time_patients',
+    'total_infected_patients_by_icu',
+    'percentage_infected_patients_by_icu'
 ]
 
 percentage_cols = [
@@ -74,41 +75,45 @@ percentage_cols = [
     'percentage_infected_patients_by_personal',
     'percentage_infected_patients_by_objects',
     'percentage_infected_patients_by_patients',
+    'percentage_infected_patients_by_icu',
     'percentage_of_rejections_at_icu',
     'percentage_of_rejections_at_waiting_room',
     'percentage_of_out_of_time_patients'
 ]
 
 df = pd.read_csv(args.file)
-df = df[~df['label'].isin(ignore_labels)]
+
+df = df[df['label'].isin(df['label'].drop_duplicates().sort_values().tail(max_plot))]
 
 if not args.print:
     import matplotlib.pyplot as plt
     plt.style.use('ggplot')
     plt.rcParams.update({
         'font.size': 9,
-        'figure.titlesize': 10,
-        'axes.titlesize': 10
+        'figure.titlesize': 6,
+        'axes.titlesize': 9
     })
 
-    fig1, axs_1 = plt.subplots(3, 4)
-    fig2, axs_2 = plt.subplots(3, 4)
-    axs = list(axs_1.flat) + list(axs_2.flat)
-    for ax in axs[21:]: ax.remove()
-    axs = axs[:21]
-    
-    axs = df.boxplot(column=plot, by=groupby, ax=axs)
+    means = df.groupby(by=groupby).mean()[plot]
+    errors = df.groupby(by=groupby).std()[plot]
 
-    for ax in axs:
+    # fig1, axs_1 = plt.subplots(3, 4)
+    # fig2, axs_2 = plt.subplots(3, 4)
+    fig, axs = plt.subplots(3, 8, figsize=(16, 9))
+    axs = axs.flat
+    # axs = list(axs_1.flat) + list(axs_2.flat)
+    for ax in axs[len(plot):]: ax.remove()
+    axs = axs[:len(plot)]
+    
+    for ax, value in zip(axs, plot):
+        ax = means[value].plot.bar(ax=ax, yerr=errors[value], rot=0)
+        ax.set_title(value)
         ax.set_xlabel('')
-        if ax.get_title() in percentage_cols:
-            ax.set_ylim(0, 1)
-        try:
-            ax.axhline(reference[ax.get_title()])
-        except:
-            pass
-        
+        if value in reference: ax.axhline(reference[value], color = 'lightblue')
+        if value in percentage_cols: ax.set_ylim(0, 1)
             
+    
+    fig.tight_layout()
     plt.show()
 
-print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['median', 'std']))
+print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['mean', 'std']))

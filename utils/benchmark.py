@@ -124,7 +124,8 @@ for x in range(14, 28, 2):
 original_probability = 0.00099225
 objects_probability = original_probability / 10
 
-total = 65713
+# total = 65713
+total = 60000
 year = pd.read_csv('admission_reference.csv')
 day = pd.read_csv('day_distribution_reference.csv').to_numpy()
 
