@@ -18,6 +18,7 @@ ps_layout = (1, 2)
 parser = argparse.ArgumentParser()
 parser.add_argument('--simultaneous', type=int, default=3)
 parser.add_argument('output_file', help='Output CSV file')
+parser.add_argument('--label', help='Tag/label the batches')
 parser.add_argument('--iterations', required=True, type=int,
                     help='Number of time each diff will be run')
 parser.add_argument('--human-infection', type=float,
@@ -395,10 +396,16 @@ try:
 except:
     df = pd.DataFrame()
 
-try:
-    label = df['label'].max() + 1
-except:
-    label = 0
+if args.label is None:
+    try:
+        label = pd.to_numeric(df['label'], errors='coerce', downcast='integer').dropna().astype(int).max() + 1
+    except:
+        label = 0
+else:
+    if args.label in df['label']:
+        raise Exception(f"Label {args.label} already in {args.file}")
+    label = args.label
+
 with Pool(args.simultaneous) as pool:
     res = pool.starmap(worker, args.iterations * [(args.human_infection,
                                                    args.human_contamination,

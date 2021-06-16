@@ -9,6 +9,7 @@ pd.options.display.max_columns = 10
 
 parser = argparse.ArgumentParser(description='Plot calibrations stats')
 parser.add_argument('file', help='CSV file containing the statistics')
+parser.add_argument('-l', '--label', help='Label to plot, default latest')
 parser.add_argument('--print', help='Print only, no plot', action='store_true')
 args = parser.parse_args()
 
@@ -35,7 +36,8 @@ reference = {
     'waiting_room_rejected_patients': 0.28,
     'percentage_of_rejections_at_waiting_room': 4.26095e-06,
     'out_of_time_patients': 1225.02,
-    'percentage_of_out_of_time_patients': 0.018641973
+    'percentage_of_out_of_time_patients': 0.018641973,
+    'percentage_infected_patients_by_icu': 0.158348896
 }
 
 groupby = [
@@ -81,9 +83,27 @@ percentage_cols = [
     'percentage_of_out_of_time_patients'
 ]
 
+parameters = [
+    'human_infection',
+    'human_contamination',
+    'chair_infection',
+    'bed_infection',
+    'icu_chance'
+]
+
 df = pd.read_csv(args.file)
 
-df = df[df['label'].isin(df['label'].drop_duplicates().sort_values().tail(max_plot))]
+if args.label is not None:
+    label = args.label
+else:
+    label = df['label'].tail(1).item()
+df = df[df['label'] == label]
+
+print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['mean', 'std']))
+
+print()
+print(f"Parameters of run {label}")
+print(df[df['label'] == label][parameters].drop_duplicates())
 
 if not args.print:
     import matplotlib.pyplot as plt
@@ -97,23 +117,33 @@ if not args.print:
     means = df.groupby(by=groupby).mean()[plot]
     errors = df.groupby(by=groupby).std()[plot]
 
-    # fig1, axs_1 = plt.subplots(3, 4)
-    # fig2, axs_2 = plt.subplots(3, 4)
+    # Plot mean
     fig, axs = plt.subplots(3, 8, figsize=(16, 9))
     axs = axs.flat
-    # axs = list(axs_1.flat) + list(axs_2.flat)
     for ax in axs[len(plot):]: ax.remove()
     axs = axs[:len(plot)]
     
     for ax, value in zip(axs, plot):
+        ax = df[value].plot.box(by='label', ax=ax)
         ax = means[value].plot.bar(ax=ax, yerr=errors[value], rot=0)
         ax.set_title(value)
         ax.set_xlabel('')
         if value in reference: ax.axhline(reference[value], color = 'lightblue')
         if value in percentage_cols: ax.set_ylim(0, 1)
             
-    
-    fig.tight_layout()
-    plt.show()
+    # Plot boxplot
+    fig_boxplot, axs_boxplot = plt.subplots(3, 8, figsize=(16, 9))
+    axs_boxplot = axs_boxplot.flat
+    for ax in axs_boxplot[len(plot):]: ax.remove()
+    axs_boxplot = axs_boxplot[:len(plot)]
 
-print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['mean', 'std']))
+    for ax, value in zip(axs_boxplot, plot):
+        ax = df[['label', value]].boxplot(by='label', ax=ax)
+        ax.set_title(value)
+        ax.set_xlabel('')
+        if value in reference: ax.axhline(reference[value], color = 'lightblue')
+        if value in percentage_cols: ax.set_ylim(0, 1)
+
+    fig.tight_layout()
+    fig_boxplot.tight_layout()
+    plt.show()
