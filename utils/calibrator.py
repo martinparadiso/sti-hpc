@@ -118,7 +118,7 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
 
     hospital.parameters = {
         'human': {
-            'infect_distance': 2.05,
+            'infect_distance': 2.0,
             'contamination_probability': human_contamination,
             'incubation_time': {
                 'min': sim.TimePeriod(0, 14, 0, 0),
@@ -303,7 +303,7 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
             },
         ],
         'patient': {
-            'walk_speed': 0.2,
+            'walk_speed': 2.0,
             'infected_probability': infected_percentage,
             'influx': influx
         },

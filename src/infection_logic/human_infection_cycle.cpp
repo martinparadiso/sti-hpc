@@ -104,6 +104,12 @@ sti::infection_cycle::precission sti::human_infection_cycle::get_infect_probabil
     return _flyweight->infect_probability;
 }
 
+/// @brief Check if the person is sick
+bool sti::human_infection_cycle::is_sick() const
+{
+    return _stage == STAGE::SICK;
+}
+
 /// @brief Make the human interact with another infection logic
 /// @param other The other infection cycle
 void sti::human_infection_cycle::interact_with(const infection_cycle& other)

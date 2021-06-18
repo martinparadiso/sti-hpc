@@ -339,7 +339,6 @@ sti::model::model(const std::string& props_file, int argc, char** argv, boost::m
           "icu",
       } } }
     , _stats { new statistics {} }
-    , _staff_manager { std::make_unique<decltype(_staff_manager)::element_type>(&_context) }
 {
     // Initialize the random generation
     repast::initializeRandom(*_props, comm);
@@ -351,15 +350,11 @@ sti::model::~model() = default;
 /// @details Loads the map
 void sti::model::init()
 {
-
-    // Create the chair manager
     _chair_manager = make_chair_manager(*_props, _communicator, _hospital, &_spaces);
     _reception.reset(new reception { *_props, _communicator, _hospital });
     _triage.reset(new triage { *_props, _hospital_props, _communicator, _clock.get(), _hospital });
     _doctors = std::make_unique<doctors>(*_props, _hospital_props, _communicator, _hospital);
     _icu.reset(new icu(&_context, _communicator, _hospital_props, _hospital, &_spaces, _clock.get()));
-
-    // Create the agent factory
     _agent_factory.reset(new agent_factory { _communicator,
                                              &_context,
                                              &_spaces,
@@ -371,6 +366,7 @@ void sti::model::init()
                                              _doctors.get(),
                                              _icu.get(),
                                              _hospital_props });
+    _staff_manager = std::make_unique<sti::staff_manager>(&_context, _agent_factory.get(), &_spaces, &_hospital, &_hospital_props);
 
     // Create the package provider and receiver
     _provider = std::make_unique<agent_provider>(&_context, _communicator);
@@ -408,7 +404,7 @@ void sti::model::init()
     }
 
     // Create medical personnel
-    _staff_manager->create_staff(*_agent_factory, _spaces, _hospital, _hospital_props);
+    _staff_manager->create_staff();
 
     // Create the beds
     if (_icu->get_real_icu()) {
@@ -471,6 +467,7 @@ void sti::model::tick()
     if (_exit) _exit->tick();
     if (_icu->get_real_icu()) _icu->get_real_icu()->get().tick();
     _chair_manager->tick();
+    _staff_manager->tick();
 
     // Check how many agents are currently in this process
     _pmetrics->agents(_context.size()); // Add the metric

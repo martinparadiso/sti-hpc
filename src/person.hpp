@@ -83,6 +83,10 @@ public:
     /// @return A pointer to the infection logic
     const human_infection_cycle* get_infection_logic() const override;
 
+    /// @brief Get the person type/role/profession
+    /// @return The person rol inside the hospital
+    person_type get_role() const;
+
     /// @brief Return the agent statistics as a json object
     /// @return A Boost.JSON object containing relevant statistics
     boost::json::object stats() const override;

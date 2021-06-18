@@ -86,6 +86,13 @@ sti::human_infection_cycle* sti::person_agent::get_infection_logic()
     return &_infection_logic;
 }
 
+/// @brief Get the person type/role/profession
+/// @return The person rol inside the hospital
+sti::person_agent::person_type sti::person_agent::get_role() const
+{
+    return _type;
+}
+
 /// @brief Get the infection logic
 /// @return A const pointer to the infection logic
 const sti::human_infection_cycle* sti::person_agent::get_infection_logic() const

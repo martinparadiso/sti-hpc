@@ -120,6 +120,9 @@ public:
     /// @return A value in the range [0, 1)
     precission get_infect_probability(coordinates<double> position) const override;
 
+    /// @brief Check if the person is sick
+    bool is_sick() const;
+
     /// @brief Make the human interact with another infection logic
     /// @param other The other infection cycle
     void interact_with(const infection_cycle& other) override;
