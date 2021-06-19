@@ -81,6 +81,17 @@ class Metrics(object):
         max_end_time = pd.to_timedelta(self.global_df['end_time'].max())
         return max_end_time - min_start_time
 
+    def section_time(self) -> dict:
+        """Return a dictionary containing per section time"""
+        try:
+            df = self.ticks.groupby('process').sum() / 1_000_000_000
+            df = df[[*self.mpi_stages,
+                    'logic',
+                    'rhpc_sync']]
+            return df.to_dict()
+        except AttributeError:
+            raise Exception("Run doesn't have section metrics")
+
     def summary(self):
         return Summary(self)
 
