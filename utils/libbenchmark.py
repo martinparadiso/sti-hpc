@@ -301,7 +301,7 @@ def make_simulation(layout: "tuple[int]",
             },
         ],
         'patient': {
-            'walk_speed': 2.0,
+            'walk_speed': 0.2,
             'infected_probability': infected_percentage,
             'influx': influx
         },
@@ -360,7 +360,7 @@ class LocalConfiguration(object):
         result, command = simulation.run()
         metrics = perf.Metrics(simulation.folder)
 
-        data= {
+        data = {
             'run_id': simulation.id,
             'tag': self.tag,
             'configuration_type': 'local',
@@ -428,31 +428,22 @@ class Batch(object):
         s += tabulate.tabulate(table, headers=header, tablefmt='github')
         return s
 
-    def run(self, print_to_console=True):
+    def run(self, continue_from: int = None, print_to_console=True):
         """Run the batch, save the results"""
-
-        results = []
-        for configuration, i in zip(self.configurations, range(1, len(self.configurations) + 1)):
-            if print_to_console:
-                print(f"Running {i}/{len(self.configurations)}")
-            results.append(configuration.run())
-
         try:
             df = pd.read_csv(self.file)
         except:
             df = pd.DataFrame()
 
-        df = df.append(results)
-        df.to_csv(self.file, index=False)
+        
 
+        for configuration, i in zip(self.configurations, range(1, len(self.configurations) + 1)):
+            if continue_from is not None and i < continue_from:
+                continue
 
-if __name__ == '__main__':
-    batch = Batch('test.csv')
-    batch.add_configurations(5, LocalConfiguration(tag='test-batch', layout=(1, 1), patients=0,
-                                                   seconds_per_tick=10, chair_process=0, reception_process=0, triage_process=0, doctor_process=0))
-    print(batch.report())
+            if print_to_console:
+                print(f"Running {i}/{len(self.configurations)}")
+            result = configuration.run()
 
-    batch.run()
-
-    # args = parser.parse_args()
-    # raise Exception('Unimplemented')
+            df = df.append([result])
+            df.to_csv(self.file, index=False)
