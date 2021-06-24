@@ -2,24 +2,16 @@
 
 import libbenchmark as bench
 
-batch = bench.Batch('/mnt/ssd/data/Martin/Nextcloud/Facultad/PPS/benchmark.csv')
-
-layouts = [(x, y) for x in range(1,5) for y in range(1,5)]
-done = layouts[:7]
-layouts = [l for l in layouts if l[0] * l[1] <= 6 and l not in done]
-
-for layout in layouts[0:]:
-    for patients in [0, 5000, *range(10000, 70001, 10000)]:
-
-            batch.add_configurations(5, 
-                bench.LocalConfiguration(tag='normal',
-                    layout=layout,
-                    patients=patients,
-                    seconds_per_tick=10,
-                    chair_process=0,
-                    reception_process=0,
-                    triage_process=0,
-                    doctor_process=0))
-
-# print(batch.report())
-batch.run(continue_from=127)
+for x, y in [(1, 1), (1, 2), (1,3), (2,2)]:
+    for patients in [p for p in range(15000, 70001, 15000)]:
+        print(f"Running {x}x{y} with {patients} patients")
+        cfg = bench.LocalConfiguration(tag='normal',
+                                    layout=(x, y),
+                                    patients=patients,
+                                    seconds_per_tick=10,
+                                    chair_process=0,
+                                    reception_process=0,
+                                    triage_process=0,
+                                    doctor_process=0)
+        batch = bench.RamBatch(f"ram/ram{x}x{y}.{patients}.csv", cfg)
+        batch.run()

@@ -45,7 +45,7 @@ class Metrics(object):
             self.ticks['agents'] = tmp_df['agents']
             self.ticks['duration'] = tmp_df['end_time'] - tmp_df['start_time']
             self.ticks[self.mpi_stages[0]
-                    ] = tmp_df[self.mpi_stages[0]] - tmp_df['start_time']
+                       ] = tmp_df[self.mpi_stages[0]] - tmp_df['start_time']
             for prev, current in zip(self.mpi_stages[0:], self.mpi_stages[1:]):
                 self.ticks[current] = tmp_df[current] - tmp_df[prev]
             self.ticks['rhpc_sync'] = tmp_df['rhpc_sync'] - \
@@ -86,8 +86,8 @@ class Metrics(object):
         try:
             df = self.ticks.groupby('process').sum() / 1_000_000_000
             df = df[[*self.mpi_stages,
-                    'logic',
-                    'rhpc_sync']]
+                     'logic',
+                     'rhpc_sync']]
             return df.to_dict()
         except AttributeError:
             raise Exception("Run doesn't have section metrics")
@@ -185,11 +185,11 @@ class Plots(object):
                  'logic',
                  'rhpc_sync']]
 
-        # Timedeltas must be converted to integers so plt doesn't complain
+        ax = df.T.plot.pie(subplots=True,
+                             layout=self.layout_map[int(df.index.max() + 1)],
+                             title='Simulation time distribution')
 
-        df.T.plot.pie(
-            subplots=True, layout=self.layout_map[int(df.index.max() + 1)], legend=False)
-        plt.show()
+        return ax
 
 
 # If the file is used as script, process arguments and such

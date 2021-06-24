@@ -292,7 +292,7 @@ class Repast(Library):
             git_output = subprocess.run(['git', 'pull'], cwd=repo_folder)
         else:
             git_output = subprocess.run(['git',
-                                         'clone', 'https://github.com/martinparadiso/repast.hpc.git',
+                                         'clone', 'https://github.com/repast/repast.hpc.git',
                                          repo_folder.absolute()])
         
         git_switch = subprocess.run(['git',

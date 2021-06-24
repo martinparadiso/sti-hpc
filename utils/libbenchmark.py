@@ -5,6 +5,7 @@ import pandas as pd
 import random
 import datetime
 import tabulate
+import multiprocessing as mp
 import simulation as sim
 import performance as perf
 
@@ -435,8 +436,6 @@ class Batch(object):
         except:
             df = pd.DataFrame()
 
-        
-
         for configuration, i in zip(self.configurations, range(1, len(self.configurations) + 1)):
             if continue_from is not None and i < continue_from:
                 continue
@@ -444,6 +443,65 @@ class Batch(object):
             if print_to_console:
                 print(f"Running {i}/{len(self.configurations)}")
             result = configuration.run()
-
             df = df.append([result])
             df.to_csv(self.file, index=False)
+
+
+def ram_monitor(process_name, retqueue: mp.Queue, frequency=5, start_delay=2):
+    import psutil
+    import time
+
+    time.sleep(start_delay)
+
+    to_monitor = [psutil.Process(pid) for pid in psutil.pids()
+                  if psutil.Process(pid).name() == process_name]
+
+    data = []
+    try:
+        while True:
+            data.append({f"memory_{ps.pid}": ps.memory_info().rss for ps in to_monitor})
+            time.sleep(1 / frequency)
+    except:
+        retqueue.put(data)
+        return
+
+
+class RamBatch(object):
+    """Run a batch monitoring RAM usage
+
+    Keyword Argument:
+    - file -- Output file
+    - frequency -- Number of querys per second
+    - process_name -- The name of the process
+    - configuration -- The configuration to run
+    """
+
+    def __init__(self, file: str, configuration, frequency=5,
+                 process_name='sti-demo'):
+        self.file = file
+        self.frequency = frequency
+        self.process_name = process_name
+        self.configuration = configuration
+
+    def run(self, print_to_console=False):
+        """Run the batch, saving the RAM results to a file"""
+
+        queue = mp.Queue()
+        p = mp.Process(target=ram_monitor, args=(
+            self.process_name, queue, self.frequency))
+        p.start()
+
+        results = self.configuration.run()
+
+        monitor_data = queue.get()
+        df = pd.DataFrame(monitor_data)
+        df.to_csv(self.file, index=False)
+
+
+if __name__ == '__main__':
+    batch = Batch('test.csv')
+    batch.add_configurations(5, LocalConfiguration(tag='test-batch', layout=(1, 1), patients=0,
+                                                   seconds_per_tick=10, chair_process=0, reception_process=0, triage_process=0, doctor_process=0))
+    print(batch.report())
+
+    batch.run()
