@@ -25,3 +25,5 @@ utils/.ipynb_checkpoints
 *.log
 benchmark.csv
 calibration.csv
+validation.csv
+*.swp

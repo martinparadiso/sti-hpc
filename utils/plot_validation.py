@@ -16,28 +16,28 @@ args = parser.parse_args()
 max_plot = 2
 
 reference = {
-    'total_patients': 65713,
-    'infected_patients': 817.72,
-    'punctual_prevalence': 0.012443809,
-    'icu_total_patients': 3706.78,
-    'icu_infected_patients': 125.8,
-    'icu_punctual_prevalence': 0.033981458,
-    'infected_patients_deaths_at_icu': 20.58,
-    'icu_mortality_of_infected_patients': 0.249156973,
-    'total_infected_patients_by_personal': 157.46,
-    'percentage_infected_patients_by_personal': 0.168195397,
-    'total_infected_objects': 320.74,
-    'total_infected_patients_by_objects': 109.3,
-    'percentage_infected_patients_by_objects': 0.135113751,
-    'total_infected_patients_by_patients': 425.2,
-    'percentage_infected_patients_by_patients': 0.538341956,
-    'icu_rejected_patients': 935.2,
-    'percentage_of_rejections_at_icu': 0.201270937,
-    'waiting_room_rejected_patients': 0.28,
-    'percentage_of_rejections_at_waiting_room': 4.26095e-06,
-    'out_of_time_patients': 1225.02,
-    'percentage_of_out_of_time_patients': 0.018641973,
-    'percentage_infected_patients_by_icu': 0.158348896
+    'total_patients': 67956,
+    'infected_patients': 1163.76,
+    'punctual_prevalence': 0.017125199,
+    'icu_total_patients': 3740.04,
+    'icu_infected_patients': 116.06,
+    'icu_punctual_prevalence': 0.032034419,
+    'infected_patients_deaths_at_icu': 20.24,
+    'icu_mortality_of_infected_patients': 0.264524711,
+    'total_infected_patients_by_personal': 178.64,
+    'percentage_infected_patients_by_personal': 0.126826503,
+    'total_infected_objects': 463.52,
+    'total_infected_patients_by_objects': 218.82,
+    'percentage_infected_patients_by_objects': 0.192156561,
+    'total_infected_patients_by_patients': 650.32,
+    'percentage_infected_patients_by_patients': 0.577859655,
+    'icu_rejected_patients': 1073.54,
+    'percentage_of_rejections_at_icu': 0.222898803,
+    'waiting_room_rejected_patients': 0.92,
+    'percentage_of_rejections_at_waiting_room': 1.35382e-05,
+    'out_of_time_patients': 1265.64,
+    'percentage_of_out_of_time_patients': 0.018624404,
+    'percentage_infected_patients_by_icu': 0.10315728
 }
 
 groupby = [
@@ -99,8 +99,9 @@ else:
     label = df['label'].tail(1).item()
 df = df[df['label'] == label]
 
-print('Calibración: ')
-print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['mean', 'var', 'median', 'std']).T.to_markdown())
+print('Validación: ')
+print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['mean', 'var', 'median', 'std']).to_markdown())
+
 
 print()
 print(f"Parameters of run {label}")

@@ -103,7 +103,7 @@ def worker(human_infection, human_contamination, chair_infection, bed_infection,
         for y in range(22, 31, 2):
             hospital.add_element(sim.Chair((x, y)))
 
-    total = 65713
+    total = 67956
     year = pd.read_csv('admission_reference.csv')
     day = pd.read_csv('day_distribution_reference.csv').to_numpy()
 
