@@ -18,7 +18,7 @@ max_plot = 2
 reference = {
     'total_patients': 67956,
     'infected_patients': 1163.76,
-    'punctual_prevalence': 0.017125199,
+    'punctual_prevalence': 0.0122,
     'icu_total_patients': 3740.04,
     'icu_infected_patients': 116.06,
     'icu_punctual_prevalence': 0.032034419,
@@ -100,7 +100,7 @@ else:
 df = df[df['label'] == label]
 
 print('Validación: ')
-print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['mean', 'var', 'median', 'std']).to_markdown())
+print(df.drop(['run_id'],axis='columns').groupby(by=groupby).agg(['mean', 'var', 'median', 'std']).T.to_markdown())
 
 
 print()
@@ -117,7 +117,7 @@ if not args.print:
     })
 
     means = df.groupby(by=groupby).mean()[plot]
-    errors = df.groupby(by=groupby).std()[plot]
+    errors = df.groupby(by=groupby).var()[plot]
 
     # Plot mean
     fig, axs = plt.subplots(3, 5, figsize=(16, 9))

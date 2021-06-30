@@ -6,16 +6,26 @@ Simulador de Transmisiones Intrahospitalarias para HPC
 
 ### Ubuntu
 
-Install required packages from Ubuntu repositories:
+Note: The following commands use clang as the compiler.
 
 ```sh
-$ apt install -y git build-essential cmake clang clang-tidy libomp wget tar bzip2 diffutils zlib1g-dev libgtest-dev
-```
+# Optional
+export CC=clang
+export CXX=clang++
 
-Install the rest of the libraries, optionally pass the number of jobs used to
-compile the libraries:
+# Install dependencies
+sudo apt install -y python3-pip git build-essential cmake clang clang-tidy libomp-dev wget tar bzip2 diffutils zlib1g-dev libgtest-dev
+sudo pip install -r requirements.txt
 
-```sh
+# Install the rest of the libraries
 cd lib
-./install.py all [-j J]
+python3 install.py all -j4
+
+# Compile
+cd .. && mkdir build && cd build/
+export CC=../lib/mpich/bin/mpicc
+export CXX=../lib/mpich/bin/mpicxx
+cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=On
+cmake --build . -j4
 ```
+

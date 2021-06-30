@@ -18,7 +18,7 @@ max_plot = 2
 reference = {
     'total_patients': 65713,
     'infected_patients': 817.72,
-    'punctual_prevalence': 0.012443809,
+    'punctual_prevalence': 0.0119,
     'icu_total_patients': 3706.78,
     'icu_infected_patients': 125.8,
     'icu_punctual_prevalence': 0.033981458,
@@ -116,7 +116,7 @@ if not args.print:
     })
 
     means = df.groupby(by=groupby).mean()[plot]
-    errors = df.groupby(by=groupby).std()[plot]
+    errors = df.groupby(by=groupby).var()[plot]
 
     # Plot mean
     fig, axs = plt.subplots(3, 5, figsize=(16, 9))
