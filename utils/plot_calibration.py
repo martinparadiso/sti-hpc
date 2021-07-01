@@ -44,6 +44,11 @@ groupby = [
     'label'
 ]
 
+plot_var = [
+    'punctual_prevalence',
+    'icu_punctual_prevalence'
+]
+
 plot = [
     #'total_patients',
     'infected_patients',
@@ -126,7 +131,10 @@ if not args.print:
     
     for ax, value in zip(axs, plot):
         ax = df[value].plot.box(by='label', ax=ax)
-        ax = means[value].plot.bar(ax=ax, yerr=errors[value], rot=0)
+        if value in plot_var:
+            ax = means[value].plot.bar(ax=ax, yerr=errors[value], rot=0)
+        else:
+            ax = means[value].plot.bar(ax=ax, rot=0)
         ax.set_title(value)
         ax.set_xlabel('')
         if value in reference: ax.axhline(reference[value], color = 'lightblue')
