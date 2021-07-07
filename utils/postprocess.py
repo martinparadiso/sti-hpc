@@ -9,26 +9,6 @@ from pathlib import Path
 import sys
 sys.path.append(Path(__file__).parent)
 
-
-class AgentLocations(object):
-    """Load the agents locations from output files"""
-
-    files_glob = 'agents_locations.p*.csv'
-
-    def __init__(self, folderpath):
-
-        files = glob.glob(f"{folderpath}/{self.files_glob}")
-
-        dfs = []
-        for path in files:
-            df = pd.read_csv(path)
-            df['process'] = re.match(
-                r'.+agents_locations\.p(\d+)\.csv', path)[1]
-            dfs.append(df)
-
-        self.dataframe = pd.concat(dfs)
-
-
 def rename_columns(df: pd.DataFrame):
 
     prefixes = ('infection.', 'diagnosis.')
@@ -57,13 +37,13 @@ class AgentsOutput(object):
                    'staff.p*.json',
                    'morgue.p*.json')
 
-    human_cols = ['repast_id', 'type', 'entry_time', 'exit_time', 'last_state',
-                  'process',
+    human_cols = ['repast_id', 'type', 'process',
                   'infection_id', 'infection_model', 'infection_mode',
                   'infection_stage', 'infection_time', 'infected_by',
                   'infect_location.x', 'infect_location.y', 'incubation_end']
 
-    patient_cols = [*human_cols,
+    patient_cols = [*human_cols, 
+                    'entry_time', 'exit_time', 'last_state',
                     'diagnosis_type', 'doctor_specialty', 'triage_level',
                     'attention_datetime_limit', 'sleep_time', 'survives']
 

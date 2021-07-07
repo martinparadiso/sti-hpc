@@ -172,10 +172,17 @@ class Plots(object):
         for p in plot:
             cols.extend(self.__plot_cols_mapper__[p])
 
-        df = df[cols]
+        df = df[cols].rename({
+                     'logic': 'Logic',
+                     'icu_sync': 'ICU manager',
+                     'doctors_sync': 'Doctors manager',
+                     'triage_sync': 'Triage manager',
+                     'reception_sync': 'Reception manager',
+                     'chairs_sync': 'Chair manager',
+                     'rhpc_sync': 'Repast HPC'
+                 }, axis='columns')
 
-        df.plot()
-        plt.show()
+        return df.plot()
 
     def pie(self):
         """Plot a pie using the times stored in the metrics"""
@@ -183,11 +190,20 @@ class Plots(object):
         df = self.metrics.ticks.groupby('process').sum()
         df = df[[*self.metrics.mpi_stages,
                  'logic',
-                 'rhpc_sync']]
+                 'rhpc_sync']].rename({
+                     'logic': 'Logic',
+                     'icu_sync': 'ICU manager',
+                     'doctors_sync': 'Doctors manager',
+                     'triage_sync': 'Triage manager',
+                     'reception_sync': 'Reception manager',
+                     'chairs_sync': 'Chair manager',
+                     'rhpc_sync': 'Repast HPC'
+                 }, axis='columns')
 
         ax = df.T.plot.pie(subplots=True,
-                             layout=self.layout_map[int(df.index.max() + 1)],
-                             title='Simulation time distribution')
+                           layout=self.layout_map[int(df.index.max() + 1)],
+                           title='Simulation time distribution',
+                           legend=False)
 
         return ax
 
