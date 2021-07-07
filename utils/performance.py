@@ -205,7 +205,7 @@ class Plots(object):
                            title='Simulation time distribution',
                            legend=False)
 
-        return ax
+        return ax, df
 
 
 # If the file is used as script, process arguments and such
