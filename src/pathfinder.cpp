@@ -28,7 +28,7 @@ class sti::pathfinder::statistics {
 
 public:
     struct entry {
-        datetime      datetime;
+        datetime      time;
         std::uint32_t cache_miss {};
         std::uint32_t cache_hit {};
     }; // struct entry
@@ -45,7 +45,7 @@ public:
     void cache_hit()
     {
         if constexpr (sti::debug::pathfinder_statistics) {
-            if (_cache.begin() == _cache.end() || (_cache.end() - 1)->datetime != _clock->now()) {
+            if (_cache.begin() == _cache.end() || (_cache.end() - 1)->time != _clock->now()) {
                 _cache.push_back({ _clock->now() });
             }
             const auto last = _cache.end() - 1;
@@ -59,7 +59,7 @@ public:
     void cache_miss()
     {
         if constexpr (sti::debug::pathfinder_statistics) {
-            if (_cache.begin() == _cache.end() || (_cache.end() - 1)->datetime != _clock->now()) {
+            if (_cache.begin() == _cache.end() || (_cache.end() - 1)->time != _clock->now()) {
                 _cache.push_back({ _clock->now() });
             }
             const auto last = _cache.end() - 1;
@@ -100,7 +100,7 @@ public:
             cache_file << "datetime,hits,misses\n";
 
             for (const auto& entry : _cache) {
-                cache_file << entry.datetime.seconds_since_epoch() << ','
+                cache_file << entry.time.seconds_since_epoch() << ','
                            << entry.cache_hit << ','
                            << entry.cache_miss << '\n';
             }

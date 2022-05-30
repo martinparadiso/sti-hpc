@@ -19,8 +19,11 @@ unset(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES)
 # Debug and utils ==============================================================
 
 # Clang tidy function
+option(CLANG_TIDY "Enable clang-tidy analisys" OFF)
 function(tidy target)
-    set_target_properties(${target} PROPERTIES CXX_CLANG_TIDY clang-tidy)
+    if(CLANG_TIDY)
+        set_target_properties(${target} PROPERTIES CXX_CLANG_TIDY clang-tidy)
+    endif()
 endfunction()
 
 # Address sanitation
