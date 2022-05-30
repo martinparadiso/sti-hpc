@@ -101,11 +101,11 @@ sti::patient_fsm::transition_table create_transition_table()
     ////////////////////////////////////////////////////////////////////////////
 
     auto request_chair = [](fsm& m) {
-        m.patient_flyweight->chairs->request_chair(m.patient->getId());
+        m.patient_flyweight_->chairs->request_chair(m.patient->getId());
     };
 
     auto got_chair = [](fsm& m) {
-        auto response_peek = m.patient_flyweight->chairs->peek_response(m.patient->getId());
+        auto response_peek = m.patient_flyweight_->chairs->peek_response(m.patient->getId());
         if (response_peek.is_initialized()) {
             if (response_peek->chair_location.is_initialized()) {
                 return true;
@@ -115,16 +115,16 @@ sti::patient_fsm::transition_table create_transition_table()
     };
 
     auto set_destination_chair = [](fsm& m) {
-        auto response = m.patient_flyweight->chairs->get_response(m.patient->getId());
+        auto response = m.patient_flyweight_->chairs->get_response(m.patient->getId());
         m.destination = response->chair_location.get();
     };
 
     auto no_chair_available = [](fsm& m) {
-        auto response = m.patient_flyweight->chairs->peek_response(m.patient->getId());
+        auto response = m.patient_flyweight_->chairs->peek_response(m.patient->getId());
         if (response.is_initialized()) {
             if (!response->chair_location.is_initialized()) {
                 // Remove the response from the queue
-                m.patient_flyweight->chairs->get_response(m.patient->getId());
+                m.patient_flyweight_->chairs->get_response(m.patient->getId());
                 return true;
             }
         }
@@ -136,7 +136,7 @@ sti::patient_fsm::transition_table create_transition_table()
     ////////////////////////////////////////////////////////////////////////////
 
     auto time_elapsed = [](fsm& m) {
-        return m.attention_end < m.patient_flyweight->clk->now();
+        return m.attention_end < m.patient_flyweight_->clk->now();
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -145,26 +145,26 @@ sti::patient_fsm::transition_table create_transition_table()
 
     auto arrived = [](fsm& m) {
         const auto patient_location = sti::coordinates<double> {
-            m.patient_flyweight->space->get_continuous_location(m.patient->getId())
+            m.patient_flyweight_->space->get_continuous_location(m.patient->getId())
         };
         return m.destination == patient_location;
     };
 
     auto not_arrived = [](fsm& m) {
         const auto patient_location = sti::coordinates<double> {
-            m.patient_flyweight->space->get_continuous_location(m.patient->getId())
+            m.patient_flyweight_->space->get_continuous_location(m.patient->getId())
         };
         return m.destination != patient_location;
     };
 
     auto walk = [](fsm& m) {
-        auto movement_left    = m.patient_flyweight->walk_speed * m.patient_flyweight->clk->seconds_per_tick();
-        auto current_location = m.patient_flyweight->space->get_continuous_location(m.patient->getId());
+        auto movement_left    = m.patient_flyweight_->walk_speed * m.patient_flyweight_->clk->seconds_per_tick();
+        auto current_location = m.patient_flyweight_->space->get_continuous_location(m.patient->getId());
 
         while (movement_left > 0.0 && current_location != m.destination) {
-            const auto next_cell         = m.patient_flyweight->hospital->get_pathfinder()->next_step(current_location.discrete(),
+            const auto next_cell         = m.patient_flyweight_->hospital->get_pathfinder()->next_step(current_location.discrete(),
                                                                                               m.destination.discrete());
-            const auto new_location      = m.patient_flyweight->space->move_towards(m.patient->getId(),
+            const auto new_location      = m.patient_flyweight_->space->move_towards(m.patient->getId(),
                                                                                next_cell.continuous(),
                                                                                movement_left);
             const auto distance_traveled = sti::sq_distance(new_location, current_location);
@@ -178,19 +178,19 @@ sti::patient_fsm::transition_table create_transition_table()
     ////////////////////////////////////////////////////////////////////////////
 
     auto enqueue_in_reception = [](fsm& m) {
-        m.patient_flyweight->reception->enqueue(m.patient->getId());
+        m.patient_flyweight_->reception->enqueue(m.patient->getId());
     };
 
     auto reception_turn = [](fsm& m) -> bool {
-        return m.patient_flyweight->reception->is_my_turn(m.patient->getId()).has_value();
+        return m.patient_flyweight_->reception->is_my_turn(m.patient->getId()).has_value();
     };
 
     auto set_destination_reception = [](fsm& m) {
-        m.destination = m.patient_flyweight->reception->is_my_turn(m.patient->getId()).get();
+        m.destination = m.patient_flyweight_->reception->is_my_turn(m.patient->getId()).get();
     };
 
     auto set_reception_time = [](fsm& m) {
-        m.attention_end = m.patient_flyweight->clk->now() + m.patient_flyweight->reception_time;
+        m.attention_end = m.patient_flyweight_->clk->now() + m.patient_flyweight_->reception_time;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -198,23 +198,23 @@ sti::patient_fsm::transition_table create_transition_table()
     ////////////////////////////////////////////////////////////////////////////
 
     auto enqueue_in_triage = [](fsm& m) {
-        m.patient_flyweight->triage->enqueue(m.patient->getId());
+        m.patient_flyweight_->triage->enqueue(m.patient->getId());
     };
 
     auto triage_turn = [](fsm& m) -> bool {
-        return m.patient_flyweight->triage->is_my_turn(m.patient->getId()).has_value();
+        return m.patient_flyweight_->triage->is_my_turn(m.patient->getId()).has_value();
     };
 
     auto set_destination_triage = [](fsm& m) {
-        m.destination = m.patient_flyweight->triage->is_my_turn(m.patient->getId()).get();
+        m.destination = m.patient_flyweight_->triage->is_my_turn(m.patient->getId()).get();
     };
 
     auto set_triage_time = [](fsm& m) {
-        m.attention_end = m.patient_flyweight->clk->now() + m.patient_flyweight->triage_duration;
+        m.attention_end = m.patient_flyweight_->clk->now() + m.patient_flyweight_->triage_duration;
     };
 
     auto get_diagnosis = [](fsm& m) {
-        m.diagnosis = m.patient_flyweight->triage->diagnose();
+        m.diagnosis = m.patient_flyweight_->triage->diagnose();
     };
 
     auto to_doctor = [](fsm& m) {
@@ -233,32 +233,32 @@ sti::patient_fsm::transition_table create_transition_table()
         using doc_diagnosis              = sti::triage::doctor_diagnosis;
         const auto& doctor_assigned      = boost::get<doc_diagnosis>(m.diagnosis).doctor_assigned;
         const auto& attention_time_limit = boost::get<doc_diagnosis>(m.diagnosis).attention_time_limit;
-        m.patient_flyweight->doctors->queues()->enqueue(doctor_assigned,
+        m.patient_flyweight_->doctors->queues()->enqueue(doctor_assigned,
                                                         m.patient->getId(),
                                                         attention_time_limit);
     };
 
     auto doctor_turn = [](fsm& m) {
         const auto& doctor_assigned = boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).doctor_assigned;
-        const auto  response        = m.patient_flyweight->doctors->queues()->is_my_turn(doctor_assigned,
+        const auto  response        = m.patient_flyweight_->doctors->queues()->is_my_turn(doctor_assigned,
                                                                                  m.patient->getId());
         return response.is_initialized();
     };
 
     auto set_doctor_destination = [](fsm& m) {
         const auto& doctor_assigned = boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).doctor_assigned;
-        const auto  response        = m.patient_flyweight->doctors->queues()->is_my_turn(doctor_assigned,
+        const auto  response        = m.patient_flyweight_->doctors->queues()->is_my_turn(doctor_assigned,
                                                                                  m.patient->getId());
         m.destination               = response.get();
     };
 
     auto doctor_timeout = [](fsm& m) {
-        return boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).attention_time_limit < m.patient_flyweight->clk->now();
+        return boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).attention_time_limit < m.patient_flyweight_->clk->now();
     };
 
     auto set_doctor_time = [](fsm& m) {
         const auto& doctor_assigned = boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).doctor_assigned;
-        m.attention_end             = m.patient_flyweight->clk->now() + m.patient_flyweight->doctors->get_attention_duration(doctor_assigned);
+        m.attention_end             = m.patient_flyweight_->clk->now() + m.patient_flyweight_->doctors->get_attention_duration(doctor_assigned);
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -266,18 +266,18 @@ sti::patient_fsm::transition_table create_transition_table()
     ////////////////////////////////////////////////////////////////////////////
 
     auto request_icu = [](fsm& m) {
-        m.patient_flyweight->icu->admission().request_bed(m.patient->getId());
+        m.patient_flyweight_->icu->admission().request_bed(m.patient->getId());
     };
 
     auto icu_available = [](fsm& m) {
         // First "peek" the response without removing it. Only remove the
         // response from the pool if the response is affirmative. If a negative
         // response is removed, the "icu_full" guard will never find the response
-        const auto peek_response = m.patient_flyweight->icu->admission().peek_response(m.patient->getId());
+        const auto peek_response = m.patient_flyweight_->icu->admission().peek_response(m.patient->getId());
 
         if (peek_response.is_initialized()) {
             if (peek_response.get()) {
-                m.patient_flyweight->icu->admission().get_response(m.patient->getId());
+                m.patient_flyweight_->icu->admission().get_response(m.patient->getId());
                 return true;
             }
         }
@@ -289,11 +289,11 @@ sti::patient_fsm::transition_table create_transition_table()
         // response from the pool if the response is negative. If a positive
         // response is removed, the "icu_available" guard will never find the
         // response
-        const auto peek_response = m.patient_flyweight->icu->admission().peek_response(m.patient->getId());
+        const auto peek_response = m.patient_flyweight_->icu->admission().peek_response(m.patient->getId());
 
         if (peek_response.is_initialized()) {
             if (!peek_response.get()) {
-                m.patient_flyweight->icu->admission().get_response(m.patient->getId());
+                m.patient_flyweight_->icu->admission().get_response(m.patient->getId());
                 return true;
             }
         }
@@ -301,17 +301,17 @@ sti::patient_fsm::transition_table create_transition_table()
     };
 
     auto set_icu_destination = [](fsm& m) {
-        m.destination = m.patient_flyweight->hospital->icu().location.continuous();
+        m.destination = m.patient_flyweight_->hospital->icu().location.continuous();
     };
 
     auto enter_icu = [](fsm& m) {
-        m.patient_flyweight->icu->get_real_icu()->get().insert(m.patient);
+        m.patient_flyweight_->icu->get_real_icu()->get().insert(m.patient);
         m.patient->get_infection_logic()->mode(sti::human_infection_cycle::MODE::COMA);
-        m.attention_end = m.patient_flyweight->clk->now() + boost::get<sti::triage::icu_diagnosis>(m.diagnosis).sleep_time;
+        m.attention_end = m.patient_flyweight_->clk->now() + boost::get<sti::triage::icu_diagnosis>(m.diagnosis).sleep_time;
     };
 
     auto leave_icu = [](fsm& m) {
-        m.patient_flyweight->icu->get_real_icu()->get().remove(m.patient);
+        m.patient_flyweight_->icu->get_real_icu()->get().remove(m.patient);
         m.patient->get_infection_logic()->mode(sti::human_infection_cycle::MODE::NORMAL);
     };
 
@@ -332,7 +332,7 @@ sti::patient_fsm::transition_table create_transition_table()
     ////////////////////////////////////////////////////////////////////////////
 
     auto set_exit_motive_and_destination = [](fsm& m) {
-        m.destination = m.patient_flyweight->hospital->exit().location.continuous();
+        m.destination = m.patient_flyweight_->hospital->exit().location.continuous();
         m.last_state  = state_2_string(m.current_state);
     };
 
@@ -536,7 +536,7 @@ sti::patient_fsm::exit_list create_exit_actions()
 
     // Set the exit action for the corresponding states
     auto release_chair = [](fsm& m) {
-        m.patient_flyweight->chairs->release_chair(m.destination);
+        m.patient_flyweight_->chairs->release_chair(m.destination);
     };
 
     // Return the chairs
@@ -546,18 +546,18 @@ sti::patient_fsm::exit_list create_exit_actions()
 
     // Release the reception
     exits[STATE::WAIT_IN_RECEPTION] = [](fsm& m) {
-        m.patient_flyweight->reception->dequeue(m.patient->getId());
+        m.patient_flyweight_->reception->dequeue(m.patient->getId());
     };
 
     // Release the triage
     exits[STATE::WAIT_IN_TRIAGE] = [](fsm& m) {
-        m.patient_flyweight->triage->dequeue(m.patient->getId());
+        m.patient_flyweight_->triage->dequeue(m.patient->getId());
     };
 
     // Dequeue from the doctor
     auto dequeue_from_doctor = [](fsm& m) {
         const auto doctor_assigned = boost::get<sti::triage::doctor_diagnosis>(m.diagnosis).doctor_assigned;
-        m.patient_flyweight->doctors->queues()->dequeue(doctor_assigned, m.patient->getId());
+        m.patient_flyweight_->doctors->queues()->dequeue(doctor_assigned, m.patient->getId());
     };
 
     exits[STATE::NO_ATTENTION]   = dequeue_from_doctor;
@@ -580,7 +580,7 @@ sti::patient_fsm::flyweight::flyweight()
 /// @param fw The patient flyweight
 /// @param patient The patient associated with this FSM
 sti::patient_fsm::patient_fsm(patient_flyweight_ptr fw, patient_agent* patient)
-    : patient_flyweight { fw }
+    : patient_flyweight_ { fw }
     , patient { patient }
     , current_state(STATE::ENTRY)
     , destination {}
@@ -600,14 +600,14 @@ void sti::patient_fsm::tick()
     // The logic is: iterate over the current state looking for a guard
     // returning true, when found, execute the exit action (if any), then
     // execute the transition action, and finally update the state and return
-    for (const auto& transition : patient_flyweight->fsm.transitions.at(current_state)) {
+    for (const auto& transition : patient_flyweight_->fsm.transitions.at(current_state)) {
 
         // Guard triggered, execute the plan
         if (transition.guard(*this)) {
 
             // Execute the exit action
-            if (patient_flyweight->fsm.exits.find(current_state) != patient_flyweight->fsm.exits.end()) {
-                patient_flyweight->fsm.exits.at(current_state)(*this);
+            if (patient_flyweight_->fsm.exits.find(current_state) != patient_flyweight_->fsm.exits.end()) {
+                patient_flyweight_->fsm.exits.at(current_state)(*this);
             }
 
             // Execute the transition action
@@ -616,8 +616,8 @@ void sti::patient_fsm::tick()
             // Update the state, run the entry action and break the loop to
             // avoid checking fot guards in the new state
             current_state = transition.destination;
-            if (patient_flyweight->fsm.entries.find(current_state) != patient_flyweight->fsm.entries.end()) {
-                patient_flyweight->fsm.entries.at(current_state)(*this);
+            if (patient_flyweight_->fsm.entries.find(current_state) != patient_flyweight_->fsm.entries.end()) {
+                patient_flyweight_->fsm.entries.at(current_state)(*this);
             }
             break;
         }

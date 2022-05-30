@@ -123,8 +123,8 @@ struct patient_fsm {
         ar& diagnosis;
     } // void serialize()
 
-    patient_flyweight* patient_flyweight;
-    patient_agent*     patient;
+    patient_flyweight_ptr patient_flyweight_;
+    patient_agent*        patient;
 
     // Internal serializable state
     STATE                    current_state;
